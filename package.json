@@ -13,7 +13,7 @@
     "typecheck": "tsc -p packages/core && tsc -p packages/client --noEmit",
     "bench": "bun packages/core/bench/bench.ts",
     "validate:tracks": "bun packages/core/tools/validate-tracks.ts",
-    "server": "bun packages/server/src/main.ts",
+    "server": "bun packages/server/src/cli.ts",
     "desktop": "bun run --cwd apps/desktop dev",
     "dist:win": "bun run --cwd apps/desktop dist:win"
   },

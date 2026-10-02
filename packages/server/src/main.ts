@@ -8,6 +8,7 @@ export interface ServerHandle { port: number; room: Room; close(): void }
 export function startServer(port = LAN_PORT, log: (m: string) => void = console.log): ServerHandle {
   const room = new Room(undefined, log);
   const wss = new WebSocketServer({ port, perMessageDeflate: { threshold: 256, zlibDeflateOptions: { level: 3 } } });
+  wss.on('error', (e: Error & { code?: string }) => log(e.code === 'EADDRINUSE' ? `El puerto ${port} ya está en uso: ¿hay otra partida abierta en este PC?` : 'Error del servidor: ' + e.message));
   let nextId = 1;
   wss.on('connection', (ws: WebSocket) => {
     const conn: Conn = { id: nextId++, send: (m) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m)); }, close: () => ws.close() };
@@ -31,4 +32,3 @@ export function startServer(port = LAN_PORT, log: (m: string) => void = console.
   return { port, room, close: () => { clearInterval(timer); wss.close(); } };
 }
 
-if (import.meta.main) startServer(Number(process.env.PORT ?? LAN_PORT));

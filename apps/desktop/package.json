@@ -1,0 +1,34 @@
+{
+  "name": "@jpkart/desktop",
+  "version": "0.2.0",
+  "private": true,
+  "description": "JP Kart — juego de karts pixel art para jugar en LAN",
+  "author": "JP Kart",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "build:main": "bun build src/main.ts --target=node --format=cjs --outfile=dist/main.cjs --external electron --external bufferutil --external utf-8-validate && bun build src/preload.ts --target=node --format=cjs --outfile=dist/preload.cjs --external electron",
+    "build:renderer": "bun run --cwd ../../packages/client build -- --outDir ../../apps/desktop/dist/renderer --emptyOutDir",
+    "build": "bun run build:renderer && bun run build:main && bun scripts/icon.ts",
+    "dev": "bun run build:main && electron . --dev",
+    "dist:win": "bun run build && electron-builder --win portable --x64"
+  },
+  "dependencies": {
+    "@jpkart/core": "workspace:*",
+    "@jpkart/server": "workspace:*",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.jpkart.game",
+    "productName": "JP Kart",
+    "directories": { "output": "release" },
+    "files": ["dist/**", "package.json"],
+    "asar": true,
+    "icon": "build/icon.png",
+    "win": { "target": [{ "target": "portable", "arch": ["x64"] }], "artifactName": "JP-Kart-${version}-portable.exe" },
+    "portable": { "unicode": true }
+  }
+}

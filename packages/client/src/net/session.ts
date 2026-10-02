@@ -6,6 +6,16 @@ import {
 
 export type NetStatus = 'connecting' | 'lobby' | 'race' | 'closed';
 
+/** Desktop app bridge (apps/desktop/src/preload.ts); undefined in the browser. */
+export interface DesktopBridge {
+  host(name: string): Promise<{ port: number; addresses: string[] }>;
+  stopHost(): Promise<boolean>;
+  discover(): Promise<{ name: string; address: string; port: number; players: number }[]>;
+  read(key: string): Promise<string | null>;
+  write(key: string, value: string): Promise<boolean>;
+}
+export const desktop = (): DesktopBridge | undefined => (globalThis as { jpkartDesktop?: DesktopBridge }).jpkartDesktop;
+
 export class NetSession {
   ws: WebSocket | null = null;
   status: NetStatus = 'connecting';
