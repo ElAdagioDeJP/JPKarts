@@ -1,7 +1,7 @@
 // Game modes as rules: { endCondition, scoring }. Adding a mode = one defineMode() call.
 import { POINTS } from '../data/tracks';
 import { isHuman } from './helpers';
-import type { KartId, World } from './types';
+import type { Kart, KartId, World } from './types';
 
 export interface ModeDef {
   id: string;
@@ -18,6 +18,12 @@ export interface ModeDef {
   tick?(w: World): void;
   /** laps for `players` karts (elimination: players − 1) */
   laps?(players: number): number;
+  /** ranking order (default: race progress) */
+  rank?(a: Kart, b: Kart): number;
+  /** AI: a point to chase instead of the racing line (rivals, the flag), or null */
+  aiTarget?(w: World, k: Kart): [number, number] | null;
+  /** played on arenas (ALL_TRACKS entries with `arena`) instead of race tracks */
+  arena?: boolean;
   /** points per kart for the final order (cup modes) */
   scoring?(w: World, order: KartId[]): Map<KartId, number>;
 }

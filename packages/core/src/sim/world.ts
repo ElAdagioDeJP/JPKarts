@@ -12,7 +12,7 @@ import './hazards';
 import { spawnTrackCoins } from './coins';
 import { spawn, updateEntities, zoneAt } from './entities';
 import { isTimed, spawnStaticHazards, spawnTimedHazard, hazardFamily, type HazardSpec } from './hazards';
-import { charOf, emit, isHuman, kartById, ouch } from './helpers';
+import { bumpHooks, charOf, emit, isHuman, kartById, ouch } from './helpers';
 import { giveItem, rollItem, useItem } from './items';
 import '../items';
 import '../modes';
@@ -31,7 +31,7 @@ function makeKart(w: World, id: number, ch: number, ctrl: Ctrl, g: number, aiDif
     hold: 0, sv: 0, backT: 0, lastLap: 1, rb: ai ? ai.speed : 1, lapStart: 0, best: null, respawn: 0, off: 0, rank: g, padT: 0,
     fx: [], lapFly: 0,
     spinK: T.driving.spinDecay, invuln: 0, wallT: 0, wallCD: 0, slip: 0, trickT: 0, trick: false, trickBig: false, dPrev: false, dLvl: 0,
-    pressCd: -1, burnout: 0, heavyT: 0, lastItem: null, lat, surf: null, ai, stuckT: 0, coins: 0, itemN: 0, team: w.cfg.teams ? (w.cfg.grid[g]?.team ?? g % 2) : -1, out: false,
+    pressCd: -1, burnout: 0, heavyT: 0, lastItem: null, lat, surf: null, ai, stuckT: 0, coins: 0, itemN: 0, team: w.cfg.teams ? (w.cfg.grid[g]?.team ?? g % 2) : -1, out: false, balloons: 0, score: 0,
   };
 }
 
@@ -132,7 +132,7 @@ const byRank = (a: Kart, b: Kart) => {
   return b.prog - a.prog;
 };
 export function rankList(w: World): Kart[] {
-  return w.karts.slice().sort(byRank);
+  return w.karts.slice().sort(modeOf(w).rank ?? byRank);
 }
 
 function respawnKart(w: World, k: Kart) {
@@ -477,6 +477,7 @@ function updateRace(w: World, inputs: readonly Input[], dt: number) {
         const ex = B.weightPush * B.size * Math.abs(dw) * (cls === 'ligero' ? WG.lightPushMul : cls === 'pesado' ? WG.heavyPushMul : 1);
         light.x += nx * s * ex; light.y += ny * s * ex; light.speed *= B.lightSlow;
       }
+      for (const h of bumpHooks) h(w, a, b);
       eachFx(a, (fd) => fd.bumpPush?.(a, nx, ny, -1));
       eachFx(b, (fd) => fd.bumpPush?.(b, nx, ny, 1));
       emit(w, { type: 'bump', a: a.id, b: b.id });

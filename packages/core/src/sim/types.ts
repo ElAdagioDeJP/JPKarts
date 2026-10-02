@@ -85,8 +85,12 @@ export interface Kart {
   itemN: number;
   /** team (0/1) when the race has teams, else -1 */
   team: number;
-  /** knocked out (elimination); removed from the track */
+  /** knocked out (elimination, battle); removed from the track */
   out: boolean;
+  /** battle: balloons left */
+  balloons: number;
+  /** capture: seconds holding the flag */
+  score: number;
 }
 
 /** Any world entity (projectile, trap, hazard). Flat numeric fields so it serializes trivially. */
@@ -139,6 +143,10 @@ export type GameEvent =
   | { type: 'catch'; kart: KartId }
   | { type: 'eliminated'; kart: KartId; left: number }
   | { type: 'elimWarn'; kart: KartId }
+  | { type: 'balloon'; kart: KartId; left: number; by: KartId }
+  | { type: 'balloonSteal'; kart: KartId; from: KartId }
+  | { type: 'flagGet'; kart: KartId }
+  | { type: 'flagDrop'; kart: KartId }
   | { type: 'lap'; kart: KartId; lap: number; final: boolean }
   | { type: 'finish'; kart: KartId; time: number }
   | { type: 'flash'; color: string }
