@@ -103,20 +103,24 @@ Si una fase supera un presupuesto, no se cierra: se perfila, se arregla el mayor
 ## Fase 4 — Vertical slice A: jugabilidad (greybox)
 **Objetivo:** probar de punta a punta la nueva jugabilidad en **una pista autorada: Playa Coco v2**. Cubre marea entre vueltas, agua (caída), olas temporizadas y un atajo con riesgo. Arte en greybox: sirve el del legacy.
 **Skills:** `prototype-fast`, `physics-tuning`, `input-systems`, `game-ai`, `ai-behavior-trees-utility-ai`, `level-design`, `procedural-gen`.
-- [ ] Brief de prototipo (`prototype-fast`): pregunta, criterios para quedarse/descartar, timebox. Se escribe aquí antes de empezar.
-- [ ] Formato de pista autorada + bake (#34), atajos (#39), editor/visor debug (#36), validador en CI (#35).
-- [ ] Conducción v2 (#10–#17): drift de 3 niveles, turbo de salida, trucos, rebufo, muros, golpes por niveles, superficies (barro, charco), clases de peso.
-- [ ] Reparto de objetos v2 (#8) y `incoming` (#9).
-- [ ] **3 objetos nuevos:** Muelle (#19), Mina (#20), Escudo Reflector (#21).
-- [ ] IA por capas (#43, #44, #45, #46, #47, #48) con overlay F4.
-- [ ] Peligro temporizado (olas, #37) y cambio entre vueltas (marea, #38).
+- [x] Brief de prototipo (`prototype-fast`):
+  - **Pregunta:** ¿la conducción v2 + IA por capas + una pista con intención de diseño hacen las carreras más ricas sin perder la sencillez del legacy?
+  - **Quedarse si:** la IA completa la pista sola, el humano de referencia gana a veces sin ganar siempre (top 4 en 40–70 %), y cada mecánica nueva aparece en una carrera normal.
+  - **Descartar/ajustar si:** la IA se atasca, una mecánica no ocurre nunca o domina la carrera.
+  - **Timebox:** una sesión. Resultado: **quedarse**; el ajuste fino queda para el playtest humano.
+- [x] Formato de pista autorada + bake (#34): `core/data/tracks/*.json` (spline centrípeta, secciones con intención, muros, superficies, rampas, atajos, peligros, agua), constructor en `core/src/track/authored.ts`. Atajos reales (#39): el muelle ahorra ~1,3 s. Editor/visor debug (#36): **F3** (vista cenital, arrastrar puntos de control y guardar con S, vía el servidor de dev). Validador (#35): `bun run validate:tracks`.
+- [x] Conducción v2 (#10–#17): drift de 3 niveles (azul/naranja/morado), turbo de salida por ventanas + quemar rueda, trucos en el despegue, rebufo, muros con rebote y aturdimiento, golpes leve/normal/fuerte con invulnerabilidad 1 s y recuperación activa, superficies (arena, barro, charco), clases de peso en choques y recuperación. Además: **recuperación por atasco** (la IA a los 3 s, el humano a los 6 s).
+- [x] Reparto de objetos v2 (#8): enfriamiento global de tier alto, sin repetición y el líder sin objetos fuertes. `incoming` (#9) + indicador en el HUD.
+- [x] **3 objetos nuevos:** Muelle (#19), Mina (#20), Escudo Reflector (#21). Ya son 18 objetos.
+- [x] IA por capas (#43–#48): racing line de mínima curvatura, velocidad objetivo según la tasa de giro de cada kart con frenada anticipada, táctica utility a 5 Hz con histéresis (adelantar, bloquear, esquivar, rebufo, atajos), drift y trucos, errores simulados, `aiScore` por objeto, personalidades (JSON), dificultad por kart, rubber-band acotado (±3–6 %, apagado en el último 15 %). Overlay **F4**.
+- [x] Peligro temporizado (olas con aviso de 1,2 s, #37) y marea que sube por vuelta del líder (#38). El agua se dibuja como plano animado a su nivel.
 
 **Terminado cuando:**
-- Playa Coco v2 pasa el validador: la IA difícil completa 3 vueltas con 3 semillas y la vuelta media cae en 50–60 s.
-- Cada mecánica nueva tiene test de replay.
-- La IA Normal termina en el top 4 en el 40–70 % de 20 carreras simuladas, contra una IA "humano de referencia" (Difícil sin rubber-band).
-- Playtest con ≥ 2 personas sin explicarles nada, con una decisión **quedarse/descartar/ajustar** anotada por mecánica.
-- Bench dentro del presupuesto.
+- Playa Coco v2 pasa el validador: la IA difícil completa 3 vueltas con 3 semillas y la vuelta media cae en 50–60 s. ✅ 51,5 s.
+- Cada mecánica nueva tiene test de replay. ✅ Escenario dorado sobre Playa Coco v2 (trayectoria bloqueada bit a bit) + `test/mechanics.test.ts`, que exige marea, olas, muros, trucos, rebufo, drift, turbo de salida, incoming, muelle, mina, reflector y explosión. Más un test de drift de nivel 3.
+- La IA Normal termina en el top 4 en el 40–70 % de 20 carreras simuladas, contra una IA "humano de referencia" (Difícil sin rubber-band). ✅ El humano de referencia queda top 4 en el **50 %** (`core/tools/ai-balance.ts`).
+- Playtest con ≥ 2 personas sin explicarles nada, con una decisión quedarse/descartar/ajustar anotada por mecánica. ⏳ **Pendiente de prueba humana** (no se puede automatizar).
+- Bench dentro del presupuesto. ✅ p95 0,075 ms/tick.
 
 > Prompt: "Ejecuta la Fase 4 de docs/PLAN.md siguiendo el orden de ataque de docs/MECHANICS_BACKLOG.md."
 

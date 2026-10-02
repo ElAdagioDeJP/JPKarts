@@ -25,19 +25,22 @@ export interface AiState {
   mistake: number;
   /** base speed multiplier of this AI (difficulty) */
   speed: number;
+  /** difficulty index of this AI (defaults to the race difficulty) */
+  diff: number;
 }
 
 export interface AiDebug { act: AiAct; scores: Record<string, number>; tx: number; ty: number; vt: number; item: number }
 /** Debug only (F4 overlay). Written by the AI, never read by the simulation. */
 export const aiDebug = new Map<number, AiDebug>();
 
-export const aiDiff = (w: World) => T.ai.difficulty[w.cfg.diff]!;
+/** Difficulty parameters of a kart's AI (or the race's when no kart is given). */
+export const aiDiff = (w: World, k?: Kart) => T.ai.difficulty[k?.ai?.diff ?? w.cfg.diff]!;
 const persona = (k: Kart) => T.ai.personality[CHARS[k.ch]!.personality];
 const yawRate = (k: Kart) => T.driving.steer.rate * CHARS[k.ch]!.hnd * 0.92;
 
-export function newAiState(w: World): AiState {
-  const D = aiDiff(w);
-  return { act: 'linea', tOff: 0, noise: 0, branch: -1, decided: -1, mistake: 0, speed: w.rng.range(D.speed[0]!, D.speed[1]!) };
+export function newAiState(w: World, diff = w.cfg.diff): AiState {
+  const D = T.ai.difficulty[diff]!;
+  return { act: 'linea', tOff: 0, noise: 0, branch: -1, decided: -1, mistake: 0, speed: w.rng.range(D.speed[0]!, D.speed[1]!), diff };
 }
 
 /** Signed distance along the track from a to b (samples), in (-N/2, N/2]. */
@@ -100,7 +103,7 @@ export const rankRel = (w: World, k: Kart) => (w.karts.length > 1 ? k.rank / (w.
 
 // ---------------- tactics ----------------
 function think(w: World, k: Kart, dbg: AiDebug) {
-  const tr = w.track, line = tr.line!, A = T.ai, P = persona(k), D = aiDiff(w), s = k.ai!;
+  const tr = w.track, line = tr.line!, A = T.ai, P = persona(k), D = aiDiff(w, k), s = k.ai!;
   const myLat = lateralAt(tr, k.idx, k.x, k.y), lineOff = line.off[k.idx]!;
   const scores: Record<AiAct, number> = { linea: 0.5, adelantar: 0, bloquear: 0, esquivar: 0, rebufo: 0 };
   const tOff: Record<AiAct, number> = { linea: 0, adelantar: 0, bloquear: 0, esquivar: 0, rebufo: 0 };
@@ -173,7 +176,7 @@ function aimPoint(w: World, k: Kart, look: number): [number, number] {
 
 /** One tick of AI driving. */
 export function aiInput(w: World, k: Kart): Input {
-  const tr = w.track, line: RacingLine = tr.line!, A = T.ai, D = aiDiff(w), s = k.ai!;
+  const tr = w.track, line: RacingLine = tr.line!, A = T.ai, D = aiDiff(w, k), s = k.ai!;
   let dbg = aiDebug.get(k.id);
   if (!dbg) { dbg = { act: 'linea', scores: {}, tx: 0, ty: 0, vt: 0, item: 0 }; aiDebug.set(k.id, dbg); }
   if ((w.tick + k.id * 3) % Math.round(60 / A.tacticsHz) === 0) think(w, k, dbg);
@@ -198,6 +201,8 @@ export function aiInput(w: World, k: Kart): Input {
   } else d = curveAhead > DR.curveIn && k.speed > DR.minSpeed && s.branch < 0;
   let steer = clamp(diffA * 2.6, -1, 1);
   if (!k.drift && d) steer = sign || Math.sign(diffA) || 1;
+  // tricks: Normal and Hard always trick on take-off, Easy one jump in three
+  if (k.air && k.trickT > 0 && !k.trick && (s.diff > 0 || (w.tick + k.id) % 3 === 0)) d = true;
   if (s.mistake > 0) { s.mistake -= 1 / 60; steer = clamp(steer + (w.tick % 40 < 20 ? 0.6 : -0.6), -1, 1); t = Math.min(t, 0.5); }
   dbg.act = s.act; dbg.tx = tx; dbg.ty = ty; dbg.vt = vt;
   void cornerSpeed; void diffA;
@@ -209,7 +214,7 @@ export function aiInput(w: World, k: Kart): Input {
 export function aiItems(w: World, k: Kart, dt: number) {
   if (!k.item || k.roll > 0 || k.finished || k.spin > 0) return;
   k.hold += dt;
-  const D = aiDiff(w), def = itemDef(k.item);
+  const D = aiDiff(w, k), def = itemDef(k.item);
   if (k.hold < D.reaction) return;
   if (def.aiNotWhenFirst && k.rank === 0) return;
   const score = def.aiScore ? def.aiScore(w, k) : defaultScore(w, k, def.role);
@@ -232,7 +237,7 @@ export function defaultScore(w: World, k: Kart, role: string): number {
 
 /** Rubber band v2: bounded speed multiplier against the best human; never repositions karts. */
 export function rubberBand(w: World, k: Kart, bestHumanProg: number | null): number {
-  const D = aiDiff(w), R = T.ai.rubberBand, N = w.track.N;
+  const D = aiDiff(w, k), R = T.ai.rubberBand, N = w.track.N;
   if (bestHumanProg == null) return 1;
   const lastLapCut = w.cfg.laps * N - N * R.offLastLapFrac;
   if (bestHumanProg >= lastLapCut) return 1;

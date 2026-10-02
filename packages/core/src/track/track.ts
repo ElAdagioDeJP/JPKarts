@@ -359,7 +359,7 @@ export function surfaceAt(tr: Track, i: number, lat: number): SurfaceKind | null
 export class TrackCache {
   private all: Track[];
   private builtQ: Track[] = [];
-  constructor(defs: (TrackDef | AuthoredTrackDef)[], prepAuthored?: (d: AuthoredTrackDef) => Track) {
+  constructor(defs: (TrackDef | AuthoredTrackDef)[], private prepAuthored?: (d: AuthoredTrackDef) => Track) {
     this.all = defs.map((d) => ('spline' in d ? prepAuthored!(d) : prepTrack(d)));
   }
   get(i: number): Track {
@@ -367,6 +367,15 @@ export class TrackCache {
   }
   get list(): readonly Track[] {
     return this.all;
+  }
+  /** Dev editor: rebuild an authored track after its definition changed. */
+  rebuildAuthored(i: number): Track | null {
+    const old = this.all[i];
+    if (!old?.authored || !this.prepAuthored) return null;
+    const t = this.prepAuthored(old.authored);
+    this.all[i] = t;
+    this.builtQ = this.builtQ.filter((x) => x !== old);
+    return this.ensureBuilt(i);
   }
   ensureBuilt(i: number, keep: Track[] = []): Track {
     const t = this.all[i]!;

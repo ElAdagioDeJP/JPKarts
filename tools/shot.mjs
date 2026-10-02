@@ -7,6 +7,8 @@ const out = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[
 const webgl = process.argv.includes('--webgl');
 const raceArg = process.argv.find((a) => a.startsWith('--race-seconds='));
 const raceSeconds = raceArg ? Number(raceArg.split('=')[1]) : 6;
+const slotArg = process.argv.find((a) => a.startsWith('--track-slot='));
+const trackSlot = slotArg ? Number(slotArg.split('=')[1]) : 0;
 fs.mkdirSync(out, { recursive: true });
 
 const launchOpts = { headless: true, args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-angle=d3d11', '--ignore-gpu-blocklist'] };
@@ -28,8 +30,10 @@ await key('ArrowDown'); // carrera libre
 await key('Enter'); // → select
 await page.screenshot({ path: `${out}/02-select.png` });
 await key('Enter'); // → track
+await key('ArrowRight', trackSlot);
 await page.screenshot({ path: `${out}/03-track.png` });
-await key('Enter'); // start race (track 0, built)
+await key('Enter'); // start race
+await page.waitForFunction(() => window.__jpkart.state === 'race', null, { timeout: 60000 });
 await page.waitForTimeout(1500);
 await page.screenshot({ path: `${out}/04-countdown.png` });
 await page.keyboard.down('ArrowUp');
@@ -45,6 +49,7 @@ await key('F2');
 await page.waitForTimeout(1500);
 const stats = await page.evaluate(() => { const g = window.__jpkart; return { fps: g.fps, sim: g.simMs, render: g.renderMs, state: g.state, phase: g.world?.phase, speed: g.local?.speed, prog: g.local?.prog, rank: g.local?.rank }; });
 await page.screenshot({ path: `${out}/07-perf.png` });
+if (process.argv.includes('--debug')) { await key('F2'); await key('F3'); await key('F4'); await page.waitForTimeout(800); await page.screenshot({ path: `${out}/08-debug.png` }); await key('F3'); await key('F4'); }
 await page.keyboard.up('ArrowUp');
 await key('KeyP'); // pause so the replay and the hash describe the same tick
 const dbg = await page.evaluate(() => window.__jpkart.debugReplay());

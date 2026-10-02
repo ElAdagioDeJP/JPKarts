@@ -1,5 +1,5 @@
 // Track textures and scenery placement (ported from legacy buildTexture / buildSky / buildScenery).
-import { BW, HM, ROAD, TS, type Track, clamp, dgAt, hAt, lerp, liqAt, mulberry, wrapA } from '@jpkart/core';
+import { BW, ROAD, type Track, clamp, dgAt, hAt, lerp, liqAt, mulberry, wgAt, wrapA } from '@jpkart/core';
 import { BAYER, OUT, hexRGB, shade, toU32 } from '../art/pixel';
 import { DH } from '../art/sprites';
 
@@ -7,6 +7,7 @@ export const F = 320; // focal length in world pixels (legacy)
 
 /** Ground color texture (TS×TS RGBA), legacy `buildTexture`. */
 export function buildGroundTexture(tr: Track): Uint8Array<ArrayBuffer> {
+  const TS = tr.size, HM = tr.res;
   const th = tr.th, c = document.createElement('canvas');
   c.width = c.height = TS;
   const g = c.getContext('2d', { willReadFrequently: true })!;
@@ -55,16 +56,18 @@ export function buildGroundTexture(tr: Track): Uint8Array<ArrayBuffer> {
     g.strokeStyle = th.curbA; g.lineWidth = BW * 2 + 10; g.stroke(bp); g.setLineDash([8, 8]); g.strokeStyle = '#ffe45e'; g.stroke(bp); g.setLineDash([]);
     g.strokeStyle = shade(th.road, 0.9); g.lineWidth = BW * 2; g.stroke(bp);
   }
-  g.strokeStyle = shade(th.edge, 0.8); g.lineWidth = ROAD * 2 + 30; g.stroke(path);
-  g.strokeStyle = th.edge; g.lineWidth = ROAD * 2 + 24; g.stroke(path);
-  g.strokeStyle = th.curbA; g.lineWidth = ROAD * 2 + 10; g.stroke(path);
-  g.setLineDash([8, 8]); g.strokeStyle = th.curbB; g.stroke(path); g.setLineDash([]);
-  g.strokeStyle = shade(th.road, 0.8); g.lineWidth = ROAD * 2 + 2; g.stroke(path);
-  g.strokeStyle = th.road; g.lineWidth = ROAD * 2; g.stroke(path);
+  if (!tr.authored) {
+    g.strokeStyle = shade(th.edge, 0.8); g.lineWidth = ROAD * 2 + 30; g.stroke(path);
+    g.strokeStyle = th.edge; g.lineWidth = ROAD * 2 + 24; g.stroke(path);
+    g.strokeStyle = th.curbA; g.lineWidth = ROAD * 2 + 10; g.stroke(path);
+    g.setLineDash([8, 8]); g.strokeStyle = th.curbB; g.stroke(path); g.setLineDash([]);
+    g.strokeStyle = shade(th.road, 0.8); g.lineWidth = ROAD * 2 + 2; g.stroke(path);
+    g.strokeStyle = th.road; g.lineWidth = ROAD * 2; g.stroke(path);
+  } else paintAuthoredRoad(g, tr);
   g.fillStyle = th.road2;
   for (let i = 0; i < tr.N; i++)
     for (let k = 0; k < (th.ice ? 3 : 8); k++) {
-      const l = (R() * 2 - 1) * (ROAD - 3), a = tr.ang[i]!;
+      const l = (R() * 2 - 1) * (tr.wd[i]! - 3), a = tr.ang[i]!;
       if (th.ice) g.fillRect((tr.x[i]! - Math.sin(a) * l) | 0, (tr.y[i]! + Math.cos(a) * l) | 0, 6, 1);
       else g.fillRect((tr.x[i]! - Math.sin(a) * l) | 0, (tr.y[i]! + Math.cos(a) * l) | 0, 2, 2);
     }
@@ -74,13 +77,14 @@ export function buildGroundTexture(tr: Track): Uint8Array<ArrayBuffer> {
     const cu = Math.abs(wrapA(tr.ang[(i + 4) % tr.N]! - tr.ang[(i - 4 + tr.N) % tr.N]!));
     if (cu < 0.18) continue;
     const a = tr.ang[i]!;
-    for (const l of [-20, -14, 12, 18]) { const o = l + Math.sin(i * 0.3) * 3; g.fillRect((tr.x[i]! - Math.sin(a) * o - 1) | 0, (tr.y[i]! + Math.cos(a) * o - 1) | 0, 3, 3); }
+    const sk = tr.wd[i]! / ROAD;
+    for (const l0 of [-20, -14, 12, 18]) { const l = l0 * sk, o = l + Math.sin(i * 0.3) * 3; g.fillRect((tr.x[i]! - Math.sin(a) * o - 1) | 0, (tr.y[i]! + Math.cos(a) * o - 1) | 0, 3, 3); }
   }
   g.setLineDash([10, 14]); g.strokeStyle = th.line; g.lineWidth = 2; g.stroke(path); g.setLineDash([]);
   for (const f of tr.def.ramps) {
-    const i = Math.floor(f * tr.N);
+    const i = Math.floor(f * tr.N), half = Math.ceil(tr.wd[i]! / 7);
     g.save(); g.translate(tr.x[i]!, tr.y[i]!); g.rotate(tr.ang[i]!);
-    for (let s = -6; s < 6; s++) { g.fillStyle = s & 1 ? '#ffe45e' : '#1a1026'; g.fillRect(-14, s * 7, 10, 7); }
+    for (let s = -half; s < half; s++) { g.fillStyle = s & 1 ? '#ffe45e' : '#1a1026'; g.fillRect(-14, s * 7, 10, 7); }
     g.restore();
   }
   for (const p of tr.pads) {
@@ -98,7 +102,8 @@ export function buildGroundTexture(tr: Track): Uint8Array<ArrayBuffer> {
     g.restore();
   }
   g.save(); g.translate(tr.x[0]!, tr.y[0]!); g.rotate(tr.ang[0]!);
-  for (let row = 0; row < 3; row++) for (let col = -6; col < 6; col++) { g.fillStyle = (row + col) & 1 ? '#ffffff' : '#1a1026'; g.fillRect(row * 7 - 10, col * 7, 7, 7); }
+  const sq = Math.ceil(tr.wd[0]! / 7);
+  for (let row = 0; row < 3; row++) for (let col = -sq; col < sq; col++) { g.fillStyle = (row + col) & 1 ? '#ffffff' : '#1a1026'; g.fillRect(row * 7 - 10, col * 7, 7, 7); }
   g.restore();
   // JP logo before the start line
   const li = (tr.N - 14) % tr.N;
@@ -122,10 +127,11 @@ export function buildGroundTexture(tr: Track): Uint8Array<ArrayBuffer> {
       if (L2 && liq[ci]) {
         const nb = (gx > 0 && !liq[ci - 1]) || (gx < HM - 1 && !liq[ci + 1]) || (gy > 0 && !liq[ci - HM]) || (gy < HM - 1 && !liq[ci + HM]);
         const wv = Math.sin(x * 0.09 + Math.sin(y * 0.05) * 2) + Math.sin(y * 0.13);
+        if (tr.water) { const dep = clamp((tr.water.base - hm[ci]!) / 10, 0, 1); tex[p] = toU32(shade(th.ground[0], 0.92 - dep * 0.35)); continue; }
         tex[p] = nb && (x + y) & 3 ? lsh : wv > 1.2 ? lc3 : wv < -0.8 ? lc2 : lc1;
         continue;
       }
-      if (dg[ci]! > ROAD + 16 && tex[p] === gt[0]) { const v = ng[ci]! * 2.2 + BAYER[(y & 3) * 4 + (x & 3)]! - 1.1; if (v > 0.55) tex[p] = gt[2]!; else if (v < -0.45) tex[p] = gt[1]!; }
+      if (dg[ci]! - tr.wg[ci]! > 16 && tex[p] === gt[0]) { const v = ng[ci]! * 2.2 + BAYER[(y & 3) * 4 + (x & 3)]! - 1.1; if (v > 0.55) tex[p] = gt[2]!; else if (v < -0.45) tex[p] = gt[1]!; }
       const fx = (x & 3) / 4, fy = (y & 3) / 4, gx2 = Math.min(HM - 1, gx + 1), gy2 = Math.min(HM - 1, gy + 1);
       const s = lerp(lerp(sg[gy * HM + gx]!, sg[gy * HM + gx2]!, fx), lerp(sg[gy2 * HM + gx]!, sg[gy2 * HM + gx2]!, fx), fy);
       const c0 = tex[p]!, r = Math.min(255, (c0 & 255) * s), gg = Math.min(255, ((c0 >> 8) & 255) * s), b = Math.min(255, ((c0 >> 16) & 255) * s);
@@ -227,10 +233,12 @@ export interface SceneryItem { x: number; y: number; z: number; k: string; h: nu
 
 /** Decorative scenery placement (legacy `buildScenery`). */
 export function buildScenery(tr: Track): SceneryItem[] {
+  const TS = tr.size, HM = tr.res;
   const R = mulberry(tr.N * 13 + 1), out: SceneryItem[] = [], th = tr.th;
   let tries = 0;
-  const free = (x: number, y: number, m: number) => { const i = ((y / 4) | 0) * HM + ((x / 4) | 0); return tr.dg[i]! >= ROAD + m && !tr.liq[i]; };
-  while (out.length < 300 && tries < 5000) {
+  const free = (x: number, y: number, m: number) => { const i = ((y / 4) | 0) * HM + ((x / 4) | 0); return tr.dg[i]! - tr.wg[i]! >= m && !tr.liq[i]; };
+  const density = (TS / 2048) * (TS / 2048);
+  while (out.length < 300 * density && tries < 5000 * density) {
     tries++;
     const x = 30 + R() * (TS - 60), y = 30 + R() * (TS - 60);
     if (!free(x, y, 32)) continue;
@@ -239,7 +247,7 @@ export function buildScenery(tr: Track): SceneryItem[] {
   }
   tries = 0;
   let lmn = 0;
-  while (lmn < 34 && tries < 5000) {
+  while (lmn < 34 * density && tries < 5000 * density) {
     tries++;
     const x = 40 + R() * (TS - 80), y = 40 + R() * (TS - 80);
     if (!free(x, y, 60)) continue;
@@ -251,8 +259,10 @@ export function buildScenery(tr: Track): SceneryItem[] {
   for (let i = 6; i < tr.N - 4; i += 7) {
     const a = tr.ang[i]!;
     for (const s of [-1, 1]) {
-      const l = s * (ROAD + 19), x = tr.x[i]! - Math.sin(a) * l, y = tr.y[i]! + Math.cos(a) * l;
-      if (x < 4 || y < 4 || x > TS - 4 || y > TS - 4 || liqAt(tr, x, y) || dgAt(tr, x, y) < ROAD + 15) continue;
+      if ((s < 0 ? tr.wallL : tr.wallR)[i]) continue; // walls are drawn as railings
+      const l = s * (tr.wd[i]! + 19), x = tr.x[i]! - Math.sin(a) * l, y = tr.y[i]! + Math.cos(a) * l;
+      if (x < 4 || y < 4 || x > TS - 4 || y > TS - 4 || liqAt(tr, x, y) || dgAt(tr, x, y) - wgAt(tr, x, y) < 15) continue;
+      if (tr.water && hAt(tr, x, y) < tr.water.base + 1) continue;
       const k = posts[((i / 7) | 0) % posts.length]!;
       out.push({ x, y, z: hAt(tr, x, y), k, h: DH[k]! });
     }
@@ -265,7 +275,7 @@ export function buildScenery(tr: Track): SceneryItem[] {
 export function buildMinimap(tr: Track): { cv: HTMLCanvasElement; k: number } {
   const S = 56, c = document.createElement('canvas');
   c.width = c.height = S;
-  const g = c.getContext('2d')!, k = S / TS;
+  const g = c.getContext('2d')!, k = S / tr.size;
   const p = new Path2D();
   p.moveTo(tr.x[0]! * k, tr.y[0]! * k);
   for (let i = 1; i < tr.N; i++) p.lineTo(tr.x[i]! * k, tr.y[i]! * k);
@@ -280,3 +290,48 @@ export function buildMinimap(tr: Track): { cv: HTMLCanvasElement; k: number } {
 }
 
 export const fogRGB = (tr: Track) => hexRGB(tr.th.fog);
+
+/** Authored tracks: variable-width road, curbs, shortcuts (wooden pier over water) and surface bands. */
+function paintAuthoredRoad(g: CanvasRenderingContext2D, tr: Track) {
+  const th = tr.th, N = tr.N;
+  const seg = (i: number, width: number, color: string) => {
+    const j = (i + 1) % N;
+    g.strokeStyle = color; g.lineWidth = width;
+    g.beginPath(); g.moveTo(tr.x[i]!, tr.y[i]!); g.lineTo(tr.x[j]!, tr.y[j]!); g.stroke();
+  };
+  for (let i = 0; i < N; i++) seg(i, tr.wd[i]! * 2 + 30, shade(th.edge, 0.8));
+  for (let i = 0; i < N; i++) seg(i, tr.wd[i]! * 2 + 24, th.edge);
+  for (let i = 0; i < N; i++) seg(i, tr.wd[i]! * 2 + 10, (i >> 1) & 1 ? th.curbB : th.curbA);
+  for (let i = 0; i < N; i++) seg(i, tr.wd[i]! * 2 + 2, shade(th.road, 0.8));
+  for (let i = 0; i < N; i++) seg(i, tr.wd[i]! * 2, th.road);
+  // shortcuts: a wooden pier when it crosses water, a dirt path otherwise
+  for (const b of tr.branches) {
+    const bw = (b.w ?? 24) * 2, pier = !!tr.authored!.branches.find((x) => x.risk === 'agua');
+    for (let i = 0; i < b.n - 1; i++) {
+      g.strokeStyle = pier ? '#5a3a24' : shade(th.edge, 0.85); g.lineWidth = bw + 6;
+      g.beginPath(); g.moveTo(b.x[i]!, b.y[i]!); g.lineTo(b.x[i + 1]!, b.y[i + 1]!); g.stroke();
+    }
+    for (let i = 0; i < b.n - 1; i++) {
+      g.strokeStyle = pier ? (i & 1 ? '#a8784a' : '#9a6a40') : shade(th.road, 0.92); g.lineWidth = bw;
+      g.beginPath(); g.moveTo(b.x[i]!, b.y[i]!); g.lineTo(b.x[i + 1]!, b.y[i + 1]!); g.stroke();
+    }
+  }
+  // surface bands
+  const COL: Record<string, [string, string]> = { arena: ['#ecd08c', '#d8b870'], barro: ['#6a4a2a', '#4e3420'], hielo: ['#d8f4ff', '#a8dcf0'], charco: ['#5a9ad0', '#3a7ab0'] };
+  const R = mulberry(tr.N * 5 + 9);
+  for (const s of tr.surfaces) {
+    const [c1, c2] = COL[s.kind] ?? ['#888', '#666'];
+    for (let i = s.i0; i !== s.i1; i = (i + 1) % N) {
+      const a = tr.ang[i]!;
+      for (let l = s.lat0; l <= s.lat1; l += 2) {
+        if (R() < 0.12) continue;
+        g.fillStyle = R() < 0.3 ? c2 : c1;
+        g.fillRect((tr.x[i]! - Math.sin(a) * l) | 0, (tr.y[i]! + Math.cos(a) * l) | 0, 3, 3);
+      }
+    }
+  }
+  g.setLineDash([10, 14]); g.strokeStyle = th.line; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(tr.x[0]!, tr.y[0]!);
+  for (let i = 1; i < N; i++) g.lineTo(tr.x[i]!, tr.y[i]!);
+  g.closePath(); g.stroke(); g.setLineDash([]);
+}

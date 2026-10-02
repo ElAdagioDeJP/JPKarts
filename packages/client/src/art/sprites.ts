@@ -156,6 +156,18 @@ export const ICONS: Record<string, Spr> = {
     miniText(p, '1', 7, 6, OUT);
   }),
 };
+// ---- new items (Phase 4) ----
+ICONS.muelle = mk(16, 16, (p) => { for (let i = 0; i < 4; i++) P.rect(p, 3, 4 + i * 3, 10, 2, i & 1 ? '#9aa0b4' : '#d8dce8'); P.rect(p, 2, 1, 12, 3, cyl('#e8455a')); P.rect(p, 2, 13, 12, 2, '#3a3848'); });
+ICONS.mina = mk(16, 16, (p) => { P.ell(p, 8, 9, 6, 6, sph('#3a3848')); for (const [x, y] of [[8, 2], [2, 9], [14, 9], [8, 15]] as const) P.rect(p, x - 1, y - 1, 2, 2, '#6a7080'); P.rect(p, 7, 6, 2, 2, '#ff3a3a'); });
+ICONS.reflector = mk(16, 16, (p) => { P.ell(p, 8, 8, 7, 7, (dx, dy) => { const d = dx * dx + dy * dy; return d > 0.65 ? '#ffd23a' : d > 0.35 ? '#fff7b0' : (dx + dy < 0 ? '#ffffff' : '#ffe45e'); }); P.line(p, 4, 11, 11, 4, '#c89a1a', 1); });
+export const MINE = [false, true].map((on) => mk(14, 10, (p) => { P.ell(p, 7, 6, 6, 4, sph('#3a3848')); P.rect(p, 6, 2, 2, 2, on ? '#ff3a3a' : '#6a2a2a'); }));
+export const OLA = mk(48, 20, (p) => {
+  for (let x = 0; x < 48; x++) {
+    const h = 8 + Math.round(Math.sin((x / 47) * Math.PI) * 9);
+    for (let y = 20 - h; y < 20; y++) P.set(p, x, y, y < 22 - h ? '#ffffff' : y < 25 - h ? '#bff0ff' : (x + y) % 5 === 0 ? '#58b8f0' : '#2e9ee0');
+  }
+}, true);
+export const REFLECT_RING = mk(44, 44, (p) => P.ell(p, 22, 22, 21, 21, (dx, dy, x, y) => { const d = dx * dx + dy * dy; return d > 0.82 ? ((x! + y!) % 4 < 2 ? '#ffd23a' : '#fff7b0') : 0; }), false);
 export const PUDDLE = mk(24, 8, (p) => P.ell(p, 12, 4, 11.5, 3.5, (dx, dy) => (dx < -0.3 && dy < -0.1 ? '#4a3a60' : '#2a2040')), false);
 export const TARS = mk(40, 12, (p) => { P.ell(p, 20, 6, 19.5, 5.5, (dx, dy) => (dx < -0.4 && dy < -0.2 ? '#3a3038' : '#141014')); for (const [x, y] of [[8, 5], [25, 4], [31, 7], [15, 8]] as const) P.ell(p, x, y, 1.6, 1.1, '#4a4050'); }, false);
 export const SHOT = mk(12, 12, (p) => P.ell(p, 6, 6, 5, 5, sph('#8a90a4')));

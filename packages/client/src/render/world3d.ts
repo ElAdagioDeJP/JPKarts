@@ -1,8 +1,8 @@
 // Three.js (WebGPU) world renderer. Draws the state it receives; owns no game logic.
 import * as THREE from 'three/webgpu';
-import { CHARS, HM, TS, type Track, hAt } from '@jpkart/core';
+import { CHARS, type Track, hAt } from '@jpkart/core';
 import { OUT, hexRGB, shade, type Spr } from '../art/pixel';
-import { BALLS, D, ICONS, PUDDLE, RING, SHOT, TARS, voxelKart } from '../art/sprites';
+import { BALLS, D, ICONS, MINE, OLA, PUDDLE, REFLECT_RING, RING, SHOT, TARS, voxelKart } from '../art/sprites';
 import { F, buildGroundTexture, buildScenery, buildSkyGradient, buildSkyStrip, type SceneryItem } from './trackArt';
 
 export const RW = 640, RH = 360; // internal world resolution (16:9)
@@ -13,9 +13,9 @@ export const KART_VOXEL = 0.7; // world units per voxel: on screen it matches th
 export interface CamView { x: number; y: number; z: number; a: number; hz: number }
 export interface KartView {
   id: number; ch: number; x: number; y: number; z: number; a: number; lean: number;
-  hop: number; spin: number; big: boolean; bubble: boolean; visible: boolean; ground: number; air: boolean;
+  hop: number; spin: number; big: boolean; bubble: boolean; reflect: boolean; visible: boolean; ground: number; air: boolean;
 }
-export interface ThingView { kind: 'box' | 'fake' | 'tar' | 'shot' | 'dron' | 'hole'; x: number; y: number; z: number; f: number }
+export interface ThingView { kind: 'box' | 'fake' | 'tar' | 'shot' | 'dron' | 'hole' | 'mine' | 'ola'; x: number; y: number; z: number; f: number; a?: number }
 
 const spriteTex = new Map<Spr, THREE.Texture>();
 function texOf(s: Spr): THREE.Texture {
@@ -86,7 +86,7 @@ function voxelGeometry(ch: number): THREE.BufferGeometry {
   return g;
 }
 
-interface KartObj { root: THREE.Group; body: THREE.Group; shadow: THREE.Mesh; ring: THREE.Sprite }
+interface KartObj { root: THREE.Group; body: THREE.Group; shadow: THREE.Mesh; ring: THREE.Sprite; refl: THREE.Sprite }
 
 export class WorldRenderer {
   renderer!: THREE.WebGPURenderer;
@@ -104,6 +104,8 @@ export class WorldRenderer {
   private thingPool: THREE.Object3D[] = [];
   private thingUsed = 0;
   private boxSprites: THREE.Sprite[] = [];
+  private water: THREE.Mesh | null = null;
+  private waterTex: THREE.CanvasTexture | null = null;
 
   async init(canvas: HTMLCanvasElement, forceWebGL = false) {
     this.renderer = new THREE.WebGPURenderer({ canvas, antialias: false, forceWebGL });
@@ -122,10 +124,13 @@ export class WorldRenderer {
     for (const o of [...this.trackGroup.children]) { this.trackGroup.remove(o); disposeDeep(o); }
     for (const o of [...this.skyGroup.children]) { this.skyGroup.remove(o); disposeDeep(o); }
     this.boxSprites = [];
+    this.water = null;
     const fog = new THREE.Color(tr.th.fog);
     this.scene.background = fog;
     this.scene.fog = new THREE.Fog(fog, FOG_NEAR, FOG_FAR);
     this.buildTerrain(tr);
+    this.buildWalls(tr);
+    if (tr.water) this.buildWater(tr);
     this.buildSky(tr);
     this.buildSceneryObjs(buildScenery(tr));
     for (const b of tr.boxes) {
@@ -140,6 +145,7 @@ export class WorldRenderer {
 
   private buildTerrain(tr: Track) {
     const data = buildGroundTexture(tr);
+    const TS = tr.size;
     const tex = new THREE.DataTexture(data, TS, TS, THREE.RGBAFormat);
     tex.magFilter = THREE.NearestFilter;
     tex.minFilter = THREE.LinearMipmapLinearFilter;
@@ -147,7 +153,7 @@ export class WorldRenderer {
     tex.anisotropy = 4;
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.needsUpdate = true;
-    const n = HM, pos = new Float32Array(n * n * 3), uv = new Float32Array(n * n * 2);
+    const n = tr.res, pos = new Float32Array(n * n * 3), uv = new Float32Array(n * n * 2);
     for (let j = 0; j < n; j++)
       for (let i = 0; i < n; i++) {
         const k = j * n + i, x = i * 4 + 2, y = j * 4 + 2;
@@ -185,9 +191,72 @@ export class WorldRenderer {
     og.rotateX(-Math.PI / 2);
     let edge = 0, cnt = 0;
     for (let i = 0; i < n; i += 8) for (const k of [i, (n - 1) * n + i, i * n, i * n + n - 1]) { edge += tr.hm[k]!; cnt++; }
-    const outer = new THREE.Mesh(og, new THREE.MeshBasicMaterial({ map: ct }));
-    outer.position.set(TS / 2, edge / cnt - 2, TS / 2);
+    const outer = new THREE.Mesh(og, new THREE.MeshBasicMaterial(tr.water ? { color: new THREE.Color(tr.th.ground[0]).multiplyScalar(0.55) } : { map: ct }));
+    outer.position.set(TS / 2, tr.water ? -14 : edge / cnt - 2, TS / 2);
     this.trackGroup.add(outer);
+  }
+
+  /** Railings along hard walls: a striped ribbon at the road edge. */
+  private buildWalls(tr: Track) {
+    const cv = document.createElement('canvas');
+    cv.width = 8; cv.height = 4;
+    const g = cv.getContext('2d')!;
+    g.fillStyle = tr.th.curbA; g.fillRect(0, 0, 8, 4);
+    g.fillStyle = tr.th.curbB; g.fillRect(0, 0, 4, 4);
+    g.fillStyle = OUT; g.fillRect(0, 0, 8, 1); g.fillRect(0, 3, 8, 1);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false;
+    tex.wrapS = THREE.RepeatWrapping; tex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+    const N = tr.N, H = 5;
+    for (const side of [-1, 1]) {
+      const flags = side < 0 ? tr.wallL : tr.wallR;
+      const pos: number[] = [], uv: number[] = [], idx: number[] = [];
+      let run = false, u = 0;
+      for (let k = 0; k <= N; k++) {
+        const i = k % N, on = !!flags[i];
+        if (on) {
+          const a = tr.ang[i]!, l = side * (tr.wd[i]! + 8), x = tr.x[i]! - Math.sin(a) * l, y = tr.y[i]! + Math.cos(a) * l, z = hAt(tr, x, y);
+          const base = pos.length / 3;
+          pos.push(x, z, y, x, z + H, y);
+          uv.push(u, 0, u, 1);
+          if (run) idx.push(base - 2, base - 1, base, base - 1, base + 1, base);
+          run = true; u += 0.75;
+        } else run = false;
+      }
+      if (!idx.length) continue;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      geo.setIndex(idx);
+      this.trackGroup.add(new THREE.Mesh(geo, mat));
+    }
+  }
+
+  /** Animated sea surface; its height follows the tide (world.water). */
+  private buildWater(tr: Track) {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 64;
+    const g = cv.getContext('2d')!;
+    const L = tr.def.liquid!;
+    g.fillStyle = L.col; g.fillRect(0, 0, 64, 64);
+    for (let y = 0; y < 64; y += 4) for (let x = 0; x < 64; x++) {
+      const v = Math.sin((x / 64) * Math.PI * 4 + y * 0.7) + Math.sin(y * 0.31);
+      if (v > 1.1) { g.fillStyle = L.col3; g.fillRect(x, y, 1, 1); } else if (v < -1.2) { g.fillStyle = L.col2; g.fillRect(x, y, 1, 1); }
+    }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.colorSpace = THREE.SRGBColorSpace;
+    const EXT = 3000, S = tr.size + EXT * 2;
+    tex.repeat.set(S / 96, S / 96);
+    const geo = new THREE.PlaneGeometry(S, S);
+    geo.rotateX(-Math.PI / 2);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.82, depthWrite: false }));
+    mesh.position.set(tr.size / 2, tr.water!.base, tr.size / 2);
+    mesh.renderOrder = 1;
+    this.trackGroup.add(mesh);
+    this.water = mesh;
+    this.waterTex = tex;
   }
 
   private buildSky(tr: Track) {
@@ -246,14 +315,17 @@ export class WorldRenderer {
     const ring = new THREE.Sprite(matOf(RING));
     ring.center.set(0.5, 0.25);
     ring.scale.set(17, 17, 1);
-    this.scene.add(root, shadow, ring);
-    o = { root, body, shadow, ring };
+    const refl = new THREE.Sprite(matOf(REFLECT_RING));
+    refl.center.set(0.5, 0.25);
+    refl.scale.set(19, 19, 1);
+    this.scene.add(root, shadow, ring, refl);
+    o = { root, body, shadow, ring, refl };
     this.kartObjs.set(id, o);
     return o;
   }
 
   clearKarts() {
-    for (const o of this.kartObjs.values()) this.scene.remove(o.root, o.shadow, o.ring);
+    for (const o of this.kartObjs.values()) this.scene.remove(o.root, o.shadow, o.ring, o.refl);
     this.kartObjs.clear();
   }
 
@@ -282,7 +354,7 @@ export class WorldRenderer {
     return o;
   }
 
-  render(cam: CamView, karts: KartView[], things: ThingView[], boxesActive: boolean[], t: number) {
+  render(cam: CamView, karts: KartView[], things: ThingView[], boxesActive: boolean[], t: number, water = 0) {
     const tr = this.track;
     if (!tr) return;
     // camera: level, yaw = cam.a, principal point at (RW/2, hz) — legacy voxel projection
@@ -295,6 +367,7 @@ export class WorldRenderer {
     c.rotation.set(0, -cam.a - Math.PI / 2, 0);
     c.updateProjectionMatrix();
     this.skyGroup.position.set(cam.x, cam.z, cam.y);
+    if (this.water) { this.water.position.y = water; this.waterTex!.offset.set((t * 0.01) % 1, (t * 0.023) % 1); }
     // boxes
     const bf = BALLS[((t * 8) | 0) % 4]!;
     this.boxSprites.forEach((s, i) => {
@@ -311,6 +384,7 @@ export class WorldRenderer {
       seen.add(k.id);
       o.root.visible = o.shadow.visible = k.visible;
       o.ring.visible = k.visible && k.bubble;
+      o.refl.visible = k.visible && k.reflect;
       if (!k.visible) continue;
       const hop = Math.sin(Math.min(1, k.hop / 0.14) * Math.PI) * 3;
       o.root.position.set(k.x, k.z + hop, k.y);
@@ -324,8 +398,9 @@ export class WorldRenderer {
       o.shadow.scale.set(6.5 * sw * sh, 4.2 * sw * sh, 1);
       o.shadow.rotation.set(-Math.PI / 2, 0, -k.a);
       o.ring.position.set(k.x, k.z + hop, k.y);
+      o.refl.position.set(k.x, k.z + hop, k.y);
     }
-    for (const [id, o] of this.kartObjs) if (!seen.has(id)) { o.root.visible = o.shadow.visible = o.ring.visible = false; }
+    for (const [id, o] of this.kartObjs) if (!seen.has(id)) { o.root.visible = o.shadow.visible = o.ring.visible = o.refl.visible = false; }
     // transient things
     this.thingUsed = 0;
     for (const th of things) {
@@ -335,6 +410,8 @@ export class WorldRenderer {
         case 'shot': { const o = this.thing(SHOT, false); o.position.set(th.x, th.z - 3, th.y); o.scale.set(6, 6, 1); break; }
         case 'dron': { const o = this.thing(ICONS.dron!, false); o.position.set(th.x, th.z - 5, th.y); o.scale.set(11, 11, 1); break; }
         case 'hole': { const s = Math.sin(Math.min(1, th.f) * Math.PI) * 80; const o = this.thing(ICONS.agujero!, false); o.position.set(th.x, th.z - 30 + s * 0.25, th.y); o.scale.set(s, s, 1); break; }
+        case 'mine': { const o = this.thing(MINE[th.f > 1 && ((t * 6) | 0) % 2 ? 1 : 0]!, false); o.position.set(th.x, th.z, th.y); o.scale.set(10, 7, 1); break; }
+        case 'ola': { const o = this.thing(OLA, false); o.position.set(th.x, th.z - 1, th.y); o.scale.set(44, 18, 1); break; }
         case 'box': break;
       }
     }
