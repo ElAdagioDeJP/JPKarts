@@ -65,6 +65,8 @@ export class Fx3d {
       case 'shieldPop': if (k) this.p.burst(k.x, k.y, k.z + 7, 16, 50, 0.4, 1.4, ['#8fe0ff', '#ffffff']); break;
       case 'land': if (k && e.hard) this.p.burst(k.x, k.y, k.z, 10, 40, 0.35, 1.4, [w.track.th.ground[0]], 120); break;
       case 'reflect': if (k) this.p.burst(k.x, k.y, k.z + 7, 18, 60, 0.4, 1.4, ['#ffd23a', '#fff7b0']); break;
+      case 'balloon': if (k) this.p.burst(k.x, k.y, k.z + 14, 16, 70, 0.45, 1.5, [CHARS[k.ch]!.helmet, '#ffffff'], 60); break;
+      case 'flagGet': if (k) this.p.burst(k.x, k.y, k.z + 12, 14, 50, 0.5, 1.4, ['#ffd23a', '#ffe45e', '#ffffff']); break;
       case 'coin': if (k) this.p.burst(k.x, k.y, k.z + 8, 6, 30, 0.3, 1, ['#ffd23a', '#fff7b0']); break;
       case 'coinLoss': if (k) this.p.burst(k.x, k.y, k.z + 8, 10 + e.n * 3, 60, 0.5, 1.4, ['#ffd23a', '#c89a1a']); break;
       case 'gust': if (k) for (const side of [-1, 1]) for (let i = 0; i < 12; i++) { const sa = Math.sin(k.a), ca = Math.cos(k.a), d = 8 + Math.random() * 30; this.p.emit(k.x - sa * side * d, k.y + ca * side * d, k.z + 3 + Math.random() * 6, -sa * side * 160, ca * side * 160, 0, 0.35, 1.2, '#e0f8ff'); } break;

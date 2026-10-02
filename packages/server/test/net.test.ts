@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { gzipSync } from 'node:zlib';
 import {
-  ALL_TRACKS, PROTOCOL_VERSION, PredictedRace, TrackCache, datan2, dcos, dsin, handshakeTunables, hashWorld, playReplay, prepAuthored, wrapA,
+  ALL_TRACKS, ARENA_INDICES, PROTOCOL_VERSION, PredictedRace, TrackCache, datan2, dcos, dsin, handshakeTunables, hashWorld, playReplay, prepAuthored, wrapA,
   type ClientMsg, type Input, type LobbySettings, type ServerMsg, type World,
 } from '@jpkart/core';
 
@@ -145,4 +145,10 @@ test('red: Equipos a 150cc — servidor = replay', () => {
   expect(w.cfg.teams).toBe(true);
   expect(w.karts.every((k) => k.team === 0 || k.team === 1)).toBe(true);
   expect(w.cfg.cc).toBe(150);
+}, 120000);
+
+test('red: Batalla de globos en una arena — servidor = replay', () => {
+  const w = modeSmoke({ mode: 'battle', trackIndex: ARENA_INDICES[1]! });
+  expect(w.cfg.mode).toBe('battle');
+  expect(w.karts.some((k) => k.balloons > 0)).toBe(true);
 }, 120000);

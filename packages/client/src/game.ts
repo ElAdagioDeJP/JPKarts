@@ -1,13 +1,13 @@
 // Client orchestrator: screens, fixed-step simulation, camera, event → feedback, HUD.
 import {
-  ALL_TRACKS, CHARS, CLASSES, CLASS_NAMES, CLASSIC_CUPS, CUPS, DIFFS, LAPS, ReplayPlayer, ReplayRecorder, Rng, SIM_DT, STAT_SHORT, TrackCache, prepAuthored,
+  ALL_TRACKS, ARENA_INDICES, CHARS, CLASSES, CLASS_NAMES, CLASSIC_CUPS, CUPS, DIFFS, LAPS, ReplayPlayer, ReplayRecorder, Rng, SIM_DT, STAT_SHORT, TrackCache, prepAuthored,
   classCfg, classUnlocked, cupUnlocked, recordCup, recordRace, POINTS,
   buildGrid, clamp, createWorld, fmtTime, fxOf, hAt, hasFx, hashWorld, modeOf, itemDef, itemList, lerp, step, takeEvents, wrapA,
   type EngineClass, type GameEvent, type Input as SimInput, type Kart, type Progress, type Replay, type StatKey, type Track, type World,
 } from '@jpkart/core';
 import { OUT } from './art/pixel';
 import { hudLines, kartLabel } from './feel/effectView';
-import { THING_ART, orbitArt, type ThingCtx } from './render/thingArt';
+import { THING_ART, balloonArt, orbitArt, type ThingCtx } from './render/thingArt';
 import { DebugOverlay } from './dev/debugOverlay';
 import { ACTION_NAMES, REMAPPABLE } from './input/input';
 import { PAD_NAMES } from './input/gamepad';
@@ -25,8 +25,9 @@ import { H, Ui, W } from './ui/draw';
 import { loadGhost, loadProgress, saveGhost, saveProgress } from './meta/store';
 
 type State = 'title' | 'menu' | 'options' | 'controls' | 'lan' | 'lobby' | 'select' | 'cup' | 'track' | 'loading' | 'race' | 'results' | 'podium' | 'standings' | 'final' | 'replay';
-type Mode = 'free' | 'cup' | 'timetrial' | 'elimination';
-const MODE_ID: Record<Mode, string> = { free: 'race', cup: 'cup', timetrial: 'timetrial', elimination: 'elimination' };
+type Mode = 'free' | 'cup' | 'timetrial' | 'elimination' | 'battle' | 'capture';
+const MODE_ID: Record<Mode, string> = { free: 'race', cup: 'cup', timetrial: 'timetrial', elimination: 'elimination', battle: 'battle', capture: 'capture' };
+const isArena = (m: Mode) => m === 'battle' || m === 'capture';
 const TEAM_COL = ['#ff5a6a', '#5aa8ff'];
 const TEAM_NAME = ['Rojo', 'Azul'];
 const MENUS: State[] = ['title', 'menu', 'options', 'controls', 'lan', 'lobby', 'select', 'cup', 'track'];
@@ -73,7 +74,7 @@ export class Game {
   tracks = new TrackCache(ALL_TRACKS, prepAuthored);
   /** track select: new (authored) tracks, or the legacy ones ("Clásicas") */
   classic = false;
-  get trackCups() { return this.classic ? CLASSIC_CUPS : CUPS; }
+  get trackCups() { return isArena(this.mode) ? [{ id: 'arenas', name: 'Arenas', tracks: ARENA_INDICES, col: '#ff8a1f' }] : this.classic ? CLASSIC_CUPS : CUPS; }
   /** track select grid: the cups' tracks, 4 per row */
   get grid() { return this.trackCups.flatMap((c) => c.tracks); }
   /** index (into ALL_TRACKS) of the track being raced */
@@ -163,12 +164,12 @@ export class Game {
     switch (this.state) {
       case 'title': if (ok) { this.state = 'menu'; A.blip(); } break;
       case 'menu':
-        if (U) { this.menuSel = (this.menuSel + 6) % 7; A.blip(); }
-        if (D) { this.menuSel = (this.menuSel + 1) % 7; A.blip(); }
-        if (this.menuSel === 5 && (L || R || ok)) { this.diff = (this.diff + (L ? 2 : 1)) % 3; A.blip(); break; }
-        if (this.menuSel === 6 && ok) { this.state = 'options'; this.optSel = 0; A.blip(); break; }
-        if (this.menuSel === 4 && ok) { this.state = 'lan'; this.lanField = 0; this.input.textMode = true; A.blip(); break; }
-        if (ok) { this.mode = (['cup', 'free', 'timetrial', 'elimination'] as Mode[])[this.menuSel]!; if (this.mode !== 'free' && this.mode !== 'cup') this.teams = false; this.state = 'select'; A.blip(); }
+        if (U) { this.menuSel = (this.menuSel + 7) % 8; A.blip(); }
+        if (D) { this.menuSel = (this.menuSel + 1) % 8; A.blip(); }
+        if (this.menuSel === 6 && (L || R || ok)) { this.diff = (this.diff + (L ? 2 : 1)) % 3; A.blip(); break; }
+        if (this.menuSel === 7 && ok) { this.state = 'options'; this.optSel = 0; A.blip(); break; }
+        if (this.menuSel === 5 && ok) { this.state = 'lan'; this.lanField = 0; this.input.textMode = true; A.blip(); break; }
+        if (ok) { this.mode = (['cup', 'free', 'timetrial', 'elimination', 'battle'] as Mode[])[this.menuSel]!; this.trackSel = 0; if (this.mode !== 'free' && this.mode !== 'cup') this.teams = false; this.state = 'select'; A.blip(); }
         if (back) this.state = 'title';
         break;
       case 'options': this.optionsInput(code, ok, back, L, R, U, D); break;
@@ -195,12 +196,16 @@ export class Game {
         if (back) this.state = 'select';
         break;
       case 'track':
-        if (R) { this.trackSel = (this.trackSel + 1) % 16; A.blip(); }
-        if (L) { this.trackSel = (this.trackSel + 15) % 16; A.blip(); }
-        if (D) { this.trackSel = (this.trackSel + 4) % 16; A.blip(); }
-        if (U) { this.trackSel = (this.trackSel + 12) % 16; A.blip(); }
+      {
+        const n = this.grid.length;
+        if (R) { this.trackSel = (this.trackSel + 1) % n; A.blip(); }
+        if (L) { this.trackSel = (this.trackSel + n - 1) % n; A.blip(); }
+        if (D && n > 4) { this.trackSel = (this.trackSel + 4) % n; A.blip(); }
+        if (U && n > 4) { this.trackSel = (this.trackSel + n - 4) % n; A.blip(); }
+        if (isArena(this.mode) && (code === 'KeyC' || code === 'Tab' || code === 'Pad3')) { this.mode = this.mode === 'battle' ? 'capture' : 'battle'; A.blip(); break; }
         if (this.classKeys(code)) break;
-        if (code === 'KeyC' || code === 'Tab' || code === 'Pad3') { this.classic = !this.classic; A.blip(); }
+        if (!isArena(this.mode) && (code === 'KeyC' || code === 'Tab' || code === 'Pad3')) { this.classic = !this.classic; this.trackSel = 0; A.blip(); }
+      }
         if (ok) { this.startRace(this.grid[this.trackSel]!); A.beep(880, 0.12); }
         if (back) this.state = 'select';
         break;
@@ -437,7 +442,7 @@ export class Game {
       case 'zap': { if (me(e.to)) { this.flashC = '#3df0ff'; this.flashT = 0.2; } if (me(e.from) || me(e.to) || near(e.to, 220)) A.beep(1800, 0.12, 'sawtooth', 0.05, -1500); break; }
       case 'gust': if (me(e.kart) || near(e.kart, 160)) A.beep(200, 0.45, 'triangle', 0.05, 300); break;
       case 'catch': if (me(e.kart)) { this.banner = { t: '¡Atrapado!', life: 0.8 }; A.beep(760, 0.12, 'square', 0.05, 300); } break;
-      case 'lap': if (me(e.kart)) { if (e.final) A.duck(0.8); this.banner = { t: e.final ? '¡Última vuelta!' : 'Vuelta ' + e.lap, life: 1.8 }; A.beep(e.final ? 990 : 700, 0.2); } break;
+      case 'lap': if (me(e.kart) && !modeOf(w).arena) { if (e.final) A.duck(0.8); this.banner = { t: e.final ? '¡Última vuelta!' : 'Vuelta ' + e.lap, life: 1.8 }; A.beep(e.final ? 990 : 700, 0.2); } break;
       case 'finish': if (me(e.kart)) { A.duck(1.2); this.banner = { t: '¡Meta!', life: 2.2, big: true }; A.musicWant(null); A.jingle(); } break;
       case 'flash': this.flashC = e.color; this.flashT = 0.35; break;
       case 'driftLevel': if (me(e.kart)) A.beep(e.level === 3 ? 760 : e.level === 2 ? 620 : 500, 0.07, 'square', 0.04, 120); break;
@@ -452,6 +457,10 @@ export class Game {
       case 'reflect': A.beep(1600, 0.15, 'sine', 0.05, -900); break;
       case 'explode': { const p0 = this.local; if (p0 && Math.hypot(p0.x - e.x, p0.y - e.y) < 260) { A.beep(70, 0.4, 'sawtooth', 0.08, -30); this.flashC = '#ff8a1f'; this.flashT = 0.2; this.rig.addTrauma(0.5 * (1 - Math.hypot(p0.x - e.x, p0.y - e.y) / 260)); } break; }
       case 'raceEnd': if (this.state === 'race') this.state = 'results'; if (this.recorder) { this.lastReplay = this.recorder.replay; this.recorder = null; } this.onRaceEnd(); break;
+      case 'balloon': if (me(e.kart)) { this.banner = { t: e.left ? 'Te quedan ' + e.left + ' globo' + (e.left > 1 ? 's' : '') : '¡Sin globos!', life: 1.2 }; A.beep(1500, 0.08, 'square', 0.05, -900); } else if (me(e.by)) { this.banner = { t: '¡Globo!', life: 0.7 }; A.beep(900, 0.1, 'square', 0.05, 400); } break;
+      case 'balloonSteal': if (me(e.kart)) { this.banner = { t: '¡Globo robado!', life: 1 }; A.beep(700, 0.2, 'square', 0.05, 500); } else if (me(e.from)) { this.banner = { t: '¡Te robaron un globo!', life: 1 }; A.beep(300, 0.2, 'square', 0.05, -200); } break;
+      case 'flagGet': if (me(e.kart)) { this.banner = { t: '¡Tienes la bandera!', life: 1.2 }; A.beep(880, 0.25, 'square', 0.05, 400); } else if (near(e.kart, 300)) A.beep(440, 0.12, 'square', 0.04); break;
+      case 'flagDrop': if (me(e.kart)) { this.banner = { t: '¡Perdiste la bandera!', life: 1.2 }; A.beep(220, 0.3, 'sawtooth', 0.05, -100); } break;
       case 'eliminated': if (me(e.kart)) { this.banner = { t: '¡Eliminado!', life: 2, big: true }; A.beep(160, 0.6, 'sawtooth', 0.07, -80); } else { this.banner = { t: 'Fuera: ' + CHARS[w.karts[e.kart]!.ch]!.short + ' · quedan ' + e.left, life: 1.6 }; A.beep(520, 0.15, 'square', 0.05, -200); } break;
     }
   }
@@ -590,7 +599,7 @@ export class Game {
     if (w) {
       const me = this.local, tc: ThingCtx = { t, lap: me ? Math.floor(me.prog / this.tr.N) + 1 : 1, lava: this.tr.def.liquid?.kind === 'lava' };
       for (const e of w.ents) THING_ART[e.kind]?.(e, tc, things);
-      for (const k of karts) if (k.respawn <= 0) { const ps = this.pose(k); orbitArt(k, ps.x, ps.y, ps.z, t, things); }
+      for (const k of karts) if (k.respawn <= 0) { const ps = this.pose(k); orbitArt(k, ps.x, ps.y, ps.z, t, things); if (k.balloons > 0 && k.id !== this.localId) balloonArt(k, k.team >= 0 ? TEAM_COL[k.team]! : CHARS[k.ch]!.helmet, ps.x, ps.y, ps.z, t, things); }
     }
     const boxes = w ? w.boxes.map((b) => b.active) : this.tr.boxes.map(() => true);
     const t0 = performance.now();
@@ -694,14 +703,15 @@ export class Game {
     const ui = this.ui, ctx = ui.ctx, w = this.world!, p = this.local!, tr = this.tr;
     const laps = w.cfg.laps, lap = clamp(Math.floor(p.prog / tr.N) + 1, 1, laps);
     ui.panel(4, 4, 82, this.mode === 'cup' ? 32 : 26, 'rgba(27,23,64,0.75)', '#6d66b0');
-    ui.txt('Vuelta ' + lap + '/' + laps, 8, 8);
+    ui.txt(w.cfg.mode === 'battle' ? 'Globos: ' + p.balloons : w.cfg.mode === 'capture' ? 'Bandera: ' + p.score.toFixed(0) + '/' + T.race.capture.goal : 'Vuelta ' + lap + '/' + laps, 8, 8);
     if (w.cfg.mode === 'elimination') {
       const alive = w.karts.filter((k) => !k.out);
       ui.txtS('Quedan ' + alive.length, 8, 34, '#ff8a1f', 'left');
       if (!p.out && alive.length > 1 && w.ranked.filter((id) => !w.karts[id]!.out).at(-1) === p.id && ((w.raceT * 3) | 0) % 2 === 0) ui.txt('¡Vas último!', W / 2, H / 2 - 30, '#ff4d6d', 8, 'center');
     }
     if (this.ghost) { const g = this.ghost.world.karts[0]!; ui.txtS('Fantasma ' + (g.prog > p.prog ? '+' : '-') + Math.abs(((g.prog - p.prog) * 6) / Math.max(60, p.speed)).toFixed(1) + ' s', 8, 34, '#bff0ff', 'left'); }
-    ui.txt(fmtTime(w.raceT), 8, 19, '#ffe45e');
+    const A9 = modeOf(w).arena, limit = w.cfg.mode === 'capture' ? T.race.capture.time : T.race.battle.time;
+    ui.txt(A9 ? fmtTime(Math.max(0, limit - w.raceT)) : fmtTime(w.raceT), 8, 19, A9 && limit - w.raceT < 30 ? '#ff4d6d' : '#ffe45e');
     if (this.mode === 'cup' && this.cup) ui.txtS('Carrera ' + (this.cup.race + 1) + '/' + this.cup.def.tracks.length, 8, 30, '#fff7e0', 'left');
     const pos = p.rank + 1;
     if (p.rank !== this.lastRank) { this.posPop = this.lastRank >= 0 ? 1 : 0; this.lastRank = p.rank; }
@@ -744,6 +754,8 @@ export class Game {
       const k = w.karts[id]!, y = 44 + i * 17;
       if (id === this.localId) { ctx.fillStyle = 'rgba(255,228,94,0.35)'; ctx.fillRect(4, y - 1, 34, 17); }
       ui.img(FACES[k.ch]!.cv, 5, y, 16, 16);
+      if (w.cfg.mode === 'battle' && !k.out) ui.txtS('●'.repeat(k.balloons), 38, y + 5, CHARS[k.ch]!.helmet, 'left');
+      if (w.cfg.mode === 'capture') ui.txtS(k.score.toFixed(0), 38, y + 5, '#ffd23a', 'left');
       ui.txtS(String(i + 1), 26, y + 5, k.out ? '#6d66b0' : id === this.localId ? '#ffe45e' : k.team >= 0 ? TEAM_COL[k.team]! : '#fff7e0', 'left');
     });
     if (p.drift) {
@@ -826,7 +838,7 @@ export class Game {
     this.ghost = null; this.resultNotes = [];
     this.localId = r.kart;
     this.prev = this.world.karts.map((k) => ({ x: k.x, y: k.y, z: k.z, a: k.a }));
-    this.mode = r.cfg.mode === 'cup' ? 'cup' : r.cfg.mode === 'elimination' ? 'elimination' : 'free';
+    this.mode = r.cfg.mode === 'race' || !r.cfg.mode ? 'free' : (r.cfg.mode as Mode);
     this.rig.cut(this.camTarget()!, this.tr);
     this.acc = 0; this.banner = null; this.flashT = 0; this.parts = []; this.paused = false; this.incoming = null;
     this.state = 'race';
@@ -859,13 +871,19 @@ export class Game {
     if (_code === 'KeyR' || (ok && !net.isHost)) net.send({ t: 'ready', ready: !me.ready });
     if (net.isHost) {
       const s = { ...net.settings };
-      if (U || D) { const ms = ['free', 'cup', 'elimination'] as const; s.mode = ms[(ms.indexOf(s.mode) + (U ? 2 : 1)) % 3]!; if (s.mode === 'elimination') s.teams = false; net.send({ t: 'settings', s }); }
+      if (U || D) {
+        const ms = ['free', 'cup', 'elimination', 'battle', 'capture'] as const, was = isArena(s.mode as Mode);
+        s.mode = ms[(ms.indexOf(s.mode) + (U ? ms.length - 1 : 1)) % ms.length]!;
+        if (s.mode !== 'free' && s.mode !== 'cup') s.teams = false;
+        if (isArena(s.mode as Mode) !== was) s.trackIndex = isArena(s.mode as Mode) ? ARENA_INDICES[0]! : CUPS[0]!.tracks[0]!;
+        net.send({ t: 'settings', s });
+      }
       if (_code === 'KeyX') { s.cls = CLASSES[(CLASSES.indexOf((s.cls ?? '100') as EngineClass) + 1) % CLASSES.length]; net.send({ t: 'settings', s }); }
       if (_code === 'KeyT' && s.mode !== 'elimination') { s.teams = !s.teams; net.send({ t: 'settings', s }); }
       if (_code === 'KeyQ' || _code === 'KeyE') {
         const dir = _code === 'KeyE' ? 1 : -1;
         if (s.mode === 'cup') s.cup = (s.cup + dir + CUPS.length) % CUPS.length;
-        else { const gi = this.grid.indexOf(s.trackIndex); s.trackIndex = this.grid[(Math.max(0, gi) + dir + this.grid.length) % this.grid.length]!; }
+        else { const list = isArena(s.mode as Mode) ? ARENA_INDICES : [...CUPS, ...CLASSIC_CUPS].flatMap((c) => c.tracks), gi = list.indexOf(s.trackIndex); s.trackIndex = list[(Math.max(0, gi) + dir + list.length) % list.length]!; }
         net.send({ t: 'settings', s });
       }
       if (_code === 'KeyF') { s.diff = (s.diff + 1) % 3; net.send({ t: 'settings', s }); }
@@ -906,7 +924,7 @@ export class Game {
     const S = net.settings;
     const what = S.mode === 'cup' ? CUPS[S.cup]!.name + (net.phase !== 'lobby' ? ` · carrera ${net.cupRace + 1}` : '') : this.tracks.get(S.trackIndex).def.name;
     ui.panel(ox, 30, 340, 22, '#1b1740', '#6d66b0');
-    ui.txt((S.mode === 'cup' ? 'Copa: ' : S.mode === 'elimination' ? 'Eliminación: ' : 'Carrera: ') + what, ox + 6, 34, '#fff7e0');
+    ui.txt(({ cup: 'Copa: ', elimination: 'Eliminación: ', battle: 'Globos: ', capture: 'Captura: ', free: 'Carrera: ' } as Record<string, string>)[S.mode]! + what, ox + 6, 34, '#fff7e0');
     ui.txtS('IA: ' + DIFFS[S.diff]!.name + ' · ' + CLASS_NAMES[(S.cls ?? '100') as EngineClass] + (S.teams ? ' · Equipos' : '') + ' · ' + net.players.length + ' humano(s) + ' + (8 - net.players.length) + ' IA', ox + 6, 45, '#9c95d6', 'left');
     net.players.forEach((p, i) => {
       const y = 60 + i * 18, me = p.id === net.id;
@@ -1060,15 +1078,15 @@ export class Game {
     const ui = this.ui;
     ui.bg(0.6);
     ui.txt('JP KART', W / 2, 10, '#ffe45e', 24, 'center');
-    const items = ['Torneo', 'Carrera libre', 'Contrarreloj', 'Eliminación', 'Multijugador LAN', 'Dificultad: ' + DIFFS[this.diff]!.name, 'Opciones'];
-    const help = ['4 copas de 4 carreras. Se suman los puntos.', 'Elige cualquiera de las pistas, nuevas o clásicas.', 'Tú solo contra el reloj y tu fantasma.', 'El último de cada vuelta queda fuera.', 'Juega con amigos en la misma red.', 'Qué tan rápidos y listos son los rivales.', 'Sonido, accesibilidad, gráficos y controles.'];
+    const items = ['Torneo', 'Carrera libre', 'Contrarreloj', 'Eliminación', 'Batalla', 'Multijugador LAN', 'Dificultad: ' + DIFFS[this.diff]!.name, 'Opciones'];
+    const help = ['4 copas de 4 carreras. Se suman los puntos.', 'Elige cualquiera de las pistas, nuevas o clásicas.', 'Tú solo contra el reloj y tu fantasma.', 'El último de cada vuelta queda fuera.', 'Globos o captura de la bandera en 4 arenas.', 'Juega con amigos en la misma red.', 'Qué tan rápidos y listos son los rivales.', 'Sonido, accesibilidad, gráficos y controles.'];
     items.forEach((s, i) => {
-      const on = i === this.menuSel, y = 46 + i * 20;
-      ui.panel(W / 2 - 90, y, 180, 18, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
-      if (on) ui.img(BALLS[((t * 8) | 0) % 4]!.cv, W / 2 - 84, y + 2, 14, 14);
-      ui.txt(i === 5 ? (on ? '< ' : '') + s + (on ? ' >' : '') : s, W / 2, y + 5, on ? '#ffe45e' : '#fff7e0', 8, 'center');
+      const on = i === this.menuSel, y = 42 + i * 18;
+      ui.panel(W / 2 - 90, y, 180, 16, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
+      if (on) ui.img(BALLS[((t * 8) | 0) % 4]!.cv, W / 2 - 84, y + 1, 14, 14);
+      ui.txt(i === 6 ? (on ? '< ' : '') + s + (on ? ' >' : '') : s, W / 2, y + 4, on ? '#ffe45e' : '#fff7e0', 8, 'center');
     });
-    ui.txtS(help[this.menuSel]!, W / 2, 194);
+    ui.txtS(help[this.menuSel]!, W / 2, 198);
     ui.txtS('Flechas para moverte, Enter para elegir', W / 2, 214, '#9c95d6');
   }
   private statBar10(key: StatKey, v: number, x: number, y: number) {
@@ -1124,7 +1142,7 @@ export class Game {
   private drawTrackSel() {
     const ui = this.ui, ctx = ui.ctx, ox = (W - 320) / 2;
     ui.bg();
-    ui.txt('Elige circuito', W / 2, 6, '#ffe45e', 16, 'center');
+    ui.txt(isArena(this.mode) ? (this.mode === 'battle' ? 'Batalla: Globos' : 'Batalla: Captura') : 'Elige circuito', W / 2, 6, '#ffe45e', 16, 'center');
     this.trackCups.forEach((c, r) => ui.txtS(c.name.replace('Copa ', '').replace('Clásica ', ''), ox + 38, 28 + r * 44 + 16, c.col));
     this.grid.forEach((ti, i) => {
       const trk = this.tracks.get(ti);
@@ -1137,14 +1155,14 @@ export class Game {
     const d = this.tracks.get(this.grid[this.trackSel]!).def;
     ui.txt(d.name, W / 2, 182, '#ffe45e', 8, 'center');
     const au = this.tracks.get(this.grid[this.trackSel]!).authored;
-    const tags = au
+    const tags = au?.cup === 'arena' ? [au.sections[0]?.intent ?? 'Arena'] : au
       ? [...new Set(au.hazards.map((h) => HAZARD_TAG[h.kind]).filter(Boolean)), au.weather ? WEATHER_TAG[au.weather.kind] : null, au.dayNight ? 'Del día a la noche' : null, au.narrow ? 'La nieve estrecha la pista' : null, au.water?.kind === 'lava' ? 'Lava' : null].filter(Boolean)
       : [d.flight ? 'Rampas de vuelo' : null, d.th.ice ? 'Hielo' : null, d.liquid ? d.liquid.msg.replace(/[¡!]/g, '').replace('Al ', 'Cuidado: ').replace('A la ', 'Cuidado: ') : null, d.ramps.length ? 'Saltos' : null].filter(Boolean);
     ui.txtS(tags.join('  /  ') || 'Clásica', W / 2, 214, '#fff7e0');
     const rec = this.progress.records[ALL_TRACKS[this.grid[this.trackSel]!]!.id + ':' + this.cls];
     if (rec?.race != null) ui.txtS('Récord: ' + fmtTime(rec.race) + (rec.lap != null ? '   Vuelta: ' + fmtTime(rec.lap) : ''), W / 2, 194, '#ffe45e');
     this.drawClassLine(204);
-    ui.txtS('Enter: correr  ·  C: ' + (this.classic ? 'pistas nuevas' : 'pistas clásicas') + '  ·  Esc: volver', W / 2, 228, '#9c95d6');
+    ui.txtS(isArena(this.mode) ? 'Enter: luchar  ·  C: ' + (this.mode === 'battle' ? 'Captura' : 'Globos') + '  ·  Esc: volver' : 'Enter: correr  ·  C: ' + (this.classic ? 'pistas nuevas' : 'pistas clásicas') + '  ·  Esc: volver', W / 2, 228, '#9c95d6');
   }
   private rowList(list: number[], extra: (ch: number, i: number, y: number) => void) {
     const ui = this.ui, ox = (W - 320) / 2;
@@ -1165,7 +1183,8 @@ export class Game {
     ui.txt('Resultados', W / 2, 20, '#fff7e0', 16, 'center');
     this.rowList(w.finalOrder.map((id) => w.karts[id]!.ch), (_ch, i, y) => {
       const k = w.karts[w.finalOrder[i]!]!;
-      ui.txt(k.finished ? fmtTime(k.time) : 'En pista', ox + 320 - (this.mode === 'cup' ? 70 : 36), y + 4, '#fff7e0', 8, 'right');
+      const col = w.cfg.mode === 'battle' ? (k.out ? 'Fuera' : k.balloons + ' globo' + (k.balloons === 1 ? '' : 's')) : w.cfg.mode === 'capture' ? k.score.toFixed(1) + ' s' : k.out ? 'Eliminado' : k.finished ? fmtTime(k.time) : 'En pista';
+      ui.txt(col, ox + 320 - (this.mode === 'cup' ? 70 : 36), y + 4, '#fff7e0', 8, 'right');
       if (this.mode === 'cup') ui.txt('+' + (modeOf(w).scoring?.(w, w.finalOrder).get(w.finalOrder[i]!) ?? 0), ox + 284, y + 4, '#2ec46b', 8, 'right');
     });
     const p = this.local!;
@@ -1211,7 +1230,7 @@ export class Game {
   private drawPodiumFree(t: number) {
     const w = this.world!, ui = this.ui;
     const L = w.finalOrder.map((id) => w.karts[id]!.ch);
-    this.drawPodium(L, 'Podio', this.tr.th.curbB || '#ffe45e', (ch) => { const k = w.karts.find((q) => q.ch === ch)!; return k.finished ? fmtTime(k.time) : ''; }, t);
+    this.drawPodium(L, 'Podio', this.tr.th.curbB || '#ffe45e', (ch) => { const k = w.karts.find((q) => q.ch === ch)!; return w.cfg.mode === 'battle' ? k.balloons + ' globos' : w.cfg.mode === 'capture' ? k.score.toFixed(0) + ' s' : k.finished && !k.out ? fmtTime(k.time) : ''; }, t);
     const pos = w.finalOrder.indexOf(this.localId) + 1;
     ui.txt(pos === 1 ? '¡Ganaste!' : pos <= 3 ? '¡Al podio!' : 'Quedaste ' + pos + 'º', W / 2, 196, '#ff8a1f', 8, 'center');
     ui.txtS('Enter: otra carrera    R: repetición    Esc: menú', W / 2, 216, '#9c95d6');
