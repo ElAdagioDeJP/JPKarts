@@ -19,7 +19,8 @@
 - **Hechas (Fases 2–7):** #1–#17, #19–#21, #34–#36, #39, #43–#55; #37 y #38 en su parte de olas y marea.
 - **Hechas (Fase 8):** #16 (hielo y arena), #18, #22–#33, #37 (14 peligros en 6 familias: cruces, aspas, erupciones, rodantes, setas y compuertas), #38 (lava que sube, nieve que estrecha, compuertas por vuelta), #40, #41, #42 (16 pistas autoradas que pasan el validador).
 - **Desviación:** #22 no "suelta el objeto sostenido" porque no existen objetos sostenidos detrás; la onda aplica un golpe leve.
-- **Pendientes:** #56–#62 (Fase 9), #63 (Fase 10).
+- **Hechas (Fase 9):** #56–#62 (Contrarreloj con fantasmas, Eliminación, Equipos, Globos con 4 arenas, Captura, progresión con 150cc/Espejo y guardado versionado, repetición final). La bandera de Captura también cambia de manos con un choque: sin eso apenas pasaba de un kart a otro.
+- **Pendientes:** #63 (Fase 10).
 
 ## Sistemas base
 
