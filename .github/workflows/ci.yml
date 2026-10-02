@@ -28,7 +28,10 @@ jobs:
         shell: bash
 
       - name: Tests (determinismo, replays, mecánicas, red)
-        run: bun test
+        shell: bash
+        run: |
+          set -o pipefail
+          bun test 2>&1 | tee test.log || { grep -E "\(fail\)|error:|Expected|Received" test.log | head -30 | sed 's/^/::error title=Tests::/'; exit 1; }
 
       - name: Validador de pistas
         run: bun run validate:tracks
