@@ -415,19 +415,50 @@ export class WorldRenderer {
   }
 
   render(cam: CamView, karts: KartView[], things: ThingView[], boxesActive: boolean[], t: number, water = 0, dt = 1 / 60) {
-    const tr = this.track;
-    if (!tr) return;
-    // camera: level, yaw = cam.a, principal point at (RW/2, hz) — legacy voxel projection
-    const c = this.camera;
-    const halfH = Math.max(cam.hz, RH - cam.hz) + 1, focal = cam.f ?? F;
+    if (!this.track) return;
+    this.setCamera(cam, RW, RH);
+    this.update(cam, karts, things, boxesActive, t, water, dt);
+    this.post.render(this.scene, this.camera);
+  }
+
+  /**
+   * Split screen (Phase 10): the scene is updated once, then drawn once per viewport with its own camera.
+   * `rect` = [x, y, w, h] in world pixels (RW × RH, y from the top). Post-processing is skipped (one pass per frame).
+   */
+  renderSplit(views: { cam: CamView; rect: [number, number, number, number] }[], karts: KartView[], things: ThingView[], boxesActive: boolean[], t: number, water = 0, dt = 1 / 60) {
+    if (!this.track || !views.length) return;
+    const r = this.renderer;
+    this.setCamera(views[0]!.cam, views[0]!.rect[2], views[0]!.rect[3]);
+    this.update(views[0]!.cam, karts, things, boxesActive, t, water, dt);
+    r.setScissorTest(true);
+    for (const v of views) {
+      const [x, y, w, h] = v.rect;
+      this.setCamera(v.cam, w, h);
+      r.setViewport(x, y, w, h);
+      r.setScissor(x, y, w, h);
+      r.render(this.scene, this.camera);
+    }
+    r.setScissorTest(false);
+    r.setViewport(0, 0, RW, RH);
+  }
+
+  /** Camera for a view of vw × vh pixels: level, yaw = cam.a, principal point at (vw/2, hz) — legacy voxel projection. */
+  private setCamera(cam: CamView, vw: number, vh: number) {
+    const c = this.camera, k = vh / RH, hz = cam.hz * k;
+    const halfH = Math.max(hz, vh - hz) + 1, focal = (cam.f ?? F) * k;
     c.fov = (2 * Math.atan(halfH / focal) * 180) / Math.PI;
-    c.aspect = RW / (halfH * 2);
-    c.setViewOffset(RW, halfH * 2, 0, halfH - cam.hz, RW, RH);
+    c.aspect = vw / (halfH * 2);
+    c.setViewOffset(vw, halfH * 2, 0, halfH - hz, vw, vh);
     c.position.set(cam.x, cam.z, cam.y);
     c.rotation.set(0, -cam.a - Math.PI / 2, cam.roll ?? 0);
     c.updateProjectionMatrix();
     this.skyGroup.position.set(cam.x, cam.z, cam.y);
     this.updateDecor(cam.a);
+  }
+
+  /** Shared per-frame scene update: water, boxes, karts, things, particles. */
+  private update(cam: CamView, karts: KartView[], things: ThingView[], boxesActive: boolean[], t: number, water: number, dt: number) {
+    const tr = this.track!;
     if (this.water) { this.water.position.y = water; this.waterTex!.offset.set((t * 0.01) % 1, (t * 0.023) % 1); }
     // boxes
     const bf = BALLS[((t * 8) | 0) % 4]!;
@@ -477,7 +508,6 @@ export class WorldRenderer {
     }
     for (let i = this.thingUsed; i < this.thingPool.length; i++) this.thingPool[i]!.visible = false;
     this.particles.update(dt, this.camera);
-    this.post.render(this.scene, this.camera);
   }
 
   /** Project a world point (legacy x,y,z) to internal pixel coords; null if behind the camera. */
