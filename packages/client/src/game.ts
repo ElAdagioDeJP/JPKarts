@@ -10,6 +10,7 @@ import { DebugOverlay } from './dev/debugOverlay';
 import { ACTION_NAMES, REMAPPABLE } from './input/input';
 import { PAD_NAMES } from './input/gamepad';
 import { loadSettings, saveSettings, DEFAULT_SETTINGS, type Settings } from './settings';
+import { NetSession } from './net/session';
 import { CameraRig, type CamTarget } from './feel/camera';
 import { DRIFT_COL as DCOL, DRIFT_COL_CB, Fx3d } from './feel/fx3d';
 import { BALLS, BIGBALL, FACES, ICONS, rotFrames } from './art/sprites';
@@ -20,8 +21,8 @@ import { T } from '@jpkart/core';
 import { H0, RW, WorldRenderer, type KartView, type ThingView } from './render/world3d';
 import { H, Ui, W } from './ui/draw';
 
-type State = 'title' | 'menu' | 'options' | 'controls' | 'select' | 'cup' | 'track' | 'loading' | 'race' | 'results' | 'podium' | 'standings' | 'final';
-const MENUS: State[] = ['title', 'menu', 'options', 'controls', 'select', 'cup', 'track'];
+type State = 'title' | 'menu' | 'options' | 'controls' | 'lan' | 'lobby' | 'select' | 'cup' | 'track' | 'loading' | 'race' | 'results' | 'podium' | 'standings' | 'final';
+const MENUS: State[] = ['title', 'menu', 'options', 'controls', 'lan', 'lobby', 'select', 'cup', 'track'];
 const CAM_H = 15, CAM_BACK = 34, ZMAX = 1000;
 const UIK = W / RW; // internal world px → UI px
 const DRIFT_COL = ['#fff7e0', '#3df0ff', '#ff8a1f', '#b84aff'];
@@ -44,6 +45,10 @@ export class Game {
   incoming: { item: string; t: number } | null = null;
   dbg = new DebugOverlay();
   settings: Settings = loadSettings();
+  net: NetSession | null = null;
+  lanField = 0;
+  lanName = 'Jugador';
+  lanAddr = typeof location !== 'undefined' && location.hostname && location.hostname !== '' ? location.hostname : 'localhost';
   optSel = 0;
   ctlSel = 0;
   private driftLatch = false;
@@ -120,14 +125,17 @@ export class Game {
     switch (this.state) {
       case 'title': if (ok) { this.state = 'menu'; A.blip(); } break;
       case 'menu':
-        if (U) { this.menuSel = (this.menuSel + 3) % 4; A.blip(); }
-        if (D) { this.menuSel = (this.menuSel + 1) % 4; A.blip(); }
-        if (this.menuSel === 2 && (L || R || ok)) { this.diff = (this.diff + (L ? 2 : 1)) % 3; A.blip(); break; }
-        if (this.menuSel === 3 && ok) { this.state = 'options'; this.optSel = 0; A.blip(); break; }
+        if (U) { this.menuSel = (this.menuSel + 4) % 5; A.blip(); }
+        if (D) { this.menuSel = (this.menuSel + 1) % 5; A.blip(); }
+        if (this.menuSel === 3 && (L || R || ok)) { this.diff = (this.diff + (L ? 2 : 1)) % 3; A.blip(); break; }
+        if (this.menuSel === 4 && ok) { this.state = 'options'; this.optSel = 0; A.blip(); break; }
+        if (this.menuSel === 2 && ok) { this.state = 'lan'; this.lanField = 0; this.input.textMode = true; A.blip(); break; }
         if (ok) { this.mode = this.menuSel === 0 ? 'cup' : 'free'; this.state = 'select'; A.blip(); }
         if (back) this.state = 'title';
         break;
       case 'options': this.optionsInput(code, ok, back, L, R, U, D); break;
+      case 'lan': this.lanInput(code, back, U, D); break;
+      case 'lobby': this.lobbyInput(code, ok, back, L, R, U, D); break;
       case 'controls': this.controlsInput(code, ok, back, U, D); break;
       case 'select':
         if (R) { this.sel = (this.sel + 1) % 8; A.blip(); }
@@ -155,12 +163,15 @@ export class Game {
         if (back) this.state = 'select';
         break;
       case 'race':
+        if (this.net && back) { this.leaveNet(); return; }
+        if (this.net) { if (I.is(code, 'objeto')) this.itemPressed = true; break; }
         if (I.is(code, 'pausa') || (back && !this.paused)) { this.paused = !this.paused; A.beep(440, 0.06); return; }
         if (this.paused && back) { this.paused = false; this.state = 'menu'; this.world = null; this.renderer.clearKarts(); A.engineSet(false, 0); return; }
         if (this.paused && code === 'Enter') { this.paused = false; return; }
         if (!this.paused && I.is(code, 'objeto')) this.itemPressed = true;
         break;
       case 'results':
+        if (this.net) { if (ok && this.net.isHost) this.net.send({ t: 'next' }); if (back) this.leaveNet(); break; }
         if (ok) { if (this.mode === 'cup') { this.commitPoints(); this.state = 'standings'; } else { this.state = 'podium'; A.jingle(); } }
         if (back && this.mode === 'free') this.toMenu();
         break;
@@ -216,6 +227,7 @@ export class Game {
     return inp;
   }
   private simulate(dt: number) {
+    if (this.net?.race) { this.simulateNet(dt); return; }
     const w = this.world!;
     this.acc = Math.min(this.acc + dt, SIM_DT * 5);
     const t0 = performance.now();
@@ -245,8 +257,9 @@ export class Game {
   private pose(k: Kart): Pose {
     if (this.held && this.held[k.id]) return this.held[k.id]!;
     const p = this.prev[k.id], a = this.acc / SIM_DT;
-    if (!p || this.paused) return { x: k.x, y: k.y, z: k.z, a: k.a };
-    return { x: lerp(p.x, k.x, a), y: lerp(p.y, k.y, a), z: lerp(p.z, k.z, a), a: p.a + wrapA(k.a - p.a) * a };
+    const vo = this.net && k.id === this.localId ? this.net.visOff : null;
+    if (!p || this.paused) return { x: k.x + (vo?.x ?? 0), y: k.y + (vo?.y ?? 0), z: k.z, a: k.a };
+    return { x: lerp(p.x, k.x, a) + (vo?.x ?? 0), y: lerp(p.y, k.y, a) + (vo?.y ?? 0), z: lerp(p.z, k.z, a), a: p.a + wrapA(k.a - p.a) * a };
   }
 
   // ---------------- events → feedback ----------------
@@ -361,7 +374,7 @@ export class Game {
       const i = Math.floor(this.attract) % tr.N, x = tr.x[i]!, y = tr.y[i]!;
       this.updateCam(dt, x, y, tr.ang[i]!, hAt(tr, x, y));
       this.renderWorld(t, []);
-      ({ title: () => this.drawTitle(t), menu: () => this.drawMenu(t), options: () => this.drawOptions(), controls: () => this.drawControls(), select: () => this.drawSelect(t), cup: () => this.drawCupSel(t), track: () => this.drawTrackSel() } as Record<string, () => void>)[this.state]!();
+      ({ title: () => this.drawTitle(t), menu: () => this.drawMenu(t), options: () => this.drawOptions(), controls: () => this.drawControls(), lan: () => this.drawLan(t), lobby: () => this.drawLobby(t), select: () => this.drawSelect(t), cup: () => this.drawCupSel(t), track: () => this.drawTrackSel() } as Record<string, () => void>)[this.state]!();
       A.engineSet(false, 0);
     } else if (this.world) {
       const w = this.world, p = this.local!;
@@ -538,6 +551,129 @@ export class Game {
     if (this.audio.muted) ui.txtS('Sin sonido', W / 2, H - 24);
   }
 
+  // ---------------- LAN ----------------
+  private lanInput(code: string, back: boolean, U: boolean, D: boolean) {
+    if (back) { this.input.textMode = false; this.state = 'menu'; return; }
+    if (U || D || code === 'Tab') { this.lanField = (this.lanField + 1) % 2; return; }
+    if (code === 'Enter' || code === 'NumpadEnter') { this.input.textMode = false; this.connectLan(); }
+  }
+  private typeInto() {
+    for (const ch of this.input.typed.splice(0)) {
+      const field = this.lanField === 0 ? 'lanName' : 'lanAddr';
+      if (ch === 'Backspace') this[field] = this[field].slice(0, -1);
+      else if (this[field].length < (field === 'lanName' ? 12 : 40)) this[field] += ch;
+    }
+  }
+  connectLan(addr = this.lanAddr, name = this.lanName) {
+    this.net?.close();
+    const net = new NetSession(NetSession.urlFrom(addr), name || 'Jugador', (i) => this.tracks.ensureBuilt(i, [this.tr]), () => this.startNetRace(), () => { this.state = 'results'; });
+    this.net = net;
+    net.connect();
+    this.state = 'lobby';
+  }
+  private leaveNet() {
+    this.net?.close();
+    this.net = null;
+    this.world = null;
+    this.renderer.clearKarts();
+    this.state = 'menu';
+  }
+  private startNetRace() {
+    const r = this.net!.race!;
+    this.curTrack = r.cfg.trackIndex;
+    this.tr = this.tracks.get(r.cfg.trackIndex);
+    this.renderer.setTrack(this.tr);
+    this.renderer.clearKarts();
+    this.world = r.world;
+    this.localId = r.kart;
+    this.prev = this.world.karts.map((k) => ({ x: k.x, y: k.y, z: k.z, a: k.a }));
+    this.mode = r.cfg.mode === 'cup' ? 'cup' : 'free';
+    this.rig.cut(this.camTarget()!, this.tr);
+    this.acc = 0; this.banner = null; this.flashT = 0; this.parts = []; this.paused = false; this.incoming = null;
+    this.state = 'race';
+  }
+  private simulateNet(dt: number) {
+    const net = this.net!, r = net.race!;
+    this.acc = Math.min(this.acc + dt, SIM_DT * 5);
+    const t0 = performance.now();
+    while (this.acc >= SIM_DT) {
+      this.world = r.world;
+      this.prev = r.world.karts.map((k) => ({ x: k.x, y: k.y, z: k.z, a: k.a }));
+      const { packed, events } = r.tick(this.localInput());
+      this.itemPressed = false;
+      net.send({ t: 'in', i: [packed] });
+      for (const e of events) { this.onEvent(e); this.fx.event(e, r.world); if (e.type === 'trick') this.trickAnim.set(e.kart, 0.001); if (e.type === 'land') this.squash.set(e.kart, 1); }
+      this.tickAnims(SIM_DT);
+      this.acc -= SIM_DT;
+    }
+    net.smooth(dt);
+    this.simMs = performance.now() - t0;
+  }
+  private lobbyInput(_code: string, ok: boolean, back: boolean, L: boolean, R: boolean, U: boolean, D: boolean) {
+    const net = this.net;
+    if (!net) { this.state = 'menu'; return; }
+    if (back) { this.leaveNet(); return; }
+    if (net.status === 'closed') { if (ok) { this.state = 'lan'; this.input.textMode = true; } return; }
+    const me = net.me;
+    if (!me) return;
+    if (L || R) net.send({ t: 'pick', ch: (me.ch + (L ? 7 : 1)) % 8 });
+    if (_code === 'KeyR' || (ok && !net.isHost)) net.send({ t: 'ready', ready: !me.ready });
+    if (net.isHost) {
+      const s = { ...net.settings };
+      if (U || D) { s.mode = s.mode === 'cup' ? 'free' : 'cup'; net.send({ t: 'settings', s }); }
+      if (_code === 'KeyQ' || _code === 'KeyE') {
+        const dir = _code === 'KeyE' ? 1 : -1;
+        if (s.mode === 'cup') s.cup = (s.cup + dir + CUPS.length) % CUPS.length;
+        else { const gi = this.grid.indexOf(s.trackIndex); s.trackIndex = this.grid[(Math.max(0, gi) + dir + this.grid.length) % this.grid.length]!; }
+        net.send({ t: 'settings', s });
+      }
+      if (_code === 'KeyF') { s.diff = (s.diff + 1) % 3; net.send({ t: 'settings', s }); }
+      if (ok) net.send({ t: 'start' });
+    }
+  }
+  private drawLan(t: number) {
+    const ui = this.ui, ox = (W - 300) / 2;
+    this.typeInto();
+    ui.bg(0.85);
+    ui.txt('Multijugador LAN', W / 2, 10, '#ffe45e', 16, 'center');
+    const caret = ((t * 2) | 0) % 2 ? '_' : ' ';
+    [['Tu nombre', this.lanName], ['Anfitrión (IP o nombre)', this.lanAddr]].forEach(([k, v], i) => {
+      const y = 50 + i * 44, on = i === this.lanField;
+      ui.txtS(k!, ox, y, '#9c95d6', 'left');
+      ui.panel(ox, y + 10, 300, 18, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
+      ui.txt(v + (on ? caret : ''), ox + 6, y + 15, '#fff7e0');
+    });
+    ui.txtS('El anfitrión ejecuta "bun run server" o crea la partida desde la app de escritorio.', W / 2, 160, '#fff7e0');
+    ui.txtS('Puerto ' + 7777 + ' · Escribe y pulsa Intro para conectar · ↑↓ cambia de campo · Esc vuelve', W / 2, 176, '#9c95d6');
+  }
+  private drawLobby(t: number) {
+    const ui = this.ui, net = this.net, ox = (W - 340) / 2;
+    ui.bg(0.85);
+    ui.txt('Sala LAN', W / 2, 8, '#ffe45e', 16, 'center');
+    if (!net) return;
+    if (net.status === 'connecting') { ui.txt('Conectando a ' + net.url + '...', W / 2, 100, '#fff7e0', 8, 'center'); return; }
+    if (net.status === 'closed') { ui.txt(net.error || 'Conexión cerrada', W / 2, 96, '#ff6a6a', 8, 'center'); ui.txtS('Intro: volver a intentar · Esc: menú', W / 2, 120, '#9c95d6'); return; }
+    const S = net.settings;
+    const what = S.mode === 'cup' ? CUPS[S.cup]!.name + (net.phase !== 'lobby' ? ` · carrera ${net.cupRace + 1}` : '') : this.tracks.get(S.trackIndex).def.name;
+    ui.panel(ox, 30, 340, 22, '#1b1740', '#6d66b0');
+    ui.txt((S.mode === 'cup' ? 'Copa: ' : 'Carrera: ') + what, ox + 6, 34, '#fff7e0');
+    ui.txtS('IA: ' + DIFFS[S.diff]!.name + ' · ' + net.players.length + ' humano(s) + ' + (8 - net.players.length) + ' IA', ox + 6, 45, '#9c95d6', 'left');
+    net.players.forEach((p, i) => {
+      const y = 60 + i * 18, me = p.id === net.id;
+      ui.panel(ox, y, 340, 15, me ? '#3a3478' : '#241f55', me ? '#ffe45e' : '#6d66b0');
+      ui.img(FACES[p.ch]!.cv, ox + 4, y - 1, 16, 16);
+      ui.txt(p.name + (p.host ? ' ★' : ''), ox + 26, y + 4, me ? '#ffe45e' : '#fff7e0');
+      ui.txt(CHARS[p.ch]!.short, ox + 200, y + 4, '#9c95d6');
+      ui.txt(p.host ? 'anfitrión' : p.ready ? 'listo ✓' : 'no listo', ox + 334, y + 4, p.ready || p.host ? '#9cff9c' : '#ff8a9a', 8, 'right');
+    });
+    const help = net.isHost
+      ? '←→ piloto · ↑↓ modo · Q/E pista · F IA · Intro: ¡empezar!'
+      : '←→ personaje · Intro o R: listo · espera al anfitrión';
+    ui.txtS(help, W / 2, 214, '#9c95d6');
+    ui.txtS('Esc: salir de la sala', W / 2, 226, '#9c95d6');
+    void t;
+  }
+
   // ---------------- settings ----------------
   applySettings() {
     const S = this.settings;
@@ -674,13 +810,13 @@ export class Game {
     const ui = this.ui;
     ui.bg(0.6);
     ui.txt('JP KART', W / 2, 24, '#ffe45e', 24, 'center');
-    const items = ['Torneo', 'Carrera libre', 'Dificultad: ' + DIFFS[this.diff]!.name, 'Opciones'];
-    const help = ['4 copas de 4 carreras. Se suman los puntos.', 'Elige cualquiera de las 16 pistas.', 'Qué tan rápidos y listos son los rivales.', 'Sonido, accesibilidad, gráficos y controles.'];
+    const items = ['Torneo', 'Carrera libre', 'Multijugador LAN', 'Dificultad: ' + DIFFS[this.diff]!.name, 'Opciones'];
+    const help = ['4 copas de 4 carreras. Se suman los puntos.', 'Elige cualquiera de las 16 pistas.', 'Juega con amigos en la misma red.', 'Qué tan rápidos y listos son los rivales.', 'Sonido, accesibilidad, gráficos y controles.'];
     items.forEach((s, i) => {
-      const on = i === this.menuSel, y = 66 + i * 30;
+      const on = i === this.menuSel, y = 60 + i * 26;
       ui.panel(W / 2 - 90, y, 180, 24, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
       if (on) ui.img(BALLS[((t * 8) | 0) % 4]!.cv, W / 2 - 84, y + 4, 16, 16);
-      ui.txt(i === 2 ? (on ? '< ' : '') + s + (on ? ' >' : '') : s, W / 2, y + 8, on ? '#ffe45e' : '#fff7e0', 8, 'center');
+      ui.txt(i === 3 ? (on ? '< ' : '') + s + (on ? ' >' : '') : s, W / 2, y + 8, on ? '#ffe45e' : '#fff7e0', 8, 'center');
     });
     ui.txtS(help[this.menuSel]!, W / 2, 188);
     ui.txtS('Flechas para moverte, Enter para elegir', W / 2, 214, '#9c95d6');
@@ -763,6 +899,7 @@ export class Game {
   }
   private drawResults() {
     const ui = this.ui, w = this.world!, ox = (W - 320) / 2;
+    if (this.net?.lastEnd && w.finalOrder.length === 0) w.finalOrder = this.net.lastEnd.order;
     ui.bg(0.8);
     ui.txt(this.tr.def.name, W / 2, 8, '#ffe45e', 8, 'center');
     ui.txt('Resultados', W / 2, 20, '#fff7e0', 16, 'center');
@@ -773,7 +910,7 @@ export class Game {
     });
     const p = this.local!;
     if (p.best != null) ui.txtS('Tu mejor vuelta: ' + fmtTime(p.best), W / 2, 200);
-    ui.txtS(this.mode === 'cup' ? 'Enter: ver clasificación' : 'Enter: ver podio    Esc: menú', W / 2, 220, '#9c95d6');
+    ui.txtS(this.net ? (this.net.isHost ? 'Intro: siguiente (todos)    Esc: salir de la sala' : 'Esperando al anfitrión...    Esc: salir de la sala') : this.mode === 'cup' ? 'Enter: ver clasificación' : 'Enter: ver podio    Esc: menú', W / 2, 220, '#9c95d6');
   }
   private standingsList() { const c = this.cup!; return CHARS.map((_, i) => i).sort((a, b) => c.pts[b]! - c.pts[a]!); }
   private drawStandings() {

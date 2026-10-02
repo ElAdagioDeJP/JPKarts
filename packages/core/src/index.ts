@@ -19,3 +19,5 @@ export * from './sim/items';
 export * from './sim/modes';
 export * from './sim/world';
 export * from './sim/replay';
+export * from './net/protocol';
+export * from './net/prediction';

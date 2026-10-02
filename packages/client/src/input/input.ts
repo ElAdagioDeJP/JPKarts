@@ -34,10 +34,14 @@ export class Input {
   onFirstGesture: (() => void) | null = null;
   /** when set, the next key/button press is captured for remapping instead of being dispatched */
   capture: ((code: string) => void) | null = null;
+  /** typed characters (for text fields), only collected while `textMode` is on */
+  textMode = false;
+  typed: string[] = [];
 
   attach(target: Window, focusEl: HTMLElement) {
     target.addEventListener('keydown', (e) => {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'F3', 'F4'].includes(e.code)) e.preventDefault();
+      if (this.textMode && (e.key.length === 1 || e.key === 'Backspace')) this.typed.push(e.key);
       if (!this.keys.has(e.code)) this.pressedQ.push(e.code);
       this.keys.add(e.code);
       this.pad.lastUsed = false;

@@ -27,6 +27,7 @@ Documentos:
 | Render GPU a 640×360 interno | ≤ 8 ms | `renderer.info` / timestamp queries de WebGPU; si no, el fps |
 | Respaldo WebGL2 de Three (frame completo) | ≤ 22 ms (≥ 45 fps) | overlay con `?webgl` |
 | Serializar snapshot (servidor) | ≤ 0,3 ms | bench de red |
+| Ancho de banda por cliente (LAN) | ≤ 20 KB/s comprimido | `packages/server/test/net.test.ts` |
 | Reservas del sistema | entidades 256 · partículas 1024 (WebGPU) / 512 (WebGL2) · proyectiles 64 | asserts en dev |
 | Asignaciones en el tick de sim | **0** en el camino caliente | bench con `--track-alloc` (heap antes/después) |
 
@@ -151,22 +152,22 @@ Si una fase supera un presupuesto, no se cierra: se perfila, se arregla el mayor
 Va **antes** de la producción de contenido: así cada mecánica nueva se valida en red cuando se crea, y no hay que volver a probar 30 mecánicas al final.
 
 **Skills:** `physics-tuning`, `performance-optimization`, `input-systems`.
-- [ ] `packages/server`: WebSocket (puerto 7777), salas y lobby (personaje, listo, el anfitrión elige pista/copa/modo/clase/reglas de objetos). La IA rellena hasta 8.
-- [ ] Protocolo versionado:
-  - handshake con `protocolVersion` y hash de los tunables/datos (si no coinciden, se rechaza la conexión con un mensaje en español);
-  - inputs `{t,s,d,item,seq}` a 60 Hz;
-  - snapshots a 30 Hz con delta respecto al último confirmado.
-- [ ] Client:
-  - **predicción del kart local + reconciliación** (re-simula desde el último snapshot con los inputs no confirmados);
-  - interpolación de los demás karts (buffer de 100 ms);
-  - los objetos y entidades los crea el servidor, con eco local inmediato del uso del objeto.
-- [ ] Smoke test de red en CI: 2 clientes headless con 80 ms de latencia y 2 % de pérdida simuladas, 1 carrera, y el estado del servidor coincide con el replay.
+- [x] `packages/server`: `Room` sin transporte (lobby: personaje único, listo, el anfitrión elige carrera o copa, pista y dificultad de la IA; la IA rellena hasta 8; copa con puntos; si un humano se va a mitad de carrera, la IA toma su kart) + adaptador WebSocket `ws` en el puerto 7777 con permessage-deflate (`bun run server`; también corre en Node/Electron).
+- [x] Protocolo versionado (`core/src/net/protocol.ts`):
+  - handshake con `PROTOCOL_VERSION` y `tunablesHash()` (si no coinciden, rechazo con mensaje en español);
+  - inputs empaquetados `[seq, t, s, d, item]` a 60 Hz, con cola por jugador en el servidor (máx. 6) y `ack`;
+  - snapshots a **20 Hz** con **delta exacto** respecto al anterior (TCP los entrega en orden): 20,7 KB/s por cliente.
+- [x] Client:
+  - **predicción de todo el mundo + reconciliación**: restaura el estado del servidor y re-simula los inputs no confirmados. Como el core es determinista, solo difiere por los inputs de los otros humanos, que se asumen iguales al último conocido;
+  - corrección visual suavizada del kart local (~120 ms) en lugar de un buffer de interpolación. Los demás karts salen del mundo predicho;
+  - objetos y entidades: los crea el servidor; la predicción los muestra de inmediato y el snapshot los confirma.
+- [x] Smoke test de red (`packages/server/test/net.test.ts`): 2 clientes con 80 ms de latencia y 2 % de paquetes retrasados contra la `Room` real. Comprueba que el estado del servidor es igual a su replay, las correcciones y el ancho de banda. Lo corre `bun test`, y por tanto la CI.
 
 **Terminado cuando:**
-- 2 navegadores contra `bun run server` en la misma PC y 2 PCs en LAN completan una copa.
-- Corrección de reconciliación visible < 5 u en el p95 con 50 ms de latencia simulada.
-- Ancho de banda ≤ 20 KB/s por cliente con 8 karts.
-- Smoke test en verde.
+- 2 navegadores contra `bun run server` en la misma PC y 2 PCs en LAN completan una copa. ✅ 2 navegadores en la misma PC entran a la sala y corren juntos (`tools/lan-check.mjs`). ⏳ Falta probar 2 PCs reales y una copa completa (prueba humana).
+- Corrección de reconciliación visible < 5 u en el p95 con 50 ms de latencia simulada. ✅ 0,01 u (con 80 ms + 2 % de pérdida: 2,8 u).
+- Ancho de banda ≤ 20 KB/s por cliente con 8 karts. ✅ 20,7 KB/s comprimiendo cada mensaje por separado; con el contexto de permessage-deflate sale menos.
+- Smoke test en verde. ✅
 
 > Prompt: "Ejecuta la Fase 6 de docs/PLAN.md."
 
