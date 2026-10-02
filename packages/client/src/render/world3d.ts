@@ -20,6 +20,8 @@ export interface KartView {
   trick: number;
   /** 0..1 squash after landing (1 = just landed) */
   squash: number;
+  /** time-trial ghost: translucent, no outline */
+  ghost?: boolean;
   local: boolean;
 }
 import type { ThingView } from './thingArt';
@@ -111,6 +113,7 @@ export class WorldRenderer {
   private kartMat = new THREE.MeshBasicMaterial({ vertexColors: true });
   private outlineMat = new THREE.MeshBasicMaterial({ color: OUT, side: THREE.BackSide });
   private shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false });
+  private ghostMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.42, depthWrite: false });
   private thingPool: THREE.Object3D[] = [];
   private thingUsed = 0;
   private boxSprites: THREE.Sprite[] = [];
@@ -354,14 +357,15 @@ export class WorldRenderer {
     }
   }
 
-  private kartObj(id: number, ch: number): KartObj {
+  private kartObj(id: number, ch: number, ghost = false): KartObj {
     let o = this.kartObjs.get(id);
     if (o) return o;
     let g = this.kartGeo.get(ch);
     if (!g) { g = voxelGeometry(ch); this.kartGeo.set(ch, g); }
     const root = new THREE.Group(), body = new THREE.Group();
-    const mesh = new THREE.Mesh(g, this.kartMat);
+    const mesh = new THREE.Mesh(g, ghost ? this.ghostMat : this.kartMat);
     const outline = new THREE.Mesh(g, this.outlineMat);
+    outline.visible = !ghost;
     outline.scale.setScalar(1.07);
     outline.position.y = -0.35;
     body.add(outline, mesh);
@@ -437,7 +441,7 @@ export class WorldRenderer {
     // karts
     const seen = new Set<number>();
     for (const k of karts) {
-      const o = this.kartObj(k.id, k.ch);
+      const o = this.kartObj(k.id, k.ch, k.ghost);
       seen.add(k.id);
       o.root.visible = o.shadow.visible = k.visible;
       o.ring.visible = k.visible && k.bubble;

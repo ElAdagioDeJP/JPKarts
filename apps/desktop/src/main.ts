@@ -68,10 +68,10 @@ ipcMain.handle('discover', () => new Promise((resolve) => {
 }));
 
 // ---- settings / save files in userData (atomic: write .tmp, keep .bak, rename) ----
-const store = (key: string) => path.join(app.getPath('userData'), key.replace(/[^a-z0-9._-]/gi, '_') + '.json');
+// `key.bak` reads the backup of `key`; the client validates both and picks (core/src/meta/save.ts)
+const store = (key: string) => path.join(app.getPath('userData'), key.replace(/\.bak$/, '').replace(/[^a-z0-9._-]/gi, '_') + '.json' + (key.endsWith('.bak') ? '.bak' : ''));
 ipcMain.handle('store:read', (_e, key: string) => {
-  for (const f of [store(key), store(key) + '.bak']) { try { return fs.readFileSync(f, 'utf8'); } catch { /* try backup */ } }
-  return null;
+  try { return fs.readFileSync(store(key), 'utf8'); } catch { return null; }
 });
 ipcMain.handle('store:write', (_e, key: string, value: string) => {
   const f = store(key);
