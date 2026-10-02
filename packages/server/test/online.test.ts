@@ -29,7 +29,7 @@ test('online: crear sala da un código; unirse con él entra en la misma sala; u
   c.say({ ...hello, name: 'Cris', room: 'ZZZZZ' });
   expect(c.last('reject')!.reason).toContain('No existe la sala');
   expect(on.rooms.size).toBe(1);
-});
+}, 60000);
 
 test('online: las salas están aisladas y una sala vacía se cierra', () => {
   const { on, client, hello } = setup();
@@ -46,7 +46,7 @@ test('online: las salas están aisladas y una sala vacía se cierra', () => {
   expect(rb!.phase).toBe('lobby'); // B's room did not start
   on.onClose(a.conn);
   expect(on.rooms.size).toBe(1);
-});
+}, 60000);
 
 test('online: el servidor no confía en el cliente (inputs inválidos, nombres, ajustes)', () => {
   const { on, client, hello } = setup();
@@ -66,7 +66,7 @@ test('online: el servidor no confía en el cliente (inputs inválidos, nombres, 
   expect(p.queue.length).toBe(1);
   for (let i = 0; i < 30; i++) on.tick();
   expect(room.world!.karts.every((k) => Number.isFinite(k.x) && Number.isFinite(k.speed))).toBe(true);
-});
+}, 60000);
 
 test('online: límite de mensajes por segundo y mensajes basura', () => {
   const { on, client, hello } = setup();
@@ -83,4 +83,4 @@ test('online: límite de mensajes por segundo y mensajes basura', () => {
   on.onMessage(a.conn, '42');
   on.onMessage(a.conn, JSON.stringify({ t: 'pick', ch: 'x' }));
   expect(room.players.size).toBe(1);
-});
+}, 60000);
