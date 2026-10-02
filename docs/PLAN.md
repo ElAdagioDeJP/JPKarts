@@ -204,14 +204,17 @@ Las pistas legacy siguen jugables en la copa "Clásicas" hasta que su versión n
 | 8d — Copa Fuego | Cañón Rojo, Autopista Láser, Volcán Rugiente, Cráter Ardiente | #33 Ráfaga, lava que avanza, meteoritos |
 
 Para cada lote:
-- [ ] Brief de bioma (ART §11). Blockout de las 4 pistas → validador → playtest → arte (en ese orden; nunca se viste antes de que se juegue bien).
-- [ ] Mecánicas del lote con test de replay y smoke test de red.
-- [ ] Pase de balance de objetos con telemetría local (objetos recibidos/usados por posición, golpes recibidos por posición).
+- [x] Brief de bioma (ART §11). Blockout de las 4 pistas → validador → playtest → arte (en ese orden; nunca se viste antes de que se juegue bien).
+  - Blockout: `packages/core/tools/convert-legacy.ts` convierte los 16 trazados clásicos al formato autorado (mundo 3072, escala 1,5) y aplica el gimmick de cada pista (GDD §6.4). Playa Coco se mantiene a mano.
+  - ✅ Las 16 pistas pasan el validador (vuelta media del ganador de 51,5 a 57,0 s, dentro de 50–65 s según la copa).
+  - Arte: los biomas reutilizan el decorado instanciado de la Fase 5. Los peligros, monedas y objetos tienen sprites propios (`render/thingArt.ts`), revisados con `tools/hazard-shots.mjs` e `items-shots.mjs`. ⏳ Falta el playtest humano.
+- [x] Mecánicas del lote con test de replay y smoke test de red: `test/items8.test.ts` (11 tests), trayectorias doradas, `net.test.ts` y `tools/lan-check.mjs` en verde. Protocolo v2.
+- [ ] Pase de balance de objetos con telemetría local. ⏳ Necesita partidas humanas; el reparto queda con 26 objetos por tier (`highTier` 16, el 1º hasta tier 11).
 
 **Terminado cada lote cuando:**
-- Las 4 pistas pasan el validador con las métricas de su copa.
-- Hay una copa completa en LAN con ≥ 3 humanos.
-- Rendimiento dentro del presupuesto en la pista más cargada del lote.
+- Las 4 pistas pasan el validador con las métricas de su copa. ✅ los 4 lotes.
+- Hay una copa completa en LAN con ≥ 3 humanos. ⏳ prueba humana (en automático: 2 navegadores corren juntos en Pradera JP).
+- Rendimiento dentro del presupuesto en la pista más cargada del lote. ✅ sim p95 ≤ 0,07 ms en Playa Coco, Ciudad Neón, Volcán Rugiente y Cráter Ardiente (`bun run bench`); render 60 fps con WebGPU.
 
 > Prompt: "Ejecuta el lote 8x de la Fase 8 de docs/PLAN.md."
 

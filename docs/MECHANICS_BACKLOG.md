@@ -15,6 +15,12 @@
 - **Riesgo:** B = balance · R = red (desincronización, predicción, ancho de banda). Valores: bajo/medio/alto.
 - **Fase:** número de fase en `PLAN.md`. 8a–8d = lotes de producción (una copa por lote).
 
+## Estado (2026-10-02)
+- **Hechas (Fases 2–7):** #1–#17, #19–#21, #34–#36, #39, #43–#55; #37 y #38 en su parte de olas y marea.
+- **Hechas (Fase 8):** #16 (hielo y arena), #18, #22–#33, #37 (14 peligros en 6 familias: cruces, aspas, erupciones, rodantes, setas y compuertas), #38 (lava que sube, nieve que estrecha, compuertas por vuelta), #40, #41, #42 (16 pistas autoradas que pasan el validador).
+- **Desviación:** #22 no "suelta el objeto sostenido" porque no existen objetos sostenidos detrás; la onda aplica un golpe leve.
+- **Pendientes:** #56–#62 (Fase 9), #63 (Fase 10).
+
 ## Sistemas base
 
 | # | Mecánica | Tipo | Prio | Depende de | Esf. | Riesgo | Fase | GDD |
