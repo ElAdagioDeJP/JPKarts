@@ -78,5 +78,5 @@ export function saveSettings(s: Settings, store: Storage = localStore) {
 /** Desktop app: settings file in userData wins over localStorage. */
 export async function loadDesktopSettings(): Promise<Settings | null> {
   const d = (globalThis as { jpkartDesktop?: { read(k: string): Promise<string | null> } }).jpkartDesktop;
-  return d ? parseSettings(await d.read('settings')) : null;
+  return d ? parseSettings(await d.read('settings')) ?? parseSettings(await d.read('settings.bak')) : null;
 }

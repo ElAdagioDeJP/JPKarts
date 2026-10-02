@@ -13,7 +13,7 @@ await page.goto('http://localhost:5173/');
 await page.waitForFunction(() => !!window.__jpkart, null, { timeout: 30000 });
 const key = async (k, n = 1) => { for (let i = 0; i < n; i++) { await page.keyboard.press(k); await page.waitForTimeout(90); } };
 await key('Enter'); // title → menu
-await key('ArrowDown', 3);
+await key('ArrowUp'); // the last entry: Opciones
 await page.screenshot({ path: `${out}/m1-menu.png` });
 await key('Enter'); // options
 await key('ArrowDown', 4); // colorblind
