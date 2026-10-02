@@ -32,7 +32,7 @@ export class NetSession {
   visOff = { x: 0, y: 0 };
   bytesIn = 0;
 
-  constructor(public url: string, public name: string, private trackFor: (index: number) => Track, private onStart: () => void, private onEnd: () => void) {}
+  constructor(public url: string, public name: string, private trackFor: (index: number, mirror: boolean) => Track, private onStart: () => void, private onEnd: () => void) {}
 
   static urlFrom(addr: string) {
     const a = addr.trim() || 'localhost';
@@ -63,7 +63,7 @@ export class NetSession {
         if (m.phase !== 'race' && this.status === 'race') this.status = 'lobby';
         break;
       case 'start':
-        this.race = new PredictedRace(m.cfg, this.trackFor(m.cfg.trackIndex), m.kart);
+        this.race = new PredictedRace(m.cfg, this.trackFor(m.cfg.trackIndex, !!m.cfg.mirror), m.kart);
         this.status = 'race'; this.lastEnd = null; this.visOff = { x: 0, y: 0 };
         this.onStart();
         break;

@@ -803,7 +803,7 @@ export class Game {
   }
   connectLan(addr = this.lanAddr, name = this.lanName) {
     this.net?.close();
-    const net = new NetSession(NetSession.urlFrom(addr), name || 'Jugador', (i) => this.tracks.ensureBuilt(i, [this.tr]), () => this.startNetRace(), () => { this.state = 'results'; });
+    const net = new NetSession(NetSession.urlFrom(addr), name || 'Jugador', (i, mirror) => this.tracks.ensureBuilt(i, [this.tr], mirror), () => this.startNetRace(), () => { this.state = 'results'; });
     this.net = net;
     net.connect();
     this.state = 'lobby';
@@ -819,13 +819,14 @@ export class Game {
   private startNetRace() {
     const r = this.net!.race!;
     this.curTrack = r.cfg.trackIndex;
-    this.tr = this.tracks.get(r.cfg.trackIndex);
+    this.tr = this.tracks.get(r.cfg.trackIndex, !!r.cfg.mirror);
     this.renderer.setTrack(this.tr);
     this.renderer.clearKarts();
     this.world = r.world;
+    this.ghost = null; this.resultNotes = [];
     this.localId = r.kart;
     this.prev = this.world.karts.map((k) => ({ x: k.x, y: k.y, z: k.z, a: k.a }));
-    this.mode = r.cfg.mode === 'cup' ? 'cup' : 'free';
+    this.mode = r.cfg.mode === 'cup' ? 'cup' : r.cfg.mode === 'elimination' ? 'elimination' : 'free';
     this.rig.cut(this.camTarget()!, this.tr);
     this.acc = 0; this.banner = null; this.flashT = 0; this.parts = []; this.paused = false; this.incoming = null;
     this.state = 'race';
@@ -858,7 +859,9 @@ export class Game {
     if (_code === 'KeyR' || (ok && !net.isHost)) net.send({ t: 'ready', ready: !me.ready });
     if (net.isHost) {
       const s = { ...net.settings };
-      if (U || D) { s.mode = s.mode === 'cup' ? 'free' : 'cup'; net.send({ t: 'settings', s }); }
+      if (U || D) { const ms = ['free', 'cup', 'elimination'] as const; s.mode = ms[(ms.indexOf(s.mode) + (U ? 2 : 1)) % 3]!; if (s.mode === 'elimination') s.teams = false; net.send({ t: 'settings', s }); }
+      if (_code === 'KeyX') { s.cls = CLASSES[(CLASSES.indexOf((s.cls ?? '100') as EngineClass) + 1) % CLASSES.length]; net.send({ t: 'settings', s }); }
+      if (_code === 'KeyT' && s.mode !== 'elimination') { s.teams = !s.teams; net.send({ t: 'settings', s }); }
       if (_code === 'KeyQ' || _code === 'KeyE') {
         const dir = _code === 'KeyE' ? 1 : -1;
         if (s.mode === 'cup') s.cup = (s.cup + dir + CUPS.length) % CUPS.length;
@@ -903,8 +906,8 @@ export class Game {
     const S = net.settings;
     const what = S.mode === 'cup' ? CUPS[S.cup]!.name + (net.phase !== 'lobby' ? ` · carrera ${net.cupRace + 1}` : '') : this.tracks.get(S.trackIndex).def.name;
     ui.panel(ox, 30, 340, 22, '#1b1740', '#6d66b0');
-    ui.txt((S.mode === 'cup' ? 'Copa: ' : 'Carrera: ') + what, ox + 6, 34, '#fff7e0');
-    ui.txtS('IA: ' + DIFFS[S.diff]!.name + ' · ' + net.players.length + ' humano(s) + ' + (8 - net.players.length) + ' IA', ox + 6, 45, '#9c95d6', 'left');
+    ui.txt((S.mode === 'cup' ? 'Copa: ' : S.mode === 'elimination' ? 'Eliminación: ' : 'Carrera: ') + what, ox + 6, 34, '#fff7e0');
+    ui.txtS('IA: ' + DIFFS[S.diff]!.name + ' · ' + CLASS_NAMES[(S.cls ?? '100') as EngineClass] + (S.teams ? ' · Equipos' : '') + ' · ' + net.players.length + ' humano(s) + ' + (8 - net.players.length) + ' IA', ox + 6, 45, '#9c95d6', 'left');
     net.players.forEach((p, i) => {
       const y = 60 + i * 18, me = p.id === net.id;
       ui.panel(ox, y, 340, 15, me ? '#3a3478' : '#241f55', me ? '#ffe45e' : '#6d66b0');
@@ -914,7 +917,7 @@ export class Game {
       ui.txt(p.host ? 'anfitrión' : p.ready ? 'listo ✓' : 'no listo', ox + 334, y + 4, p.ready || p.host ? '#9cff9c' : '#ff8a9a', 8, 'right');
     });
     const help = net.isHost
-      ? '←→ piloto · ↑↓ modo · Q/E pista · F IA · Intro: ¡empezar!'
+      ? '←→ piloto · ↑↓ modo · Q/E pista · F IA · X clase · T equipos · Intro'
       : '←→ personaje · Intro o R: listo · espera al anfitrión';
     ui.txtS(help, W / 2, 214, '#9c95d6');
     ui.txtS('Esc: salir de la sala', W / 2, 226, '#9c95d6');
