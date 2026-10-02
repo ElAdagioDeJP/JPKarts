@@ -84,19 +84,19 @@ Si una fase supera un presupuesto, no se cierra: se perfila, se arregla el mayor
 ## Fase 3 — Arquitectura de mecánicas
 **Objetivo:** que añadir una mecánica sea crear un archivo y registrarlo. Los 15 objetos legacy migrados **sin cambiar su comportamiento**.
 **Skills:** `physics-tuning`, `game-feel` (contrato de eventos → feedback), `input-systems` (acciones), `save-systems` (versionado de tunables), `performance-optimization` (pools).
-- [ ] Sistema de efectos `defineEffect` (tags, `blocks`, modifiers, stacking). Los campos sueltos del kart pasan a ser efectos (backlog #2).
-- [ ] Lista única de entidades `defineEntity` con pools de tamaño fijo, y colisiones por spatial hash. `nearestFull` deja de ser O(N) por kart (#3).
-- [ ] Bus de eventos tipado; el client mapea evento → preset de feedback (pequeño/medio/grande) (#4).
-- [ ] `defineItem` y migración de los 15 objetos, un archivo por objeto (#5).
-- [ ] `defineMode` con Carrera y Copa (#6).
-- [ ] Tunables en `core/data/tunables/*.json` con esquema validado y recarga en caliente en dev (#7).
-- [ ] Datos de personajes en JSON (stats, colores, personalidad).
+- [x] Sistema de efectos `defineEffect` (`core/src/sim/effects.ts` + `effectDefs.ts`): tags, `blocks` (inmunidades), permanentes, `cancelOnHit` y hooks del pipeline (`input`, `noBoost`, `speed` con orden, `absorbHit`, `bumpScale`, `onBump`, `bumpPush`, `onWorldBounds`, `onOffRoad`). Los 11 campos sueltos del kart pasan a `kart.fx` (#2). Decisión: `spin`, `boost` y `respawn` siguen siendo estado cinemático del kart, no efectos.
+- [x] Lista única de entidades `defineEntity` (`entities.ts`): `fake`, `tar`, `shot`, `rocket`, `hole`, con zonas (`zone` + `zoneEffect`) y comportamiento ante el agujero negro como datos (#3). Pools y spatial hash: **no hacen falta todavía** (bench p95 0,07 ms/tick; `nearestFull` solo se llama cuando un kart se pierde). Se retoman si el bench se acerca al presupuesto.
+- [x] Bus de eventos tipado. El client presenta los efectos con una tabla de datos (`client/src/feel/effectView.ts`: etiqueta, HUD y prioridad) (#4). Los presets de feedback pequeño/medio/grande (shake, hit-stop) llegan con la Fase 5.
+- [x] `defineItem` y migración de los 15 objetos, **un archivo por objeto** en `core/src/items/`. El orden de importación define el tier (#5).
+- [x] `defineMode` con Carrera y Copa (`modes.ts`: `endCondition` + `scoring`). La copa del client suma puntos con `scoring` (#6).
+- [x] Tunables en `core/data/tunables/{driving,items,race}.json` con validación de forma (`validateTunables`), `tunablesHash()` para la red y **recarga en caliente** en dev (plugin de Vite + `setTunables`, verificado con `tools/hot-tunables-check.mjs`) (#7).
+- [x] Personajes en `core/data/characters.json` (stats, colores, personalidad).
 
 **Terminado cuando:**
-- Los replays grabados en la Fase 2 **dan el mismo hash** tras la migración (o la diferencia está explicada y aprobada).
-- `updateKart` no menciona ningún objeto ni efecto por nombre (comprobado con grep en el test).
-- Añadir un objeto de prueba solo toca su archivo y una línea de registro (test).
-- Bench dentro del presupuesto.
+- Los replays grabados en la Fase 2 **dan el mismo hash** tras la migración (o la diferencia está explicada y aprobada). ✅ El hash del snapshot cambia a la fuerza (otra forma de los datos), así que se usan **trayectorias doradas**: 6 escenarios, 90 s cada uno, con los 15 objetos usados ≥ 15 veces. El hash de comportamiento (posiciones, velocidades, objetos, entidades, RNG) es **idéntico bit a bit** antes y después (`test/golden.test.ts`).
+- `updateKart` no menciona ningún objeto ni efecto por nombre. ✅ (`test/architecture.test.ts`)
+- Añadir un objeto de prueba solo toca su archivo y una línea de registro. ✅ (`test/fixtures/new-mechanic.ts`: efecto + objeto nuevos sin tocar la simulación)
+- Bench dentro del presupuesto. ✅ p95 0,072 ms/tick.
 
 > Prompt: "Ejecuta la Fase 3 de docs/PLAN.md."
 

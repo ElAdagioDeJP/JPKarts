@@ -1,4 +1,5 @@
 import { Audio } from './audio/audio';
+import { installHotTunables } from './dev/hotTunables';
 import { Game } from './game';
 import { Input } from './input/input';
 import { WorldRenderer } from './render/world3d';
@@ -16,6 +17,7 @@ async function boot() {
   input.attach(window, stage);
   const game = new Game(renderer, new Ui(uiCv), input, new Audio());
   (window as any).__jpkart = game;
+  installHotTunables((msg) => { console.info(msg); game.toast(msg); });
   setTimeout(() => stage.focus(), 50);
   const loop = (now: number) => {
     game.frame(now);
