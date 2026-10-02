@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { gzipSync } from 'node:zlib';
 import {
   ALL_TRACKS, PROTOCOL_VERSION, PredictedRace, TrackCache, datan2, dcos, dsin, handshakeTunables, hashWorld, playReplay, prepAuthored, wrapA,
-  type ClientMsg, type Input, type ServerMsg, type World,
+  type ClientMsg, type Input, type LobbySettings, type ServerMsg, type World,
 } from '@jpkart/core';
 
 /** A decent human stand-in: pure pursuit on the racing line. Reads the world, never touches it (no RNG). */
@@ -39,7 +39,7 @@ class Net {
 
 function lcg(seed: number) { let s = seed; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
 
-function runNetworkRace(latency: number, loss: number, seconds: number) {
+function runNetworkRace(latency: number, loss: number, seconds: number, extra: Partial<LobbySettings> = {}) {
   const net = new Net(latency, loss, lcg(42));
   const room = new Room(1234);
   const tracks = new TrackCache(ALL_TRACKS, prepAuthored);
@@ -53,7 +53,7 @@ function runNetworkRace(latency: number, loss: number, seconds: number) {
       if (m.t === 'snap') c.gz += gzipSync(s).length;
       net.send('s' + c.id, () => {
         if (m.t === 'reject') c.rejected = m.reason;
-        if (m.t === 'start') c.race = new PredictedRace(m.cfg, tracks.ensureBuilt(m.cfg.trackIndex), m.kart);
+        if (m.t === 'start') c.race = new PredictedRace(m.cfg, tracks.ensureBuilt(m.cfg.trackIndex, [], !!m.cfg.mirror), m.kart);
         if (m.t === 'snap') c.race?.onSnapshot(m);
       });
     },
@@ -63,7 +63,7 @@ function runNetworkRace(latency: number, loss: number, seconds: number) {
   net.now += 0.5; net.flush(); net.now += 0.5; net.flush();
   toServer(1, { t: 'pick', ch: 3 });
   toServer(1, { t: 'ready', ready: true });
-  toServer(0, { t: 'settings', s: { mode: 'free', trackIndex: 16, cup: 0, diff: 1, laps: 3 } });
+  toServer(0, { t: 'settings', s: { mode: 'free', trackIndex: 16, cup: 0, diff: 1, laps: 3, ...extra } });
   net.now += 0.5; net.flush();
   toServer(0, { t: 'start' });
   net.now += 0.5; net.flush(); net.now += 0.5; net.flush();
@@ -117,3 +117,32 @@ test('red: versión de protocolo o tunables distintos → rechazo con mensaje en
   expect(got.map((m) => m.t)).toEqual(['reject', 'reject']);
   expect((got[0] as { reason: string }).reason).toContain('Versión');
 });
+
+/** Phase 9 modes over the network: the authoritative world must still equal its replay, on the right track. */
+function modeSmoke(extra: Partial<LobbySettings>) {
+  const { room, clients } = runNetworkRace(0.06, 0.02, 25, extra);
+  expect(clients.every((c) => !c.rejected && c.race)).toBe(true);
+  const w = room.world!, rep = room.recorder!.replay;
+  const tr = room.tracks.ensureBuilt(w.cfg.trackIndex, [], !!w.cfg.mirror);
+  // the clients predict on the same (mirrored or not) track as the server
+  for (const c of clients) expect(c.race!.world.track).toBe(clients[0]!.race!.world.track);
+  const { world, mismatch } = playReplay(JSON.parse(JSON.stringify(rep)), tr);
+  expect(mismatch).toBe(-1);
+  expect(hashWorld(world)).toBe(hashWorld(w));
+  for (const c of clients) expect(w.karts[c.race!.kart]!.prog).toBeGreaterThan(40);
+  return w;
+}
+
+test('red: Eliminación en Espejo — servidor = replay y pista reflejada en todos', () => {
+  const w = modeSmoke({ mode: 'elimination', cls: 'espejo', trackIndex: 17 });
+  expect(w.cfg.mode).toBe('elimination');
+  expect(w.cfg.laps).toBe(7);
+  expect(w.cfg.mirror).toBe(true);
+}, 120000);
+
+test('red: Equipos a 150cc — servidor = replay', () => {
+  const w = modeSmoke({ teams: true, cls: '150', trackIndex: 24 });
+  expect(w.cfg.teams).toBe(true);
+  expect(w.karts.every((k) => k.team === 0 || k.team === 1)).toBe(true);
+  expect(w.cfg.cc).toBe(150);
+}, 120000);

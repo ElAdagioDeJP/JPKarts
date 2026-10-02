@@ -16,7 +16,14 @@ export const packInput = (seq: number, i: Input): PackedInput => [seq, Math.roun
 export const unpackInput = (p: PackedInput): Input => ({ t: p[1] / 127, s: p[2] / 127, d: !!p[3], item: !!p[4] });
 
 export interface LobbyPlayer { id: number; name: string; ch: number; ready: boolean; host: boolean }
-export interface LobbySettings { mode: 'free' | 'cup'; trackIndex: number; cup: number; diff: number; laps: number }
+export interface LobbySettings {
+  mode: 'free' | 'cup' | 'elimination';
+  trackIndex: number; cup: number; diff: number; laps: number;
+  /** two teams, no friendly fire */
+  teams?: boolean;
+  /** engine class: '100' | '150' | 'espejo' (LAN: everything is unlocked) */
+  cls?: string;
+}
 
 export type ClientMsg =
   | { t: 'hello'; proto: number; name: string; tun: string }
