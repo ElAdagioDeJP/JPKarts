@@ -172,5 +172,19 @@
   },
   "elimination": {
     "warnGap": 10
+  },
+  "battle": {
+    "balloons": 3,
+    "maxBalloons": 5,
+    "time": 180,
+    "chase": 380,
+    "stealBoost": 0.05
+  },
+  "capture": {
+    "goal": 60,
+    "time": 180,
+    "radius": 14,
+    "regrab": 1.0,
+    "carrierMul": 0.88
   }
 }

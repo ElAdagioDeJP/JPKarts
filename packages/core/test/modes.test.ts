@@ -1,7 +1,7 @@
 // Phase 9: every mode's endCondition, checked on a recorded race that is then replayed headless with the same hash.
 import { expect, test } from 'bun:test';
 import {
-  ALL_TRACKS, ReplayRecorder, Rng, TrackCache, buildGrid, createWorld, datan2, dcos, dsin, hashWorld, modeOf, playReplay, prepAuthored, step, takeEvents, wrapA,
+  ALL_TRACKS, ARENA_INDICES, ReplayRecorder, Rng, TrackCache, buildGrid, createWorld, datan2, dcos, dsin, hashWorld, modeOf, playReplay, prepAuthored, step, takeEvents, wrapA,
   type GameEvent, type Input, type RaceConfig, type World,
 } from '../src';
 import { hit } from '../src/sim/helpers';
@@ -99,3 +99,31 @@ test('Espejo: la pista reflejada es simétrica y la IA completa la carrera', () 
   expect(w.karts.every((k) => k.finished)).toBe(true);
   expect(mismatch).toBe(-1);
 }, 180000);
+
+test('Batalla: Globos en las 4 arenas — termina con uno en pie o por tiempo; replay = mismo hash', () => {
+  for (const ti of ARENA_INDICES) {
+    const grid = buildGrid(new Rng(ti), [], { humanSlot: 0 }).slice(0, 4);
+    const { w, ev, replayHash, mismatch } = raceAndReplay({ trackIndex: ti, diff: 2, seed: ti, laps: 99, mode: 'battle', grid }, 60 * 200);
+    expect(w.phase).toBe('results');
+    const standing = w.karts.filter((k) => !k.out);
+    expect(standing.length === 1 || w.raceT >= T.race.battle.time).toBe(true);
+    expect(ev.some((e) => e.type === 'balloon')).toBe(true);
+    // the ranking: balloons first, the knocked-out karts last
+    const order = w.finalOrder.map((id) => w.karts[id]!);
+    for (let i = 1; i < order.length; i++) if (!order[i - 1]!.out && !order[i]!.out) expect(order[i - 1]!.balloons).toBeGreaterThanOrEqual(order[i]!.balloons);
+    expect(mismatch).toBe(-1);
+    expect(replayHash).toBe(hashWorld(w));
+  }
+}, 600000);
+
+test('Batalla: Captura — la bandera puntúa, un golpe la suelta; termina por meta o tiempo', () => {
+  const ti = ARENA_INDICES[0]!, grid = buildGrid(new Rng(9), [], { humanSlot: 0 }).slice(0, 4);
+  const { w, ev, replayHash, mismatch } = raceAndReplay({ trackIndex: ti, diff: 2, seed: 9, laps: 99, mode: 'capture', grid }, 60 * 200);
+  expect(w.phase).toBe('results');
+  expect(ev.some((e) => e.type === 'flagGet')).toBe(true);
+  const top = w.karts[w.finalOrder[0]!]!;
+  expect(top.score).toBeGreaterThan(0);
+  expect(top.score >= T.race.capture.goal || w.raceT >= T.race.capture.time).toBe(true);
+  expect(mismatch).toBe(-1);
+  expect(replayHash).toBe(hashWorld(w));
+}, 300000);

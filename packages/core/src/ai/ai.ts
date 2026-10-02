@@ -1,5 +1,6 @@
 // AI: navigation (racing line + speed profile), tactics (utility AI at 5 Hz) and items (aiScore).
 // Deterministic: all randomness comes from the race RNG; debug info is write-only (never read back).
+import { modeOf } from '../sim/modes';
 import { CHARS } from '../data/characters';
 import { datan2, dcos, dhypot, dsin } from '../dmath';
 import { clamp, wrapA } from '../math';
@@ -185,7 +186,8 @@ export function aiInput(w: World, k: Kart): Input {
   if (!dbg) { dbg = { act: 'linea', scores: {}, tx: 0, ty: 0, vt: 0, item: 0 }; aiDebug.set(k.id, dbg); }
   if ((w.tick + k.id * 3) % Math.round(60 / A.tacticsHz) === 0) think(w, k, dbg);
   const L = A.line, look = Math.round(L.lookBase + Math.max(0, k.speed) / L.lookDiv);
-  const [tx, ty] = aimPoint(w, k, look);
+  const chase = modeOf(w).aiTarget?.(w, k) ?? null;
+  const [tx, ty] = chase ?? aimPoint(w, k, look);
   let diffA = wrapA(datan2(ty - k.y, tx - k.x) - k.a);
   const yaw = yawRate(k);
   let vt = targetSpeed(tr, line, k.idx, yaw);

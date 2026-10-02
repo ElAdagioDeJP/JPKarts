@@ -32,7 +32,9 @@ export function ouch(k: Kart, time: number, text: number) {
 }
 
 /** Called after every real hit (coins drop, etc.). Registered by systems; order = registration order. */
-export const hitHooks: ((w: World, k: Kart) => void)[] = [];
+export const hitHooks: ((w: World, k: Kart, src: KartId) => void)[] = [];
+/** Called once per kart contact (after the effects' own reactions): battle steals balloons with it. */
+export const bumpHooks: ((w: World, a: Kart, b: Kart) => void)[] = [];
 
 /** Can this kart be hit right now? (immunity effects, spinning, respawning, post-hit invulnerability) */
 export const canBeHit = (k: Kart) => !(immune(k, 'hit') || k.spin > 0 || k.respawn > 0 || k.invuln > 0);
@@ -58,6 +60,6 @@ export function hit(w: World, k: Kart, t: number, level = 1, src = -1): boolean 
   for (const f of [...k.fx]) if (effectDef(f.type)?.cancelOnHit) removeFx(k, f.type);
   ouch(k, H.ouch, w.rng.int(OUCH.length));
   emit(w, { type: 'hit', kart: k.id });
-  for (const h of hitHooks) h(w, k);
+  for (const h of hitHooks) h(w, k, src);
   return true;
 }
