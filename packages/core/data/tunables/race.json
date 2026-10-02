@@ -151,7 +151,7 @@
     "dropLife": 4,
     "dropSpread": 18,
     "radius": 10,
-    "respawn": 8,
+    "respawn": 5,
     "line": 4,
     "spacing": 16,
     "timeTrialStart": 10

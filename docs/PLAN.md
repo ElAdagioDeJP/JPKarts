@@ -206,10 +206,15 @@ Las pistas legacy siguen jugables en la copa "Clásicas" hasta que su versión n
 Para cada lote:
 - [x] Brief de bioma (ART §11). Blockout de las 4 pistas → validador → playtest → arte (en ese orden; nunca se viste antes de que se juegue bien).
   - Blockout: `packages/core/tools/convert-legacy.ts` convierte los 16 trazados clásicos al formato autorado (mundo 3072, escala 1,5) y aplica el gimmick de cada pista (GDD §6.4). Playa Coco se mantiene a mano.
-  - ✅ Las 16 pistas pasan el validador (vuelta media del ganador de 51,5 a 57,0 s, dentro de 50–65 s según la copa).
+  - ✅ Las 16 pistas pasan el validador. Con monedas y objetos, la vuelta media del piloto mediano va de 50,8 a 58,9 s y la del ganador de 44,2 a 53,2 s (la métrica se explica en GDD §6.3).
   - Arte: los biomas reutilizan el decorado instanciado de la Fase 5. Los peligros, monedas y objetos tienen sprites propios (`render/thingArt.ts`), revisados con `tools/hazard-shots.mjs` e `items-shots.mjs`. ⏳ Falta el playtest humano.
 - [x] Mecánicas del lote con test de replay y smoke test de red: `test/items8.test.ts` (11 tests), trayectorias doradas, `net.test.ts` y `tools/lan-check.mjs` en verde. Protocolo v2.
-- [ ] Pase de balance de objetos con telemetría local. ⏳ Necesita partidas humanas; el reparto queda con 26 objetos por tier (`highTier` 16, el 1º hasta tier 11).
+- [x] Pase de balance de objetos con telemetría local (`bun packages/core/tools/item-telemetry.ts`: 32 carreras de 8 IA en las 16 pistas).
+  - Con las cajas volviendo a los 3 s (legacy), el 1º recibía 9,3 objetos por carrera y el resto entre 4 y 6: el pelotón encontraba las cajas vacías.
+  - Con 1,5 s todos reciben entre 6 y 7 (el 1º 9,3, porque pasa por cajas libres y gasta rápido). Las monedas reaparecen a los 5 s en vez de 8.
+  - Golpes: entre 4 y 5 por carrera en el medio, 3,7 el 1º y 2,3 el último. Los objetos raros salen sobre todo detrás.
+  - El humano de referencia sigue dentro del objetivo: top 4 en el 45 % de las carreras (Playa Coco) y el 70 % (Ciudad Neón).
+  - ⏳ Falta confirmarlo con partidas humanas.
 
 **Terminado cada lote cuando:**
 - Las 4 pistas pasan el validador con las métricas de su copa. ✅ los 4 lotes.

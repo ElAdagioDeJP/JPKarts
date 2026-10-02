@@ -1,5 +1,5 @@
 {
-  "boxRespawn": 3,
+  "boxRespawn": 1.5,
   "boxRadius": 11,
   "boxHeight": 14,
   "rollTime": 1.0,

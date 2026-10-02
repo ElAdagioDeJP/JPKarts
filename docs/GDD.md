@@ -285,6 +285,10 @@ Cada pista se lee como una curva de tensión (`level-design`): sube en dientes d
   - La copa Fuego puede llegar a 3:15.
 - **No recomiendo 3:30.** Una copa de 4 carreras pasaría de 15 min con menús, y en LAN la gente se cansa. Con 3:00 la copa queda en ~13 min.
 
+**Cómo se mide la duración (decisión de la Fase 8).** El validador mide la vuelta del **piloto mediano** (4º de 8 con IA difícil), porque la duración prometida es la que vive un piloto típico.
+- El ganador puede ir más rápido, hasta el 85 % del mínimo. Las monedas le dan hasta un +12 % de velocidad y es el que más acumula: con ellas la vuelta del ganador baja unos 4 s.
+- Los trazados ya llenan el mundo de 3072 u, así que alargarlos más exigiría mundos mayores.
+
 Métricas por copa (las comprueba el validador, §6.5):
 
 | Copa | Semiancho de pista | Curvas cerradas/vuelta | Peligros/vuelta | Caídas posibles | Muros |
