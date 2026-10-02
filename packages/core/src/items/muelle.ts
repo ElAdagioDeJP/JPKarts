@@ -18,7 +18,7 @@ defineItem({
   aiScore(w, k) {
     let s = k.hold > 12 ? 0.6 : 0;
     for (const e of w.ents) {
-      if (e.owner === k.id || !(e.kind === 'tar' || e.kind === 'mine' || e.kind === 'fake' || e.kind === 'ola' || e.kind === 'shot')) continue;
+      if (e.owner === k.id || !(e.kind === 'tar' || e.kind === 'mine' || e.kind === 'fakebox' || e.kind === 'ice' || e.kind === 'ola' || e.kind === 'shot' || e.kind === 'boomer')) continue;
       const d = dhypot(e.x - k.x, e.y - k.y);
       if (d < 70 && d > 20) s = Math.max(s, 0.95);
     }

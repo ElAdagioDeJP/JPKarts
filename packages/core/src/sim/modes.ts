@@ -8,6 +8,10 @@ export interface ModeDef {
   name: string;
   /** true when the race is over (the world then waits `finishDelay` and shows results) */
   endCondition(w: World): boolean;
+  /** prepare the world after it is created (starting coins, etc.) */
+  setup?(w: World): void;
+  /** false = no coins on the track (time trial) */
+  trackCoins?: boolean;
   /** points per kart for the final order (cup modes) */
   scoring?(w: World, order: KartId[]): Map<KartId, number>;
 }

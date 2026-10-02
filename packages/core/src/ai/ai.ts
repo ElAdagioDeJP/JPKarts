@@ -36,7 +36,7 @@ export const aiDebug = new Map<number, AiDebug>();
 /** Difficulty parameters of a kart's AI (or the race's when no kart is given). */
 export const aiDiff = (w: World, k?: Kart) => T.ai.difficulty[k?.ai?.diff ?? w.cfg.diff]!;
 /** Entities the AI steers around. */
-const AVOID = new Set(['mine', 'fake', 'ola', 'tren', 'vaca', 'auto', 'pinguino', 'roca', 'pelota', 'bolanieve', 'geiser', 'laser', 'meteoro', 'aspa', 'seta']);
+const AVOID = new Set(['mine', 'fakebox', 'ice', 'smoke', 'ola', 'tren', 'vaca', 'auto', 'pinguino', 'roca', 'pelota', 'bolanieve', 'geiser', 'laser', 'meteoro', 'aspa', 'seta']);
 const persona = (k: Kart) => T.ai.personality[CHARS[k.ch]!.personality];
 const yawRate = (k: Kart) => T.driving.steer.rate * CHARS[k.ch]!.hnd * 0.92;
 
@@ -93,7 +93,7 @@ export function straightAhead(w: World, k: Kart, samples = 40): number {
 export function threatBehind(w: World, k: Kart): number {
   for (const e of w.ents) {
     if (e.owner === k.id) continue;
-    if ((e.kind === 'rocket' && e.target === k.id) || e.kind === 'shot') {
+    if ((e.kind === 'rocket' && e.target === k.id) || e.kind === 'shot' || e.kind === 'boomer') {
       const d = dhypot(e.x - k.x, e.y - k.y);
       if (d < 200) return 1 - d / 200;
     }

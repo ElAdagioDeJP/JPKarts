@@ -79,6 +79,10 @@ export interface Kart {
   ai: AiState | null;
   /** seconds spent nearly stopped (stuck recovery) */
   stuckT: number;
+  /** coins (GDD §4.1): each one raises the top speed */
+  coins: number;
+  /** uses left of the held item (Turbo Triple, Triple Ciego) */
+  itemN: number;
 }
 
 /** Any world entity (projectile, trap, hazard). Flat numeric fields so it serializes trivially. */
@@ -124,7 +128,11 @@ export type GameEvent =
   | { type: 'alreadyFirst'; kart: KartId }
   | { type: 'hit'; kart: KartId }
   | { type: 'bump'; a: KartId; b: KartId }
-  | { type: 'smudge'; kart: KartId }
+  | { type: 'coin'; kart: KartId; coins: number }
+  | { type: 'coinLoss'; kart: KartId; n: number }
+  | { type: 'zap'; from: KartId; to: KartId }
+  | { type: 'gust'; kart: KartId }
+  | { type: 'catch'; kart: KartId }
   | { type: 'lap'; kart: KartId; lap: number; final: boolean }
   | { type: 'finish'; kart: KartId; time: number }
   | { type: 'flash'; color: string }

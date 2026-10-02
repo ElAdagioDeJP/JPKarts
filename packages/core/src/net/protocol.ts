@@ -5,7 +5,7 @@ import { tunablesHash } from '../tunables';
 import type { Track } from '../track/track';
 import type { Ctrl, GameEvent, Input, RaceConfig, World } from '../sim/types';
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2; // 2: coins, item charges, Phase 8 items and hazards
 export const LAN_PORT = 7777;
 export const DISCOVERY_PORT = 7778;
 export const SNAPSHOT_EVERY = 3; // server ticks per snapshot (60 Hz / 3 = 20 Hz): clients predict everything, so 20 Hz is plenty

@@ -14,17 +14,24 @@ function pilot(w: World, id: number, f: number): Input {
 }
 import { Room, type Conn } from '../src/room';
 
-/** In-memory network with one-way latency and occasional extra delay ("loss" over TCP = late delivery). */
+/**
+ * In-memory network with one-way latency and occasional extra delay ("loss" over TCP = late delivery).
+ * Like TCP, each channel delivers in order: a late message holds back the ones sent after it (head-of-line blocking).
+ */
 class Net {
   now = 0;
-  private q: { at: number; fn: () => void }[] = [];
+  private q: { at: number; seq: number; fn: () => void }[] = [];
+  private last = new Map<string, number>();
+  private seq = 0;
   constructor(public latency: number, public lossRate: number, private rand: () => number) {}
-  send(fn: () => void) {
+  send(ch: string, fn: () => void) {
     const extra = this.rand() < this.lossRate ? 0.12 : 0;
-    this.q.push({ at: this.now + this.latency + extra, fn });
+    const at = Math.max(this.now + this.latency + extra, this.last.get(ch) ?? 0);
+    this.last.set(ch, at);
+    this.q.push({ at, seq: this.seq++, fn });
   }
   flush() {
-    const due = this.q.filter((m) => m.at <= this.now).sort((a, b) => a.at - b.at);
+    const due = this.q.filter((m) => m.at <= this.now).sort((a, b) => a.at - b.at || a.seq - b.seq);
     this.q = this.q.filter((m) => m.at > this.now);
     for (const m of due) m.fn();
   }
@@ -44,14 +51,14 @@ function runNetworkRace(latency: number, loss: number, seconds: number) {
       const s = JSON.stringify(m);
       c.bytes += s.length;
       if (m.t === 'snap') c.gz += gzipSync(s).length;
-      net.send(() => {
+      net.send('s' + c.id, () => {
         if (m.t === 'reject') c.rejected = m.reason;
         if (m.t === 'start') c.race = new PredictedRace(m.cfg, tracks.ensureBuilt(m.cfg.trackIndex), m.kart);
         if (m.t === 'snap') c.race?.onSnapshot(m);
       });
     },
   }));
-  const toServer = (i: number, m: ClientMsg) => net.send(() => room.onMessage(conns[i]!, m));
+  const toServer = (i: number, m: ClientMsg) => net.send('c' + i, () => room.onMessage(conns[i]!, m));
   conns.forEach((_, i) => toServer(i, { t: 'hello', proto: PROTOCOL_VERSION, name: 'J' + i, tun: handshakeTunables() }));
   net.now += 0.5; net.flush(); net.now += 0.5; net.flush();
   toServer(1, { t: 'pick', ch: 3 });
