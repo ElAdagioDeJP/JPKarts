@@ -59,26 +59,41 @@ export class ReplayRecorder {
   }
 }
 
-/** Re-simulate a replay headless. Returns the world and the index of the first hash mismatch (-1 if none). */
-export function playReplay(r: Replay, track: Track, onTick?: (w: World) => void): { world: World; mismatch: number } {
-  if (r.version !== REPLAY_VERSION) throw new Error('Versión de replay no soportada: ' + r.version);
-  const w = createWorld(r.cfg, track);
-  const cursor: Record<number, number> = {};
-  const cur: Input[] = [];
-  let mismatch = -1;
-  while (w.tick < r.ticks) {
-    for (const [id, rows] of Object.entries(r.inputs)) {
+/** Steps a replay one tick at a time (ghosts, the end-of-race replay). Deterministic: same world as the original. */
+export class ReplayPlayer {
+  world: World;
+  private cursor: Record<number, number> = {};
+  private cur: Input[] = [];
+  constructor(public replay: Replay, track: Track) {
+    if (replay.version !== REPLAY_VERSION) throw new Error('Versión de replay no soportada: ' + replay.version);
+    this.world = createWorld(replay.cfg, track);
+  }
+  get done() { return this.world.tick >= this.replay.ticks; }
+  /** Advance one tick. Returns the events of that tick. */
+  step() {
+    const w = this.world;
+    if (this.done) return [];
+    for (const [id, rows] of Object.entries(this.replay.inputs)) {
       const k = Number(id);
-      let c = cursor[k] ?? 0;
+      let c = this.cursor[k] ?? 0;
       while (c < rows.length && rows[c]![0] <= w.tick) {
         const [, t, s, d, item] = rows[c]!;
-        cur[k] = { t: t / 127, s: s / 127, d: !!d, item: !!item };
+        this.cur[k] = { t: t / 127, s: s / 127, d: !!d, item: !!item };
         c++;
       }
-      cursor[k] = c;
+      this.cursor[k] = c;
     }
-    step(w, cur);
-    takeEvents(w);
+    step(w, this.cur);
+    return takeEvents(w);
+  }
+}
+
+/** Re-simulate a replay headless. Returns the world and the index of the first hash mismatch (-1 if none). */
+export function playReplay(r: Replay, track: Track, onTick?: (w: World) => void): { world: World; mismatch: number } {
+  const p = new ReplayPlayer(r, track), w = p.world;
+  let mismatch = -1;
+  while (!p.done) {
+    p.step();
     onTick?.(w);
     if (w.tick % 60 === 0 && mismatch < 0) {
       const i = w.tick / 60 - 1;

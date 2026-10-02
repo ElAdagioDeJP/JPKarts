@@ -21,5 +21,7 @@ export * from './sim/modes';
 export * from './sim/coins';
 export * from './sim/world';
 export * from './sim/replay';
+export * from './meta/save';
+export * from './meta/progress';
 export * from './net/protocol';
 export * from './net/prediction';
