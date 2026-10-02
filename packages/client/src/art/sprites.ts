@@ -147,14 +147,6 @@ export const ICONS: Record<string, Spr> = {
   jugger: mk(16, 16, (p) => { P.rect(p, 3, 2, 10, 7, cyl('#ffd23a')); P.tri(p, 3, 9, 13, 9, 8, 15, (x) => (x < 8 ? '#ffe45e' : '#c89a1a')); for (const [x, y] of [[8, 4], [7, 5], [8, 5], [9, 5], [8, 6], [6, 5], [10, 5]] as const) P.set(p, x, y, '#ffffff'); }),
   agujero: mk(16, 16, (p) => { P.ell(p, 8, 8, 7.5, 7.5, (dx, dy) => { const d = Math.sqrt(dx * dx + dy * dy), a = Math.atan2(dy, dx); return d > 0.8 ? '#9a4aff' : d > 0.4 ? (Math.sin(a * 3 + d * 9) > 0.3 ? '#6a2ad0' : '#2a0a4a') : '#000000'; }); }),
   cuantico: mk(16, 16, (p) => { P.ell(p, 4, 8, 3, 3, sph('#2ec46b')); P.ell(p, 12, 8, 3, 3, sph('#3df0ff')); P.line(p, 4, 4, 11, 3, '#fff7e0', 1); P.tri(p, 11, 1, 11, 5, 14, 3, '#fff7e0'); P.line(p, 12, 12, 5, 13, '#fff7e0', 1); P.tri(p, 5, 11, 5, 15, 2, 13, '#fff7e0'); }),
-  teleport: mk(16, 16, (p) => {
-    for (let i = 0; i < 5; i++) {
-      const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
-      P.tri(p, 8, 8.5, 8 + Math.cos(a) * 7.5, 8.5 + Math.sin(a) * 7.5, 8 + Math.cos(a + Math.PI / 5) * 3.2, 8.5 + Math.sin(a + Math.PI / 5) * 3.2, '#ffd23a');
-      P.tri(p, 8, 8.5, 8 + Math.cos(a) * 7.5, 8.5 + Math.sin(a) * 7.5, 8 + Math.cos(a - Math.PI / 5) * 3.2, 8.5 + Math.sin(a - Math.PI / 5) * 3.2, '#ffe45e');
-    }
-    miniText(p, '1', 7, 6, OUT);
-  }),
 };
 // ---- new items (Phase 4) ----
 ICONS.muelle = mk(16, 16, (p) => { for (let i = 0; i < 4; i++) P.rect(p, 3, 4 + i * 3, 10, 2, i & 1 ? '#9aa0b4' : '#d8dce8'); P.rect(p, 2, 1, 12, 3, cyl('#e8455a')); P.rect(p, 2, 13, 12, 2, '#3a3848'); });
@@ -261,3 +253,83 @@ export const DH: Record<string, number> = {
   building0: 90, building1: 90, lamp: 34, lamp2: 34, billboard: 48, obsidian: 40, skull: 22, geyser: 34, darkrock: 12, deadtree: 32, stands: 44, umpire: 28, net: 14, bigball: 30,
   fence: 11, buoy: 13, stake: 12, iceblock: 11, neonpost: 22, neonpost2: 22, bollard: 10, windscreen: 13, arch: 66, purpletree: 40, mushroom: 16, fern: 12,
 };
+
+// ---- Phase 8: coins, new items and track hazards (ART_BIBLE §4: chunky silhouettes, 1 px outline) ----
+const GOLD = '#ffd23a';
+/** Spinning coin: 4 frames (width shrinks and grows). */
+export const COIN = [1, 0.66, 0.25, 0.66].map((wf) => mk(10, 10, (p) => {
+  P.ell(p, 5, 5, Math.max(0.7, 4.4 * wf), 4.4, (dx) => (dx < -0.35 ? '#fff7b0' : dx > 0.4 ? '#c89a1a' : GOLD));
+  if (wf > 0.5) P.rect(p, 4, 3, 2, 4, '#c89a1a');
+}));
+/** Caja Falsa: an item ball with an angry face (the readable detail, GDD §3.2). */
+export const FAKEBOX = ballSprite(16, 0.4, BALL, 'angry');
+export const BOOMER = [0, 1, 2, 3].map((i) => mk(14, 14, (p) => {
+  const a0 = (i * Math.PI) / 2;
+  for (const sg of [-1, 1]) P.line(p, 7, 7, 7 + Math.cos(a0 + sg * 0.95) * 6, 7 + Math.sin(a0 + sg * 0.95) * 6, sg > 0 ? '#e8455a' : '#ff8a9a', 2);
+  P.ell(p, 7, 7, 1.6, 1.6, '#fff7e0');
+}));
+export const ICE = mk(32, 12, (p) => P.ell(p, 16, 6, 15.5, 5.5, (dx, dy) => (dx < -0.3 && dy < -0.1 ? '#ffffff' : dx + dy > 0.6 ? '#7ac8f0' : '#bfe8ff')), false);
+export const SMOKE = mk(34, 28, (p) => {
+  for (const [x, y, r, c] of [[10, 18, 8, '#8a8898'], [21, 16, 10, '#b8b6c4'], [15, 9, 7.5, '#d0cedc'], [26, 21, 6.5, '#9a98a8'], [7, 11, 5, '#c4c2d0']] as const) P.ell(p, x, y, r, r * 0.85, c);
+}, false);
+export const TRAIN = mk(60, 28, (p) => {
+  P.rect(p, 2, 8, 40, 14, cyl('#e8455a'));
+  P.rect(p, 34, 2, 14, 20, cyl('#b83040'));
+  P.rect(p, 37, 5, 8, 6, '#bff0ff');
+  P.rect(p, 8, 2, 6, 7, cyl('#3a3848'));
+  P.tri(p, 48, 22, 58, 22, 48, 12, '#3a3848');
+  P.rect(p, 2, 12, 32, 2, '#ffd23a');
+  for (const x of [8, 20, 32, 44]) P.ell(p, x, 23, 4, 4, sph('#3a3848'));
+});
+export const CAR = mk(30, 16, (p) => {
+  P.rect(p, 2, 6, 26, 7, cyl('#3df0ff'));
+  P.rect(p, 8, 1, 13, 6, cyl('#2a7ab0'));
+  P.rect(p, 10, 2, 9, 3, '#e0f8ff');
+  P.rect(p, 26, 7, 2, 2, '#fff09a'); P.rect(p, 2, 7, 2, 2, '#ff3a3a');
+  for (const x of [8, 22]) P.ell(p, x, 13, 3, 3, sph('#2a2833'));
+});
+/** One plank of a windmill sail (drawn several times along the sweeping arm). */
+export const BLADE = mk(10, 14, (p) => { P.rect(p, 0, 0, 10, 14, (i, j) => (i < 1 || i > 8 || j % 5 < 1 ? '#5a3a2a' : '#f4f1ff')); P.rect(p, 4, 0, 2, 14, '#8a5a3a'); });
+export const WARN_RING = mk(32, 32, (p) => P.ell(p, 16, 16, 15.5, 15.5, (dx, dy, x, y) => {
+  const d = dx * dx + dy * dy;
+  return d > 0.72 ? ((x! + y!) % 6 < 3 ? '#ff4d6d' : '#ffe45e') : d > 0.5 || (x! + y!) % 3 ? 0 : '#ff4d6d';
+}), false);
+const column = (top: string, mid: string, base: string) => mk(18, 46, (p) => {
+  for (let y = 0; y < 46; y++) { const w = 3 + (y / 46) * 5 + Math.sin(y * 0.7) * 1.2; P.rect(p, 9 - w, y, w * 2, 1, y < 8 ? top : y % 5 < 2 ? mid : base); }
+  P.ell(p, 9, 4, 6, 4, top);
+});
+export const GEYSER = column('#ffffff', '#bff0ff', '#58b8f0');
+export const LAVA_GEYSER = column('#fff09a', '#ff8a1f', '#e8455a');
+export const LASER = mk(6, 52, (p) => P.rect(p, 0, 0, 6, 52, (i) => (i === 2 || i === 3 ? '#ffffff' : '#ff3a3a')), false);
+export const METEOR = mk(20, 26, (p) => {
+  P.tri(p, 4, 0, 16, 0, 10, 14, (x) => (x < 10 ? '#ffe45e' : '#ff8a1f'));
+  P.ell(p, 10, 17, 7, 7, sph('#8a4a3a'));
+  P.ell(p, 8, 15, 1.5, 1.5, '#ff8a1f');
+});
+export const ROCK_BALL = mk(20, 20, (p) => { P.ell(p, 10, 10, 9, 9, sph('#a8784a')); P.ell(p, 7, 8, 1.6, 1.4, '#7a5030'); P.ell(p, 13, 12, 2, 1.6, '#7a5030'); });
+export const SNOWBALL = mk(20, 20, (p) => P.ell(p, 10, 10, 9, 9, sph('#f4f8ff')));
+export const MUSHROOM = mk(26, 22, (p) => {
+  P.rect(p, 9, 11, 8, 11, cyl('#fff7e0'));
+  P.ell(p, 13, 10, 12.5, 9, (_dx, dy) => (dy > 0.45 ? 0 : sph('#e8455a')(_dx, dy)));
+  for (const [x, y, r] of [[8, 6, 2], [15, 4, 1.6], [19, 8, 2], [12, 9, 1.4]] as const) P.ell(p, x, y, r, r, '#ffffff');
+});
+export const GATE = mk(56, 18, (p) => {
+  P.rect(p, 0, 0, 4, 18, cyl('#3a3848')); P.rect(p, 52, 0, 4, 18, cyl('#3a3848'));
+  P.rect(p, 4, 4, 48, 8, (i) => (((i / 6) | 0) % 2 ? '#fff7e0' : '#e8455a'));
+});
+// item icons (16×16)
+ICONS.falsa = FAKEBOX;
+ICONS.turbo3 = mk(16, 16, (p) => { for (const x of [1, 6, 11]) { P.rect(p, x, 4, 4, 9, cyl('#2f6bff')); P.rect(p, x + 1, 2, 2, 2, '#9aa0b4'); P.tri(p, x, 13, x + 4, 13, x + 2, 16, '#ff8a1f'); } });
+ICONS.hielo = mk(16, 16, (p) => { P.rect(p, 2, 3, 12, 11, (i, j) => (i < 3 || j < 2 ? '#ffffff' : i > 8 ? '#7ac8f0' : '#bfe8ff')); P.line(p, 5, 6, 8, 9, '#ffffff', 1); });
+ICONS.humo = mk(16, 16, (p) => { for (const [x, y, r] of [[5, 10, 4.5], [10, 9, 5], [8, 5, 3.5]] as const) P.ell(p, x, y, r, r * 0.9, sph('#b8b6c4')); });
+ICONS.iman = mk(16, 16, (p) => {
+  P.ell(p, 8, 7, 6.5, 6.5, (dx, dy) => (dy > 0.1 || dx * dx + dy * dy < 0.25 ? 0 : '#e8455a'));
+  P.rect(p, 1, 7, 4, 5, '#e8455a'); P.rect(p, 11, 7, 4, 5, '#e8455a'); P.rect(p, 1, 11, 4, 3, '#d8dce8'); P.rect(p, 11, 11, 4, 3, '#d8dce8');
+});
+ICONS.bumeran = BOOMER[0]!;
+ICONS.bumeranR = BOOMER[0]!;
+ICONS.ciego3 = mk(16, 16, (p) => { for (const [x, y] of [[8, 4], [4, 11], [12, 11]] as const) P.ell(p, x, y, 3.4, 3.4, sph('#8a90a4')); });
+ICONS.rafaga = mk(16, 16, (p) => { for (const y of [4, 8, 12]) P.rect(p, 1 + (y % 8), y, 11 - (y % 8), 2, '#bff0ff'); P.ell(p, 13, 6, 2, 2, (dx, dy) => (dx * dx + dy * dy > 0.4 ? '#8fe0ff' : 0)); });
+ICONS.cadena = mk(16, 16, (p) => { P.line(p, 9, 0, 4, 7, '#ffe45e', 2); P.line(p, 4, 7, 11, 7, '#ffe45e', 2); P.line(p, 11, 7, 6, 15, '#ffe45e', 2); P.ell(p, 3, 13, 2, 2, sph('#3df0ff')); P.ell(p, 13, 3, 2, 2, sph('#3df0ff')); });
+ICONS.bala = mk(16, 16, (p) => { P.ell(p, 10, 8, 5.5, 4.5, sph('#2a2833')); P.rect(p, 2, 4, 8, 9, cyl('#2a2833')); P.rect(p, 0, 6, 3, 5, '#ff8a1f'); P.ell(p, 11, 6, 1.4, 1.2, '#ffffff'); P.rect(p, 12, 8, 2, 1, '#ff3a3a'); });
+ICONS.coin = COIN[0]!;

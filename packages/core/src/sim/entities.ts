@@ -5,7 +5,8 @@ import { lerp } from '../math';
 import { T } from '../tunables';
 import { dgAt, hAt, wgAt } from '../track/track';
 import { addFx, eachFx } from './effects';
-import { canBeHit, emit, hit, isHuman } from './helpers';
+import { emit, hit, isHuman } from './helpers';
+import { giveItem } from './items';
 import type { Ent, Kart, World } from './types';
 
 export interface EntityDef {
@@ -17,7 +18,7 @@ export interface EntityDef {
   /** area that affects karts standing in it (tar) */
   zone?(e: Ent, k: Kart): boolean;
   /** what the zone does: cap the speed at base × maxMul and cancel drifting */
-  zoneEffect?: { maxMul: () => number; cancelDrift: boolean };
+  zoneEffect?: { maxMul?: () => number; cancelDrift: boolean; grip?: () => number };
 }
 
 const DEFS: EntityDef[] = [];
@@ -50,7 +51,8 @@ export function updateEntities(w: World, dt: number) {
 /** The zone the kart is standing in (first match), if any. */
 export function zoneAt(w: World, k: Kart): EntityDef | undefined {
   for (const e of w.ents) {
-    const d = BY_KIND.get(e.kind)!;
+    const d = BY_KIND.get(e.kind);
+    if (!d) throw new Error('Entidad sin registrar: ' + e.kind);
     if (d.zone && d.zone(e, k)) return d;
   }
   return undefined;
@@ -74,19 +76,18 @@ export function clearEntitiesNear(w: World, x: number, y: number, radius: number
 }
 
 // ---- legacy entities ----
-/** Fake oil stain: smudges a human's screen. */
+/** Fake item box (Caja Falsa): looks like a box; whoever touches it takes a light hit. Affects everyone. */
 defineEntity({
-  kind: 'fake', blackHole: 'all',
+  kind: 'fakebox', blackHole: 'all',
   update(w, f, dt) {
     const F = T.items.falsa;
     f.age += dt;
-    f.cdn -= dt;
     for (const k of w.karts) {
-      if (!isHuman(k) || k.air || f.cdn > 0) continue;
-      if (dhypot(k.x - f.x, k.y - f.y) < F.radius && !(f.owner === k.id && f.age < F.ownerGrace)) {
-        addFx(k, 'smudge', F.smudge);
-        f.cdn = F.cooldown;
-        emit(w, { type: 'smudge', kart: k.id });
+      if (k.air || k.respawn > 0 || (f.owner === k.id && f.age < F.ownerGrace)) continue;
+      if (dhypot(k.x - f.x, k.y - f.y) < F.radius) {
+        hit(w, k, F.hit, 0);
+        emit(w, { type: 'explode', x: f.x, y: f.y });
+        return false;
       }
     }
     return f.age < F.life;
@@ -167,4 +168,51 @@ defineEntity({
 defineEntity({
   kind: 'hole', blackHole: 'none',
   update(_w, h, dt) { h.t += dt; return h.t < T.items.agujero.anim; },
+});
+/** Boomerang: flies `range` units, then homes back to its owner. Hits on the way out and back; caught once (target 0 = first throw). */
+defineEntity({
+  kind: 'boomer', blackHole: 'notOwner',
+  update(w, b, dt) {
+    const B = T.items.bumeran, o = w.karts[b.owner];
+    b.life -= dt;
+    if (b.s >= B.range && o) {
+      const dx = o.x - b.x, dy = o.y - b.y, d = dhypot(dx, dy) || 1, k = Math.min(1, B.returnTurn * dt);
+      b.vx += ((dx / d) * B.speed - b.vx) * k;
+      b.vy += ((dy / d) * B.speed - b.vy) * k;
+      if (d < B.catch) {
+        if (b.target === 0 && !o.item && o.roll <= 0) { giveItem(w, o, 'bumeranR'); emit(w, { type: 'catch', kart: o.id }); }
+        return false;
+      }
+    }
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    b.s += dhypot(b.vx, b.vy) * dt;
+    b.z = hAt(w.track, b.x, b.y) + 4;
+    for (const k of w.karts) {
+      if (k.id === b.owner || dhypot(k.x - b.x, k.y - b.y) >= B.radius) continue;
+      if (deflected(w, k, b)) break;
+      hit(w, k, B.hit, 1);
+    }
+    return b.life > 0;
+  },
+});
+/** Ice block: a slippery patch (grip x `hielo.grip`) that melts after a while. */
+defineEntity({
+  kind: 'ice', blackHole: 'all',
+  update(_w, t, dt) { t.life -= dt; return t.life > 0; },
+  zone(t, k) { return dhypot(k.x - t.x, k.y - t.y) < t.r; },
+  zoneEffect: { cancelDrift: false, grip: () => T.items.hielo.grip },
+});
+/** Smoke curtain: covers the view of the locals inside it and makes the AI's line sloppy. */
+defineEntity({
+  kind: 'smoke', blackHole: 'all',
+  update(w, s, dt) {
+    const H = T.items.humo;
+    s.life -= dt;
+    for (const k of w.karts) {
+      if (k.id === s.owner || dhypot(k.x - s.x, k.y - s.y) > s.r) continue;
+      addFx(k, isHuman(k) ? 'smoke' : 'fog', H.fog, s.owner);
+    }
+    return s.life > 0;
+  },
 });

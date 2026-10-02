@@ -1,11 +1,12 @@
 // Client orchestrator: screens, fixed-step simulation, camera, event → feedback, HUD.
 import {
-  ALL_TRACKS, CHARS, CUPS, DIFFS, LAPS, ReplayRecorder, Rng, SIM_DT, STAT_SHORT, TrackCache, prepAuthored,
+  ALL_TRACKS, CHARS, CLASSIC_CUPS, CUPS, DIFFS, LAPS, ReplayRecorder, Rng, SIM_DT, STAT_SHORT, TrackCache, prepAuthored,
   buildGrid, clamp, createWorld, fmtTime, fxOf, hAt, hasFx, hashWorld, modeOf, itemDef, itemList, lerp, step, takeEvents, wrapA,
   type GameEvent, type Input as SimInput, type Kart, type Replay, type StatKey, type Track, type World,
 } from '@jpkart/core';
 import { OUT } from './art/pixel';
-import { ENTITY_VIEW, hudLines, kartLabel } from './feel/effectView';
+import { hudLines, kartLabel } from './feel/effectView';
+import { THING_ART, orbitArt, type ThingCtx } from './render/thingArt';
 import { DebugOverlay } from './dev/debugOverlay';
 import { ACTION_NAMES, REMAPPABLE } from './input/input';
 import { PAD_NAMES } from './input/gamepad';
@@ -13,7 +14,7 @@ import { loadSettings, saveSettings, DEFAULT_SETTINGS, type Settings } from './s
 import { NetSession, desktop } from './net/session';
 import { CameraRig, type CamTarget } from './feel/camera';
 import { DRIFT_COL as DCOL, DRIFT_COL_CB, Fx3d } from './feel/fx3d';
-import { BALLS, BIGBALL, FACES, ICONS, rotFrames } from './art/sprites';
+import { BALLS, BIGBALL, FACES, ICONS, rotFrames, COIN } from './art/sprites';
 import { Audio } from './audio/audio';
 import { Input } from './input/input';
 import { buildMinimap } from './render/trackArt';
@@ -31,6 +32,18 @@ interface Pose { x: number; y: number; z: number; a: number }
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; c: string; s: number; line?: boolean }
 interface CupState { def: (typeof CUPS)[number]; race: number; pts: Record<number, number>; gain: Record<number, number>; committed: boolean }
 
+/** Track select: what each authored track's gimmick is called. */
+const HAZARD_TAG: Record<string, string> = {
+  ola: 'Olas', tren: 'Tren', vaca: 'Vacas', auto: 'Tráfico', pinguino: 'Pingüinos', aspa: 'Molinos', geiser: 'Géiseres', laser: 'Láseres',
+  meteoro: 'Meteoritos', roca: 'Rocas', pelota: 'Pelotas gigantes', bolanieve: 'Bolas de nieve', seta: 'Setas saltarinas', compuerta: 'Compuertas',
+};
+const WEATHER_TAG: Record<string, string> = { lluvia: 'Lluvia', niebla: 'Niebla', arena: 'Tormenta de arena', noche: 'Noche' };
+/** Banner when a track hazard warns near the local kart. */
+const HAZARD_WARN: Record<string, string> = {
+  ola: '¡Ola!', tren: '¡Tren!', vaca: '¡Vacas!', auto: '¡Tráfico!', pinguino: '¡Pingüinos!', geiser: '¡Géiser!', laser: '¡Láser!',
+  meteoro: '¡Meteorito!', roca: '¡Roca!', pelota: '¡Pelota!', bolanieve: '¡Bola de nieve!',
+};
+
 export class Game {
   state: State = 'title';
   sel = 5; trackSel = 0; menuSel = 0; cupSel = 0; diff = 1;
@@ -38,8 +51,11 @@ export class Game {
   paused = false; pendingRace = 0; loadF = 0;
   cup: CupState | null = null;
   tracks = new TrackCache(ALL_TRACKS, prepAuthored);
+  /** track select: new (authored) tracks, or the legacy ones ("Clásicas") */
+  classic = false;
+  get trackCups() { return this.classic ? CLASSIC_CUPS : CUPS; }
   /** track select grid: the cups' tracks, 4 per row */
-  grid = CUPS.flatMap((c) => c.tracks);
+  get grid() { return this.trackCups.flatMap((c) => c.tracks); }
   /** index (into ALL_TRACKS) of the track being raced */
   curTrack = 0;
   incoming: { item: string; t: number } | null = null;
@@ -161,6 +177,7 @@ export class Game {
         if (L) { this.trackSel = (this.trackSel + 15) % 16; A.blip(); }
         if (D) { this.trackSel = (this.trackSel + 4) % 16; A.blip(); }
         if (U) { this.trackSel = (this.trackSel + 12) % 16; A.blip(); }
+        if (code === 'KeyC' || code === 'Tab' || code === 'Pad3') { this.classic = !this.classic; A.blip(); }
         if (ok) { this.startRace(this.grid[this.trackSel]!); A.beep(880, 0.12); }
         if (back) this.state = 'select';
         break;
@@ -265,6 +282,7 @@ export class Game {
   }
 
   // ---------------- events → feedback ----------------
+  coinPop = 0;
   private onEvent(e: GameEvent) {
     const A = this.audio, w = this.world!, me = (id: number) => id === this.localId;
     const p = this.local;
@@ -292,7 +310,11 @@ export class Game {
         break;
       }
       case 'bump': if (me(e.a) || me(e.b)) { A.beep(120, 0.06, 'square', 0.04); this.rig.addTrauma(0.08); } break;
-      case 'smudge': if (me(e.kart)) A.beep(160, 0.15, 'triangle', 0.05); break;
+      case 'coin': if (me(e.kart)) A.beep(1320 + e.coins * 40, 0.06, 'square', 0.035, 200); break;
+      case 'coinLoss': if (me(e.kart)) { this.coinPop = 1; A.beep(900, 0.18, 'square', 0.04, -500); } break;
+      case 'zap': { if (me(e.to)) { this.flashC = '#3df0ff'; this.flashT = 0.2; } if (me(e.from) || me(e.to) || near(e.to, 220)) A.beep(1800, 0.12, 'sawtooth', 0.05, -1500); break; }
+      case 'gust': if (me(e.kart) || near(e.kart, 160)) A.beep(200, 0.45, 'triangle', 0.05, 300); break;
+      case 'catch': if (me(e.kart)) { this.banner = { t: '¡Atrapado!', life: 0.8 }; A.beep(760, 0.12, 'square', 0.05, 300); } break;
       case 'lap': if (me(e.kart)) { if (e.final) A.duck(0.8); this.banner = { t: e.final ? '¡Última vuelta!' : 'Vuelta ' + e.lap, life: 1.8 }; A.beep(e.final ? 990 : 700, 0.2); } break;
       case 'finish': if (me(e.kart)) { A.duck(1.2); this.banner = { t: '¡Meta!', life: 2.2, big: true }; A.musicWant(null); A.jingle(); } break;
       case 'flash': this.flashC = e.color; this.flashT = 0.35; break;
@@ -303,7 +325,7 @@ export class Game {
       case 'burnout': if (me(e.kart)) { this.banner = { t: '¡Quemaste rueda!', life: 1 }; A.beep(110, 0.5, 'sawtooth', 0.05, -40); } break;
       case 'rocketStart': if (me(e.kart)) { this.banner = { t: '¡Turbo de salida!', life: 0.9 }; A.beep(300, 0.35, 'sawtooth', 0.05, 600); } break;
       case 'incoming': if (me(e.kart)) { this.incoming = { item: e.item, t: Math.max(1, e.eta) }; A.beep(1400, 0.08, 'square', 0.05); A.beep(1400, 0.08, 'square', 0.05); } break;
-      case 'hazardWarn': if (this.local && this.nearSample(e.at, 0.12)) { this.banner = { t: '¡Ola!', life: 1 }; A.beep(220, 0.6, 'triangle', 0.05, 200); } break;
+      case 'hazardWarn': if (this.local && this.nearSample(e.at, 0.12)) { const msg = HAZARD_WARN[e.kind]; if (msg) this.banner = { t: msg, life: 1 }; A.beep(220, 0.6, 'triangle', 0.05, 200); } break;
       case 'tide': this.banner = { t: '¡Sube la marea!', life: 1.6 }; A.beep(180, 0.9, 'sine', 0.06, -60); break;
       case 'reflect': A.beep(1600, 0.15, 'sine', 0.05, -900); break;
       case 'explode': { const p0 = this.local; if (p0 && Math.hypot(p0.x - e.x, p0.y - e.y) < 260) { A.beep(70, 0.4, 'sawtooth', 0.08, -30); this.flashC = '#ff8a1f'; this.flashT = 0.2; this.rig.addTrauma(0.5 * (1 - Math.hypot(p0.x - e.x, p0.y - e.y) / 260)); } break; }
@@ -315,6 +337,15 @@ export class Game {
     switch (id) {
       case 'bocina': if (me || near) { A.beep(330, 0.4, 'sawtooth', 0.07); A.beep(415, 0.4, 'sawtooth', 0.05); } break;
       case 'falsa': if (me) A.beep(200, 0.1, 'triangle', 0.05); break;
+      case 'turbo3': if (me) A.beep(300, 0.3, 'sawtooth', 0.05, 600); break;
+      case 'ciego3': if (me) A.beep(700, 0.1, 'square', 0.05, -300); break;
+      case 'bumeran': case 'bumeranR': if (me) A.beep(520, 0.25, 'triangle', 0.05, 260); break;
+      case 'iman': if (me) A.beep(440, 0.4, 'sine', 0.05, 440); break;
+      case 'cadena': if (me) A.beep(1600, 0.2, 'sawtooth', 0.05, -1200); break;
+      case 'hielo': if (me) A.beep(1400, 0.15, 'sine', 0.04, -300); break;
+      case 'humo': if (me) A.beep(150, 0.4, 'triangle', 0.05, -60); break;
+      case 'rafaga': break;
+      case 'bala': if (ok) A.beep(220, 0.6, 'sawtooth', 0.07, 900); break;
       case 'goma': if (me) A.beep(500, 0.15, 'sine', 0.05, -200); break;
       case 'ciego': if (me) A.beep(700, 0.1, 'square', 0.05, -300); break;
       case 'burbuja': if (me) A.beep(900, 0.2, 'sine', 0.05, 300); break;
@@ -327,7 +358,6 @@ export class Game {
       case 'jugger': if (me) A.beep(200, 0.5, 'square', 0.06, 300); break;
       case 'agujero': A.beep(60, 0.8, 'sawtooth', 0.08, -20); break;
       case 'cuantico': if (ok) A.beep(1200, 0.25, 'sine', 0.05, -800); break;
-      case 'teleport': if (ok) A.beep(1500, 0.3, 'sine', 0.05, -1200); break;
     }
   }
 
@@ -386,11 +416,13 @@ export class Game {
       if (p.respawn > 0 && p.respawn < 0.05) this.rig.cut(tg, this.tr);
       Object.assign(this.cam, this.rig.update(this.paused ? 0 : dt, tg, this.tr));
       if (!this.paused) this.fx.frame(w, dt, this.cam.x, this.cam.y, (k) => this.pose(k), this.tr.th.ground[0]);
+      this.updateAtmosphere(w, dt);
       this.renderWorld(w.raceT, w.karts);
       if (this.state === 'race') {
         if (!this.paused) this.spawnSpeedLines();
         this.drawParticles(this.paused ? 0 : dt);
         this.drawSmudge();
+        this.drawWeather(dt);
         if (this.flashT > 0) { ui.ctx.globalAlpha = Math.min(this.settings.reduceFlash ? 0.2 : 0.6, this.flashT * 2); ui.ctx.fillStyle = this.flashC; ui.ctx.fillRect(0, 0, W, H); ui.ctx.globalAlpha = 1; this.flashT -= dt; }
         if (w.phase === 'countdown') {
           const n = Math.ceil(w.cd);
@@ -427,7 +459,9 @@ export class Game {
       views.push({ id: k.id, ch: k.ch, x: ps.x, y: ps.y, z: k.respawn > 0 ? ps.z - 6 : ps.z, a: ps.a, lean: k.drift ? k.drift : k.sv, hop: k.hop, spin: k.spin, big: hasFx(k, 'jug'), bubble: hasFx(k, 'bubble'), reflect: hasFx(k, 'reflect'), visible: vis, ground: hAt(this.tr, ps.x, ps.y), air: k.air, trick: this.trickAnim.get(k.id) ?? 0, squash: this.squash.get(k.id) ?? 0, local: k.id === this.localId });
     }
     if (w) {
-      for (const e of w.ents) { const kind = ENTITY_VIEW[e.kind]; if (kind) things.push({ kind, x: e.x, y: e.y, z: e.z, f: e.kind === 'mine' ? e.age : e.t }); }
+      const me = this.local, tc: ThingCtx = { t, lap: me ? Math.floor(me.prog / this.tr.N) + 1 : 1, lava: this.tr.def.liquid?.kind === 'lava' };
+      for (const e of w.ents) THING_ART[e.kind]?.(e, tc, things);
+      for (const k of karts) if (k.respawn <= 0) { const ps = this.pose(k); orbitArt(k, ps.x, ps.y, ps.z, t, things); }
     }
     const boxes = w ? w.boxes.map((b) => b.active) : this.tr.boxes.map(() => true);
     const t0 = performance.now();
@@ -469,14 +503,55 @@ export class Game {
     }
     this.parts = this.parts.filter((p) => p.life > 0);
   }
+  /** Day → night over the race, fog from its lap on (visual only; grip is in core). */
+  private fogK = 0;
+  private rain: { x: number; y: number }[] = [];
+  private updateAtmosphere(w: World, dt: number) {
+    const a = this.tr.authored, p = this.local;
+    let night = 0, fog = 0;
+    if (a?.dayNight) {
+      let lead = 0;
+      for (const k of w.karts) lead = Math.max(lead, k.prog);
+      night = clamp((lead / (w.cfg.laps * this.tr.N) - 0.15) / 0.75, 0, 1);
+    }
+    const wt = a?.weather, on = !!(wt && p && Math.floor(p.prog / this.tr.N) + 1 >= wt.fromLap);
+    if (on && wt!.kind === 'noche') night = 1;
+    if (on && (wt!.kind === 'niebla' || wt!.kind === 'arena')) fog = wt!.kind === 'niebla' ? 1 : 0.6;
+    this.fogK += (fog - this.fogK) * Math.min(1, dt * 0.8);
+    this.renderer.setAtmosphere(night, this.fogK);
+  }
+  /** Rain streaks and sand haze over the screen when the track's weather is on for the local kart. */
+  private drawWeather(dt: number) {
+    const wt = this.tr.authored?.weather, p = this.local, ctx = this.ui.ctx;
+    if (!wt || !p || Math.floor(p.prog / this.tr.N) + 1 < wt.fromLap) { this.rain.length = 0; return; }
+    if (wt.kind === 'lluvia') {
+      while (this.rain.length < 70) this.rain.push({ x: Math.random() * W, y: Math.random() * H });
+      ctx.strokeStyle = 'rgba(200,225,255,0.45)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (const d of this.rain) {
+        d.y += 420 * dt; d.x -= 60 * dt;
+        if (d.y > H) { d.y = -8; d.x = Math.random() * (W + 40); }
+        ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - 2, d.y + 8);
+      }
+      ctx.stroke();
+    } else if (wt.kind === 'arena') {
+      ctx.fillStyle = 'rgba(232,190,120,0.16)';
+      ctx.fillRect(0, 0, W, H);
+      while (this.rain.length < 40) this.rain.push({ x: Math.random() * W, y: Math.random() * H });
+      ctx.fillStyle = 'rgba(255,230,170,0.5)';
+      for (const d of this.rain) { d.x -= 300 * dt; d.y += 20 * dt; if (d.x < 0) { d.x = W; d.y = Math.random() * H; } ctx.fillRect(d.x, d.y, 6, 1); }
+    }
+  }
+  /** Smoke curtain covering the local kart's view. */
   private drawSmudge() {
     const p = this.local, ctx = this.ui.ctx;
-    const sm = p ? fxOf(p, 'smudge') : undefined;
-    if (!sm) return;
-    ctx.globalAlpha = Math.min(0.85, sm.t);
-    ctx.fillStyle = OUT;
-    for (const [x, y, r] of [[93, 90, 26], [160, 150, 34], [280, 110, 30], [333, 170, 22], [213, 70, 18], [53, 170, 20]] as const) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
-    ctx.globalAlpha = 1;
+    const sk = p ? fxOf(p, 'smoke') : undefined;
+    if (sk) {
+      ctx.globalAlpha = Math.min(0.75, sk.t * 1.5);
+      for (const [x, y, r, c] of [[80, 120, 60, '#8a8898'], [200, 100, 70, '#b8b6c4'], [320, 140, 64, '#9a98a8'], [150, 190, 50, '#c4c2d0'], [270, 200, 56, '#8a8898']] as const) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+      ctx.globalAlpha = 1;
+    }
   }
 
   // ---------------- HUD ----------------
@@ -507,6 +582,14 @@ export class Game {
     if (p.roll > 0) icon = ICONS[list[((w.raceT * 18) | 0) % list.length]!.id];
     else if (p.item) icon = ICONS[p.item];
     if (icon) ui.img(icon.cv, bx + 3, by + 3, 24, 24);
+    if (p.item && p.roll <= 0 && p.itemN > 1) ui.txtS('×' + p.itemN, bx + 28, by + 22, '#ffe45e', 'left');
+    // coins (GDD §4.1): count and a pop when they are lost
+    if (w.ents.some((e) => e.kind === 'coin') || p.coins > 0) {
+      this.coinPop = Math.max(0, this.coinPop - dt * 3);
+      const cx = bx - 30, cy = by + 8, shake = this.coinPop > 0 ? Math.sin(this.coinPop * 40) * 2 : 0;
+      ui.img(COIN[0]!.cv, cx + shake, cy, 10, 10);
+      ui.txtS('×' + p.coins, cx + 12 + shake, cy + 2, p.coins >= T.race.coins.max ? '#ffe45e' : this.coinPop > 0 ? '#ff4d6d' : '#fff7e0', 'left');
+    }
     if (p.item && p.roll <= 0) ui.txtS(itemDef(p.item).name, W / 2, by + 36);
     const st = hudLines(p);
     if (p.glide) st.push(['¡Volando!', '#8fe0ff']);
@@ -900,20 +983,23 @@ export class Game {
     const ui = this.ui, ctx = ui.ctx, ox = (W - 320) / 2;
     ui.bg();
     ui.txt('Elige circuito', W / 2, 6, '#ffe45e', 16, 'center');
-    CUPS.forEach((c, r) => ui.txtS(c.name.replace('Copa ', ''), ox + 38, 28 + r * 44 + 16, c.col));
+    this.trackCups.forEach((c, r) => ui.txtS(c.name.replace('Copa ', '').replace('Clásica ', ''), ox + 38, 28 + r * 44 + 16, c.col));
     this.grid.forEach((ti, i) => {
       const trk = this.tracks.get(ti);
       const r = i >> 2, x = ox + 66 + (i % 4) * 62, y = 26 + r * 44, on = i === this.trackSel;
-      ui.panel(x, y, 56, 38, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : CUPS[r]!.col);
+      ui.panel(x, y, 56, 38, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : this.trackCups[r]!.col);
       ctx.fillStyle = trk.th.ground[0]; ctx.fillRect(x + 14, y + 5, 28, 28);
       ui.img(this.mini(trk).cv, x + 14, y + 5, 28, 28);
       if (trk.def.flight) ui.txtS('*', x + 50, y + 2, '#8fe0ff');
     });
     const d = this.tracks.get(this.grid[this.trackSel]!).def;
     ui.txt(d.name, W / 2, 204, '#ffe45e', 8, 'center');
-    const tags = [d.flight ? 'Rampas de vuelo' : null, d.th.ice ? 'Hielo' : null, d.liquid ? d.liquid.msg.replace(/[¡!]/g, '').replace('Al ', 'Cuidado: ').replace('A la ', 'Cuidado: ') : null, d.ramps.length ? 'Saltos' : null].filter(Boolean);
+    const au = this.tracks.get(this.grid[this.trackSel]!).authored;
+    const tags = au
+      ? [...new Set(au.hazards.map((h) => HAZARD_TAG[h.kind]).filter(Boolean)), au.weather ? WEATHER_TAG[au.weather.kind] : null, au.dayNight ? 'Del día a la noche' : null, au.narrow ? 'La nieve estrecha la pista' : null, au.water?.kind === 'lava' ? 'Lava' : null].filter(Boolean)
+      : [d.flight ? 'Rampas de vuelo' : null, d.th.ice ? 'Hielo' : null, d.liquid ? d.liquid.msg.replace(/[¡!]/g, '').replace('Al ', 'Cuidado: ').replace('A la ', 'Cuidado: ') : null, d.ramps.length ? 'Saltos' : null].filter(Boolean);
     ui.txtS(tags.join('  /  ') || 'Clásica', W / 2, 216, '#fff7e0');
-    ui.txtS('Enter para correr, Esc para volver', W / 2, 228, '#9c95d6');
+    ui.txtS('Enter: correr  ·  C: ' + (this.classic ? 'pistas nuevas' : 'pistas clásicas') + '  ·  Esc: volver', W / 2, 228, '#9c95d6');
   }
   private rowList(list: number[], extra: (ch: number, i: number, y: number) => void) {
     const ui = this.ui, ox = (W - 320) / 2;

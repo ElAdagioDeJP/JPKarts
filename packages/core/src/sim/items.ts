@@ -18,6 +18,12 @@ export interface ItemDef {
   aiQuick?: boolean;
   /** AI: hold it until a rival is lined up in front */
   aiAim?: boolean;
+  /** uses per pickup (Turbo Triple: 3) */
+  charges?: number;
+  /** never comes out of a box (only given by other items, e.g. a caught boomerang) */
+  noRoll?: boolean;
+  /** called when the kart receives it (orbiting shots...) */
+  onGet?(w: World, k: Kart): void;
   /** Apply the item. Return false when it had no effect (e.g. nobody ahead). */
   use(w: World, k: Kart): void | false;
   /** AI desire to use it now, 0..1 (default by role: see ai/ai.ts defaultScore) */
@@ -42,9 +48,10 @@ export const itemList = (): readonly (ItemDef & { tier: number })[] => REG;
 
 /** Probability of each item: base weight × luck × position. None ever reaches 0. */
 export function itemWeights(luck: number, rank: number, n: number): number[] {
-  const W = T.items.weights, b = n > 1 ? rank / (n - 1) : 0;
+  const W = T.items.weights, b = n > 1 ? rank / (n - 1) : 0, R = REG.filter((it) => !it.noRoll).length;
   return REG.map((it, i) => {
-    const t = (2 * i) / (REG.length - 1);
+    if (it.noRoll) return 0;
+    const t = (2 * i) / (R - 1);
     return it.w * dpow(luck / W.luckRef, t) * dpow(W.posBase + W.posRange * b, t);
   });
 }
@@ -73,20 +80,25 @@ export function rollItem(w: World, k: Kart, luck: number): string {
 }
 
 export function giveItem(w: World, k: Kart, it: string) {
+  const d = itemDef(it);
   k.item = it;
+  k.itemN = d.charges ?? 1;
   k.hold = 0;
   k.lastItem = it;
-  if (itemDef(it).tier >= T.items.distribution.highTier) w.highTierCD = T.items.distribution.highTierCooldown;
+  if (d.tier >= T.items.distribution.highTier && !d.noRoll) w.highTierCD = T.items.distribution.highTierCooldown;
+  d.onGet?.(w, k);
   emit(w, { type: 'itemGet', kart: k.id, item: it });
 }
 
 export function useItem(w: World, k: Kart) {
   const it = k.item;
   if (!it) return;
-  k.item = null;
   k.hold = 0;
   const target = k.rank > 0 ? w.ranked[k.rank - 1] : undefined;
   const ok = itemDef(it).use(w, k) !== false;
+  // items with charges stay in hand until the last use (a use that did nothing keeps the charge)
+  if (ok) k.itemN--;
+  if (k.item === it && (k.itemN <= 0 || (!ok && !itemDef(it).charges))) { k.item = null; k.itemN = 0; }
   emit(w, { type: 'itemUse', kart: k.id, item: it, target, ok });
 }
 

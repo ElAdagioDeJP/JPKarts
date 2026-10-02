@@ -44,11 +44,18 @@ export interface Cup {
   col: string;
 }
 export const CUPS: Cup[] = [
-  // Playa Coco v2 (authored, index 16) replaces the procedural Playa Coco (index 1, still in ALL_TRACKS)
-  { id: 'hoja', name: 'Copa Hoja', tracks: [0, 16, 2, 3], col: '#2ec46b' },
-  { id: 'estrella', name: 'Copa Estrella', tracks: [4, 5, 6, 7], col: '#ffe45e' },
-  { id: 'rayo', name: 'Copa Rayo', tracks: [8, 9, 10, 11], col: '#3df0ff' },
-  { id: 'fuego', name: 'Copa Fuego', tracks: [12, 13, 14, 15], col: '#ff6a2a' },
+  // Phase 8: the authored tracks (ALL_TRACKS 16..31, see data/authoredTracks.ts) replace the procedural ones
+  { id: 'hoja', name: 'Copa Hoja', tracks: [17, 16, 18, 19], col: '#2ec46b' },
+  { id: 'estrella', name: 'Copa Estrella', tracks: [20, 21, 22, 23], col: '#ffe45e' },
+  { id: 'rayo', name: 'Copa Rayo', tracks: [24, 25, 26, 27], col: '#3df0ff' },
+  { id: 'fuego', name: 'Copa Fuego', tracks: [28, 29, 30, 31], col: '#ff6a2a' },
+];
+/** The 16 legacy procedural tracks, still playable in free races ("Clásicas"). */
+export const CLASSIC_CUPS: Cup[] = [
+  { id: 'hoja-c', name: 'Clásica Hoja', tracks: [0, 1, 2, 3], col: '#2ec46b' },
+  { id: 'estrella-c', name: 'Clásica Estrella', tracks: [4, 5, 6, 7], col: '#ffe45e' },
+  { id: 'rayo-c', name: 'Clásica Rayo', tracks: [8, 9, 10, 11], col: '#3df0ff' },
+  { id: 'fuego-c', name: 'Clásica Fuego', tracks: [12, 13, 14, 15], col: '#ff6a2a' },
 ];
 export const POINTS = [15, 12, 10, 8, 6, 4, 2, 1];
 

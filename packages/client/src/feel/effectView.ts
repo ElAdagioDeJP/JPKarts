@@ -17,11 +17,15 @@ export const EFFECT_VIEW: Record<string, EffectView> = {
   emp: { prio: 2, label: { text: () => 'PEM', color: '#3df0ff', self: false }, hud: { text: () => 'Motor apagado', color: '#3df0ff' } },
   inv: { prio: 3, label: { text: () => '¿?', color: '#ff6ad0', self: false } },
   jug: { prio: 4, label: { text: () => '★', color: '#ffd23a', self: true }, hud: { text: (f) => '¡Juggernaut! ' + Math.ceil(f.t), color: '#ffd23a' } },
-  bubble: { prio: 9, hud: { text: () => 'Burbuja activa', color: '#8fe0ff' } },
+  bubble: { prio: 9, hud: { text: (f) => 'Burbuja ' + Math.ceil(f.t), color: '#8fe0ff' } },
   goma: { prio: 9, hud: { text: (f) => 'Goma ' + Math.ceil(f.t), color: '#ff8a9a' } },
   hook: { prio: 9, hud: { text: () => 'Gancho', color: '#ffe45e' } },
   slow: { prio: 9, hud: { text: () => 'Te enganchan', color: '#ff8a1f' } },
-  smudge: { prio: 9 },
+  smoke: { prio: 9 },
+  fog: { prio: 5, label: { text: () => '…', color: '#c8c4f0', self: false } },
+  bala: { prio: 4, label: { text: () => '»»', color: '#ffd23a', self: false }, hud: { text: (f) => '¡Turbo Bala! ' + Math.ceil(f.t), color: '#ffd23a' } },
+  magnet: { prio: 9, hud: { text: (f) => 'Imán ' + Math.ceil(f.t), color: '#ff8a9a' } },
+  orbit: { prio: 9 },
 };
 
 /** Label over a kart: the highest-priority effect that has one. */
@@ -45,8 +49,3 @@ export function hudLines(k: Kart): [string, string][] {
   }
   return out;
 }
-
-/** Entity kind → what the world renderer draws. */
-export const ENTITY_VIEW: Record<string, 'fake' | 'tar' | 'shot' | 'dron' | 'hole'> = {
-  fake: 'fake', tar: 'tar', shot: 'shot', rocket: 'dron', hole: 'hole',
-};

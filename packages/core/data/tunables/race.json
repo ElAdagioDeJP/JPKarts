@@ -142,5 +142,18 @@
     "noche": {
       "grip": 1.0
     }
+  },
+  "coins": {
+    "speed": 0.012,
+    "max": 10,
+    "firstBoost": 0.2,
+    "lose": 3,
+    "dropLife": 4,
+    "dropSpread": 18,
+    "radius": 10,
+    "respawn": 8,
+    "line": 4,
+    "spacing": 16,
+    "timeTrialStart": 10
   }
 }

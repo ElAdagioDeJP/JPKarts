@@ -9,6 +9,7 @@ import { aiDiff, aiInput, aiItems, newAiState, rubberBand } from '../ai/ai';
 import { effectDefs, eachFx, fxOf, tickFx, type SpeedCtx } from './effects';
 import './effectDefs';
 import './hazards';
+import { spawnTrackCoins } from './coins';
 import { spawn, updateEntities, zoneAt } from './entities';
 import { isTimed, spawnStaticHazards, spawnTimedHazard, hazardFamily, type HazardSpec } from './hazards';
 import { charOf, emit, isHuman, kartById, ouch } from './helpers';
@@ -29,7 +30,7 @@ function makeKart(w: World, id: number, ch: number, ctrl: Ctrl, g: number, aiDif
     hold: 0, sv: 0, backT: 0, lastLap: 1, rb: ai ? ai.speed : 1, lapStart: 0, best: null, respawn: 0, off: 0, rank: g, padT: 0,
     fx: [], lapFly: 0,
     spinK: T.driving.spinDecay, invuln: 0, wallT: 0, wallCD: 0, slip: 0, trickT: 0, trick: false, trickBig: false, dPrev: false, dLvl: 0,
-    pressCd: -1, burnout: 0, heavyT: 0, lastItem: null, lat, surf: null, ai, stuckT: 0,
+    pressCd: -1, burnout: 0, heavyT: 0, lastItem: null, lat, surf: null, ai, stuckT: 0, coins: 0, itemN: 0,
   };
 }
 
@@ -57,6 +58,8 @@ export function createWorld(cfg: RaceConfig, track: Track): World {
   w.pairCD = new Array(w.karts.length * w.karts.length).fill(0);
   w.ranked = w.karts.map((k) => k.id);
   spawnStaticHazards(w, spawn);
+  spawnTrackCoins(w);
+  modeOf(w).setup?.(w);
   return w;
 }
 
@@ -168,7 +171,7 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
   if (k.burnout > 0) k.burnout -= dt;
   if (k.heavyT > 0) k.heavyT -= dt;
   if (k.respawn > 0) { k.respawn -= dt; if (k.respawn <= 0) respawnKart(w, k); return; }
-  const base = D.baseSpeed * st.spd * (human && !k.finished ? 1 : k.rb);
+  const base = D.baseSpeed * st.spd * (human && !k.finished ? 1 : k.rb) * (1 + Math.min(k.coins, T.race.coins.max) * T.race.coins.speed);
   const prevProg = k.prog, pi = k.idx, d = locate(tr, k);
   const e = edgeDistance(tr, k, d);
   const off = e > D.offOut ? 2 : e > D.offEdge ? 1 : 0;
@@ -224,7 +227,7 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
     if (S) ctx.max *= S.max;
     const ze = zone?.zoneEffect;
     if (!ze) return;
-    ctx.max = Math.min(ctx.max, base * ze.maxMul());
+    if (ze.maxMul) ctx.max = Math.min(ctx.max, base * ze.maxMul());
     if (ze.cancelDrift) { k.drift = 0; k.dc = 0; inp.d = false; }
   };
   for (const h of speedHooks()) {
@@ -285,6 +288,7 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
   let grip = off === 2 ? D.grip.offRoad : th.grip;
   if (S) grip *= S.grip;
   grip *= weatherGrip(w, k);
+  if (zone?.zoneEffect?.grip) grip *= zone.zoneEffect.grip();
   if (k.air) grip = k.glide ? D.grip.glide : D.grip.air;
   const tgtA = k.a - k.drift * DR.slip;
   k.va = wrapA(k.va + wrapA(tgtA - k.va) * Math.min(1, grip * dt));

@@ -15,18 +15,18 @@
   },
   "bocina": {
     "radius": 160,
-    "scare": 1.2
+    "scare": 1.2,
+    "hit": 0.5
   },
   "falsa": {
-    "behind": 14,
+    "behind": 16,
     "life": 25,
     "radius": 11,
-    "cooldown": 1.5,
     "ownerGrace": 1,
-    "smudge": 1
+    "hit": 0.6
   },
   "goma": {
-    "time": 15
+    "time": 12
   },
   "ciego": {
     "speed": 260,
@@ -67,11 +67,14 @@
     "release": 16
   },
   "inversor": {
-    "time": 5,
-    "aiMul": 0.6
+    "time": 3,
+    "aiMul": 0.6,
+    "count": 3,
+    "warn": 0.5
   },
   "pem": {
-    "time": 3
+    "time": 2,
+    "bubbleTime": 1
   },
   "jugger": {
     "time": 8,
@@ -82,17 +85,14 @@
     "bumpLevel": 3
   },
   "agujero": {
-    "radius": 500,
+    "radius": 320,
     "anim": 1
   },
-  "teleport": {
-    "ahead": 3
-  },
   "distribution": {
-    "highTier": 10,
+    "highTier": 16,
     "highTierCooldown": 12,
     "noRepeatFromTier": 3,
-    "firstMaxTier": 7
+    "firstMaxTier": 11
   },
   "muelle": {
     "vz": 165
@@ -109,5 +109,69 @@
   },
   "incoming": {
     "dronEta": 1.5
+  },
+  "burbuja": {
+    "time": 20
+  },
+  "cuantico": {
+    "lastFrac": 0.1,
+    "warn": 1.0
+  },
+  "bala": {
+    "time": 5,
+    "maxMul": 1.6,
+    "accel": 400,
+    "look": 14,
+    "steerGain": 2.2,
+    "stopRank": 1,
+    "bumpHit": 1.2
+  },
+  "turbo3": {
+    "boost": 1.0
+  },
+  "ciego3": {
+    "blocks": true
+  },
+  "bumeran": {
+    "speed": 300,
+    "range": 220,
+    "life": 4,
+    "radius": 11,
+    "hit": 1.0,
+    "catch": 18,
+    "returnTurn": 6
+  },
+  "iman": {
+    "time": 4,
+    "radius": 120,
+    "pull": 260,
+    "steal": 2,
+    "stealRange": 200
+  },
+  "cadena": {
+    "hops": 2,
+    "range": 150,
+    "hit": 0.6
+  },
+  "hielo": {
+    "behind": 30,
+    "radius": 30,
+    "life": 8,
+    "grip": 0.35
+  },
+  "humo": {
+    "behind": 26,
+    "radius": 42,
+    "life": 3,
+    "fog": 0.5,
+    "aiNoise": 0.55
+  },
+  "rafaga": {
+    "range": 100,
+    "along": 45,
+    "push": 30,
+    "heavyMul": 0.5,
+    "lightMul": 1.3,
+    "hit": 0.4
   }
 }

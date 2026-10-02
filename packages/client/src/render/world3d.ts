@@ -3,7 +3,7 @@ import * as THREE from 'three/webgpu';
 import { CHARS, type Track, hAt } from '@jpkart/core';
 import { OUT, hexRGB, shade, type Spr } from '../art/pixel';
 import { BALLS, D, ICONS, MINE, OLA, PUDDLE, REFLECT_RING, RING, SHOT, TARS, voxelKart } from '../art/sprites';
-import { GRADES, Post } from './post';
+import { GRADES, Post, type Grade } from './post';
 import { Particles } from './particles';
 import { F, buildGroundTexture, buildScenery, buildSkyGradient, buildSkyStrip, type SceneryItem } from './trackArt';
 
@@ -22,7 +22,8 @@ export interface KartView {
   squash: number;
   local: boolean;
 }
-export interface ThingView { kind: 'box' | 'fake' | 'tar' | 'shot' | 'dron' | 'hole' | 'mine' | 'ola'; x: number; y: number; z: number; f: number; a?: number }
+import type { ThingView } from './thingArt';
+export type { ThingView };
 
 const spriteTex = new Map<Spr, THREE.Texture>();
 function texOf(s: Spr): THREE.Texture {
@@ -117,6 +118,18 @@ export class WorldRenderer {
   private decor: { mesh: THREE.InstancedMesh; items: { x: number; y: number; z: number; w: number; h: number }[] }[] = [];
   private decorYaw = NaN;
   private waterTex: THREE.CanvasTexture | null = null;
+  private baseGrade: Grade = GRADES.grass!;
+  private atm = { night: -1, fog: -1 };
+
+  /** Weather/time of day (visual only): `night` 0..1 blends the biome grade towards night, `fog` 0..1 pulls the fog in. */
+  setAtmosphere(night: number, fog: number) {
+    if (Math.abs(night - this.atm.night) < 0.005 && Math.abs(fog - this.atm.fog) < 0.005) return;
+    this.atm = { night, fog };
+    const g = this.baseGrade, N = NIGHT_GRADE, m = (a: number, b: number) => a + (b - a) * night;
+    this.post.setGrade({ tint: [m(g.tint[0], N.tint[0]), m(g.tint[1], N.tint[1]), m(g.tint[2], N.tint[2])], saturation: m(g.saturation, N.saturation), contrast: m(g.contrast, N.contrast), lift: m(g.lift, N.lift) });
+    const f = this.scene.fog;
+    if (f instanceof THREE.Fog) { f.near = FOG_NEAR * (1 - fog * 0.9); f.far = FOG_FAR * (1 - fog * 0.72); }
+  }
 
   async init(canvas: HTMLCanvasElement, forceWebGL = false) {
     this.renderer = new THREE.WebGPURenderer({ canvas, antialias: false, forceWebGL });
@@ -141,7 +154,9 @@ export class WorldRenderer {
     const fog = new THREE.Color(tr.th.fog);
     this.scene.background = fog;
     this.scene.fog = new THREE.Fog(fog, FOG_NEAR, FOG_FAR);
-    this.post.setGrade(GRADES[tr.th.style] ?? GRADES.grass!);
+    this.baseGrade = GRADES[tr.th.style] ?? GRADES.grass!;
+    this.atm = { night: -1, fog: -1 };
+    this.post.setGrade(this.baseGrade);
     this.post.setBloom(tr.th.style === 'grid' || tr.th.style === 'rock' ? 0.45 : 0.15);
     this.particles.clear();
     this.buildTerrain(tr);
@@ -451,16 +466,10 @@ export class WorldRenderer {
     // transient things
     this.thingUsed = 0;
     for (const th of things) {
-      switch (th.kind) {
-        case 'fake': { const o = this.thing(PUDDLE, true); o.position.set(th.x, th.z + 0.4, th.y); o.scale.set(16, 16 / 3, 1); break; }
-        case 'tar': { const o = this.thing(TARS, true); o.position.set(th.x, th.z + 0.4, th.y); o.scale.set(54, 54 * 0.3, 1); break; }
-        case 'shot': { const o = this.thing(SHOT, false); o.position.set(th.x, th.z - 3, th.y); o.scale.set(6, 6, 1); break; }
-        case 'dron': { const o = this.thing(ICONS.dron!, false); o.position.set(th.x, th.z - 5, th.y); o.scale.set(11, 11, 1); break; }
-        case 'hole': { const s = Math.sin(Math.min(1, th.f) * Math.PI) * 80; const o = this.thing(ICONS.agujero!, false); o.position.set(th.x, th.z - 30 + s * 0.25, th.y); o.scale.set(s, s, 1); break; }
-        case 'mine': { const o = this.thing(MINE[th.f > 1 && ((t * 6) | 0) % 2 ? 1 : 0]!, false); o.position.set(th.x, th.z, th.y); o.scale.set(10, 7, 1); break; }
-        case 'ola': { const o = this.thing(OLA, false); o.position.set(th.x, th.z - 1, th.y); o.scale.set(44, 18, 1); break; }
-        case 'box': break;
-      }
+      const o = this.thing(th.spr, th.flat);
+      o.position.set(th.x, th.z, th.y);
+      o.scale.set(th.w, th.h, 1);
+      if (th.flat) o.rotation.set(-Math.PI / 2, 0, th.yaw ?? 0);
     }
     for (let i = this.thingUsed; i < this.thingPool.length; i++) this.thingPool[i]!.visible = false;
     this.particles.update(dt, this.camera);
@@ -511,5 +520,8 @@ function disposeDeep(o: THREE.Object3D) {
     if (m.geometry && !(c instanceof THREE.Sprite)) m.geometry.dispose();
   });
 }
+
+/** Night grade (ART_BIBLE §3): cold, darker, a bit more contrast so lit things pop. */
+const NIGHT_GRADE: Grade = { tint: [0.55, 0.62, 0.95], saturation: 0.85, contrast: 1.1, lift: -0.04 };
 
 export const fogColor = (tr: Track) => hexRGB(tr.th.fog);

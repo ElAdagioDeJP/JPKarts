@@ -1,4 +1,4 @@
-// agujero: see docs/GDD.md §3
+// agujero: see docs/GDD.md §3.2 (rework: smaller radius; clears traps, projectiles and shields, not the item in hand)
 import { dhypot } from '../dmath';
 import { removeFx } from '../sim/effects';
 import { clearEntitiesNear, spawn } from '../sim/entities';
@@ -14,8 +14,8 @@ defineItem({
     clearEntitiesNear(w, k.x, k.y, R, k.id);
     for (const o of w.karts)
       if (o !== k && !(dhypot(o.x - k.x, o.y - k.y) > R)) {
-        removeFx(o, 'bubble'); removeFx(o, 'goma'); removeFx(o, 'jug');
-        o.boost = 0; o.item = null; o.roll = 0;
+        removeFx(o, 'bubble'); removeFx(o, 'goma'); removeFx(o, 'jug'); removeFx(o, 'reflect');
+        o.boost = 0;
       }
   },
   aiScore(w, k) {

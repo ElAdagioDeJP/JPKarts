@@ -25,6 +25,8 @@ export interface AuthoredTrackDef {
   /** shortcuts: leave the road at `from`, follow `via`, join again at `to` */
   branches: { from: number; to: number; via: { x: number; y: number; h: number }[]; w: number; needs?: string; risk?: string }[];
   itemRows: number[];
+  /** coin lines (lat = fraction of the half width); default: one line after each item row */
+  coins?: { at: number; lat: number; n?: number }[];
   pads: { at: number; lat: number }[];
   /** jump ramps on the road: a height bump; `big` gives a longer trick boost */
   ramps: { at: number; big?: boolean }[];
