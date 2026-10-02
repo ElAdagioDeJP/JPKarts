@@ -1,10 +1,11 @@
 // Client orchestrator: screens, fixed-step simulation, camera, event → feedback, HUD.
 import {
   CHARS, CUPS, DIFFS, LAPS, POINTS, ReplayRecorder, Rng, SIM_DT, STAT_SHORT, TRACK_DEFS, TrackCache,
-  buildGrid, clamp, createWorld, fmtTime, hAt, hashWorld, itemDef, itemList, lerp, step, takeEvents, wrapA,
+  buildGrid, clamp, createWorld, fmtTime, fxOf, hAt, hasFx, hashWorld, modeOf, itemDef, itemList, lerp, step, takeEvents, wrapA,
   type GameEvent, type Input as SimInput, type Kart, type Replay, type StatKey, type Track, type World,
 } from '@jpkart/core';
 import { OUT } from './art/pixel';
+import { ENTITY_VIEW, hudLines, kartLabel } from './feel/effectView';
 import { BALLS, BIGBALL, FACES, ICONS, rotFrames } from './art/sprites';
 import { Audio } from './audio/audio';
 import { Input } from './input/input';
@@ -53,6 +54,10 @@ export class Game {
     renderer.setTrack(this.tr);
     input.onFirstGesture = () => audio.init();
   }
+
+  private toastMsg: { t: string; life: number } | null = null;
+  /** Small dev message in the corner (hot reload, errors). */
+  toast(t: string) { this.toastMsg = { t, life: 3 }; }
 
   /** Debug/test hooks: current replay and state hash. */
   debugReplay() { return { replay: this.recorder?.replay ?? this.lastReplay, hash: this.world ? hashWorld(this.world) : '' }; }
@@ -136,7 +141,7 @@ export class Game {
     const grid = this.mode === 'cup' && this.cup && this.cup.race > 0
       ? buildGrid(rng, humans, { cupPts: this.cup.pts, humanSlot: 0 })
       : buildGrid(rng, humans, { humanSlot: this.mode === 'cup' ? 7 : 5 });
-    const cfg = { trackIndex: ti, diff: this.diff, seed, laps: LAPS, grid };
+    const cfg = { trackIndex: ti, diff: this.diff, seed, laps: LAPS, grid, mode: this.mode === 'cup' ? 'cup' : 'race' };
     this.world = createWorld(cfg, this.tr);
     this.recorder = new ReplayRecorder(cfg);
     this.localId = this.world.karts.findIndex((k) => k.ctrl === 'local');
@@ -151,7 +156,8 @@ export class Game {
     if (!c || !w || c.committed) return;
     c.committed = true;
     c.gain = {};
-    w.finalOrder.forEach((id, i) => { const ch = w.karts[id]!.ch, p = POINTS[i] || 0; c.pts[ch] = (c.pts[ch] ?? 0) + p; c.gain[ch] = p; });
+    const pts = modeOf(w).scoring?.(w, w.finalOrder) ?? new Map<number, number>();
+    for (const id of w.finalOrder) { const ch = w.karts[id]!.ch, p = pts.get(id) ?? 0; c.pts[ch] = (c.pts[ch] ?? 0) + p; c.gain[ch] = p; }
   }
   private localInput(): SimInput {
     const I = this.input;
@@ -309,6 +315,7 @@ export class Game {
     else if (this.state === 'race' && this.local?.finished) A.musicWant(null);
     else if (this.state === 'race') { const d = TRACK_DEFS[this.trackSel]!, lastLap = this.local!.prog >= (LAPS - 1) * this.tr.N; A.musicWant(d.song, d.mul * (lastLap ? 1.1 : 1), this.paused ? 0 : 1); }
     else A.musicWant('menu', 1, 0.7);
+    if (this.toastMsg) { this.toastMsg.life -= dt; ui.txtS(this.toastMsg.t, 4, 4, '#9cff9c', 'left'); if (this.toastMsg.life <= 0) this.toastMsg = null; }
     if (this.showPerf) {
       ui.txtS(`${this.fps.toFixed(0)} fps · ${this.renderer.backend} · sim ${this.simMs.toFixed(2)} ms · render ${this.renderMs.toFixed(2)} ms`, 4, H - 8, '#9cff9c', 'left');
     }
@@ -319,14 +326,10 @@ export class Game {
     for (const k of karts) {
       const ps = this.pose(k);
       const vis = k.respawn <= 0 || ((t * 10) | 0) % 2 === 1;
-      views.push({ id: k.id, ch: k.ch, x: ps.x, y: ps.y, z: k.respawn > 0 ? ps.z - 6 : ps.z, a: ps.a, lean: k.drift ? k.drift : k.sv, hop: k.hop, spin: k.spin, big: k.jug > 0, bubble: k.bubble > 0, visible: vis, ground: hAt(this.tr, ps.x, ps.y), air: k.air });
+      views.push({ id: k.id, ch: k.ch, x: ps.x, y: ps.y, z: k.respawn > 0 ? ps.z - 6 : ps.z, a: ps.a, lean: k.drift ? k.drift : k.sv, hop: k.hop, spin: k.spin, big: hasFx(k, 'jug'), bubble: hasFx(k, 'bubble'), visible: vis, ground: hAt(this.tr, ps.x, ps.y), air: k.air });
     }
     if (w) {
-      for (const o of w.fakes) things.push({ kind: 'fake', x: o.x, y: o.y, z: o.z, f: 0 });
-      for (const o of w.tars) things.push({ kind: 'tar', x: o.x, y: o.y, z: o.z, f: 0 });
-      for (const o of w.shots) things.push({ kind: 'shot', x: o.x, y: o.y, z: o.z, f: 0 });
-      for (const o of w.rockets) things.push({ kind: 'dron', x: o.x, y: o.y, z: o.z, f: 0 });
-      for (const o of w.holes) things.push({ kind: 'hole', x: o.x, y: o.y, z: o.z, f: o.t });
+      for (const e of w.ents) { const kind = ENTITY_VIEW[e.kind]; if (kind) things.push({ kind, x: e.x, y: e.y, z: e.z, f: e.t }); }
     }
     const boxes = w ? w.boxes.map((b) => b.active) : this.tr.boxes.map(() => true);
     const t0 = performance.now();
@@ -344,12 +347,7 @@ export class Game {
       if (depth > ZMAX) continue;
       const lx = Math.round(top.sx * UIK), ly = Math.round(top.sy * UIK);
       const me = k.id === this.localId;
-      let lab: [string, string] | null = null;
-      if (k.ouch > 0) lab = [OUCH[k.ouchT]!, '#ff6a6a'];
-      else if (k.scare > 0) lab = ['¡!', '#ffe45e'];
-      else if (k.emp > 0 && !me) lab = ['PEM', '#3df0ff'];
-      else if (k.inv > 0 && !me) lab = ['¿?', '#ff6ad0'];
-      else if (k.jug > 0) lab = ['★', '#ffd23a'];
+      const lab = kartLabel(k, me);
       if (lab) ui.txtS(lab[0], lx, ly - (me ? 0 : 12), lab[1]);
       if (!me && depth < 260 && top.k * 12.5 * UIK >= 9) ui.txtS(CHARS[k.ch]!.short, lx, ly - 4, '#fff7e0');
     }
@@ -384,8 +382,9 @@ export class Game {
   }
   private drawSmudge() {
     const p = this.local, ctx = this.ui.ctx;
-    if (!p || p.smudge <= 0) return;
-    ctx.globalAlpha = Math.min(0.85, p.smudge);
+    const sm = p ? fxOf(p, 'smudge') : undefined;
+    if (!sm) return;
+    ctx.globalAlpha = Math.min(0.85, sm.t);
     ctx.fillStyle = OUT;
     for (const [x, y, r] of [[93, 90, 26], [160, 150, 34], [280, 110, 30], [333, 170, 22], [213, 70, 18], [53, 170, 20]] as const) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
     ctx.globalAlpha = 1;
@@ -409,16 +408,10 @@ export class Game {
     else if (p.item) icon = ICONS[p.item];
     if (icon) ui.img(icon.cv, bx + 3, by + 3, 24, 24);
     if (p.item && p.roll <= 0) ui.txtS(itemDef(p.item).name, W / 2, by + 36);
-    const st: [string, string][] = [];
-    if (p.bubble) st.push(['Burbuja activa', '#8fe0ff']);
-    if (p.goma > 0) st.push(['Goma ' + Math.ceil(p.goma), '#ff8a9a']);
-    if (p.jug > 0) st.push(['¡Juggernaut! ' + Math.ceil(p.jug), '#ffd23a']);
-    if (p.emp > 0) st.push(['Motor apagado', '#3df0ff']);
-    if (p.hookT > 0) st.push(['Gancho', '#ffe45e']);
-    if (p.slowT > 0) st.push(['Te enganchan', '#ff8a1f']);
+    const st = hudLines(p);
     if (p.glide) st.push(['¡Volando!', '#8fe0ff']);
     st.forEach(([s, c], i) => ui.txtS(s, W / 2, by + 46 + i * 9, c));
-    if (p.inv > 0 && ((w.raceT * 4) | 0) % 2 === 0) ui.txt('¡Controles invertidos!', W / 2, H / 2 - 40, '#ff6ad0', 8, 'center');
+    if (hasFx(p, 'inv') && ((w.raceT * 4) | 0) % 2 === 0) ui.txt('¡Controles invertidos!', W / 2, H / 2 - 40, '#ff6ad0', 8, 'center');
     const m = this.mini(tr), mx = W - 62, my = H - 62;
     ui.panel(mx - 2, my - 2, 60, 60, 'rgba(27,23,64,0.55)', '#6d66b0');
     ui.img(m.cv, mx, my);
@@ -560,7 +553,7 @@ export class Game {
     this.rowList(w.finalOrder.map((id) => w.karts[id]!.ch), (_ch, i, y) => {
       const k = w.karts[w.finalOrder[i]!]!;
       ui.txt(k.finished ? fmtTime(k.time) : 'En pista', ox + 320 - (this.mode === 'cup' ? 70 : 36), y + 4, '#fff7e0', 8, 'right');
-      if (this.mode === 'cup') ui.txt('+' + POINTS[i], ox + 284, y + 4, '#2ec46b', 8, 'right');
+      if (this.mode === 'cup') ui.txt('+' + (modeOf(w).scoring?.(w, w.finalOrder).get(w.finalOrder[i]!) ?? 0), ox + 284, y + 4, '#2ec46b', 8, 'right');
     });
     const p = this.local!;
     if (p.best != null) ui.txtS('Tu mejor vuelta: ' + fmtTime(p.best), W / 2, 200);

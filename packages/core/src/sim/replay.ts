@@ -5,7 +5,7 @@ import { quantizeInput, type Input, type RaceConfig, type World } from './types'
 /** Plain-data snapshot of the world (no track geometry, no pending events). */
 export function snapshot(w: World) {
   return {
-    cfg: w.cfg, rng: w.rng.s, tick: w.tick, karts: w.karts, rockets: w.rockets, shots: w.shots, fakes: w.fakes, tars: w.tars, holes: w.holes,
+    cfg: w.cfg, rng: w.rng.s, tick: w.tick, karts: w.karts, ents: w.ents, nextEnt: w.nextEnt,
     boxes: w.boxes, pairCD: w.pairCD, raceT: w.raceT, phase: w.phase, cd: w.cd, cdLast: w.cdLast, finishDelay: w.finishDelay, ranked: w.ranked, finalOrder: w.finalOrder,
   };
 }

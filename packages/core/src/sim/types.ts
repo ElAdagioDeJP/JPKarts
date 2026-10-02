@@ -11,13 +11,21 @@ export interface Input {
   d: boolean;
   item: boolean;
 }
-export const NO_INPUT: Input = { t: 0, s: 0, d: false, item: false };
+export const NO_INPUT: Readonly<Input> = Object.freeze({ t: 0, s: 0, d: false, item: false });
 
 /** Inputs are quantized to 8 bits per axis (network/replay format). Same value on every peer. */
 export function quantizeInput(i: Input | undefined): Input {
-  if (!i) return NO_INPUT;
+  if (!i) return { ...NO_INPUT };
   const q = (v: number) => Math.round(Math.max(-1, Math.min(1, v)) * 127) / 127;
   return { t: q(i.t), s: q(i.s), d: !!i.d, item: !!i.item };
+}
+
+/** An active status effect on a kart. `data` is effect-specific (e.g. hook target id). */
+export interface Fx {
+  type: string;
+  t: number;
+  src: KartId;
+  data: number;
 }
 
 export interface Kart {
@@ -36,17 +44,20 @@ export interface Kart {
   sv: number; backT: number; lastLap: number; rb: number; held: number;
   lapStart: number; best: number | null;
   respawn: number; off: number; rank: number; padT: number;
-  ouch: number; ouchT: number;
-  emp: number; inv: number; hookT: number; hookTg: KartId; slowT: number;
-  jug: number; goma: number; bubble: number; smudge: number; scare: number;
-  flyT: number; lapFly: number;
+  fx: Fx[];
+  lapFly: number;
 }
 
-export interface Rocket { s: number; lat: number; owner: KartId; target: KartId; life: number; x: number; y: number; z: number; t: number }
-export interface Shot { x: number; y: number; z: number; vx: number; vy: number; owner: KartId; life: number }
-export interface Fake { x: number; y: number; z: number; owner: KartId; age: number; cdn: number }
-export interface Tar { x: number; y: number; z: number; r: number; life: number }
-export interface Hole { x: number; y: number; z: number; t: number }
+/** Any world entity (projectile, trap, hazard). Flat numeric fields so it serializes trivially. */
+export interface Ent {
+  id: number;
+  kind: string;
+  x: number; y: number; z: number;
+  owner: KartId; target: KartId;
+  life: number; age: number; t: number;
+  vx: number; vy: number;
+  s: number; lat: number; r: number; cdn: number;
+}
 export interface BoxState { active: boolean; t: number }
 
 export type Phase = 'countdown' | 'race' | 'results';
@@ -59,7 +70,7 @@ export type GameEvent =
   | { type: 'fall'; kart: KartId }
   | { type: 'shieldPop'; kart: KartId; offroad: boolean }
   | { type: 'driftStart'; kart: KartId }
-  | { type: 'miniTurbo'; kart: KartId; level: 1 | 2 }
+  | { type: 'miniTurbo'; kart: KartId; level: 1 | 2 | 3 }
   | { type: 'jump'; kart: KartId }
   | { type: 'land'; kart: KartId; hard: boolean }
   | { type: 'pad'; kart: KartId }
@@ -80,6 +91,8 @@ export interface RaceConfig {
   diff: number;
   seed: number;
   laps: number;
+  /** game mode id (defineMode); default 'race' */
+  mode?: string;
   /** grid order: character index + controller for each slot */
   grid: { ch: number; ctrl: Ctrl }[];
 }
@@ -90,11 +103,8 @@ export interface World {
   rng: Rng;
   tick: number;
   karts: Kart[];
-  rockets: Rocket[];
-  shots: Shot[];
-  fakes: Fake[];
-  tars: Tar[];
-  holes: Hole[];
+  ents: Ent[];
+  nextEnt: number;
   boxes: BoxState[];
   pairCD: number[];
   raceT: number;

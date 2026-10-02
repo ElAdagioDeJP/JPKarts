@@ -41,6 +41,7 @@ test('el estado es serializable a JSON plano sin pérdidas', () => {
   const { w } = recordRace(5, 900);
   const s = snapshot(w);
   expect(JSON.parse(JSON.stringify(s))).toEqual(JSON.parse(JSON.stringify(s)));
-  // no object references to other karts: owner/target/hook are ids
-  for (const k of w.karts) expect(typeof k.hookTg).toBe('number');
+  // no object references: effects and entities only hold ids and numbers
+  for (const k of w.karts) for (const f of k.fx) { expect(typeof f.data).toBe('number'); expect(typeof f.src).toBe('number'); }
+  for (const e of w.ents) { expect(typeof e.owner).toBe('number'); expect(typeof e.target).toBe('number'); }
 });
