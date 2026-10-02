@@ -32,7 +32,7 @@ export const SCENARIOS: { track: number; seed: number; diff: number; force?: boo
   { track: 1, seed: 22, diff: 2 },
   { track: 8, seed: 33, diff: 0 },
   { track: 14, seed: 44, diff: 2 },
-  // humans receive every item in turn (covers rare items: PEM, black hole, quantum swap, teleport)
+  // humans receive every item in turn (covers rare items: PEM, black hole, quantum swap, Turbo Bala)
   { track: 2, seed: 55, diff: 1, force: true },
   { track: 6, seed: 66, diff: 2, force: true },
   // authored track (Playa Coco v2): walls, surfaces, tide, waves, shortcut
