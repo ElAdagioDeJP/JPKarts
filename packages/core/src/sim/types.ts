@@ -1,5 +1,6 @@
 import type { Rng } from '../math';
 import type { Track } from '../track/track';
+import type { AiState } from '../ai/ai';
 
 export type Ctrl = 'local' | 'remote' | 'ai';
 export type KartId = number;
@@ -39,13 +40,45 @@ export interface Kart {
   drift: number; dc: number; boost: number; spin: number; hop: number;
   item: string | null; roll: number;
   finished: boolean; time: number | null;
-  lane: number; laneT: number; skill: number;
-  hold: number; useAt: number;
-  sv: number; backT: number; lastLap: number; rb: number; held: number;
+  hold: number;
+  sv: number; backT: number; lastLap: number; rb: number;
   lapStart: number; best: number | null;
   respawn: number; off: number; rank: number; padT: number;
   fx: Fx[];
   lapFly: number;
+  // ---- driving v2 ----
+  /** speed decay base while spinning (0.15 normal hit, 1 light hit) */
+  spinK: number;
+  /** post-hit invulnerability (s) */
+  invuln: number;
+  /** wall stun (s): no steering */
+  wallT: number;
+  wallCD: number;
+  /** slipstream charge (s) */
+  slip: number;
+  /** trick window (s) after leaving the ground; trick done in this jump */
+  trickT: number;
+  trick: boolean;
+  trickBig: boolean;
+  /** previous drift button state (edge detection) */
+  dPrev: boolean;
+  /** highest mini-turbo level reached in the current drift */
+  dLvl: number;
+  /** countdown time when the throttle was pressed (rocket start), -1 = not pressed */
+  pressCd: number;
+  /** burnout (s): no acceleration */
+  burnout: number;
+  /** heavy class: reduced acceleration after a hit (s) */
+  heavyT: number;
+  /** last item received (no repeats) */
+  lastItem: string | null;
+  /** lateral offset from the centerline (> 0 = right) */
+  lat: number;
+  /** current surface */
+  surf: string | null;
+  ai: AiState | null;
+  /** seconds spent nearly stopped (stuck recovery) */
+  stuckT: number;
 }
 
 /** Any world entity (projectile, trap, hazard). Flat numeric fields so it serializes trivially. */
@@ -71,6 +104,17 @@ export type GameEvent =
   | { type: 'shieldPop'; kart: KartId; offroad: boolean }
   | { type: 'driftStart'; kart: KartId }
   | { type: 'miniTurbo'; kart: KartId; level: 1 | 2 | 3 }
+  | { type: 'driftLevel'; kart: KartId; level: 1 | 2 | 3 }
+  | { type: 'trick'; kart: KartId }
+  | { type: 'slipstream'; kart: KartId }
+  | { type: 'wallBump'; kart: KartId; hard: boolean }
+  | { type: 'burnout'; kart: KartId }
+  | { type: 'incoming'; kart: KartId; item: string; eta: number }
+  | { type: 'hazardWarn'; kind: string; at: number }
+  | { type: 'hazard'; kind: string; at: number }
+  | { type: 'tide'; level: number }
+  | { type: 'reflect'; kart: KartId }
+  | { type: 'explode'; x: number; y: number }
   | { type: 'jump'; kart: KartId }
   | { type: 'land'; kart: KartId; hard: boolean }
   | { type: 'pad'; kart: KartId }
@@ -115,4 +159,10 @@ export interface World {
   ranked: KartId[];
   finalOrder: KartId[];
   events: GameEvent[];
+  /** current water level (authored tracks with tides) */
+  water: number;
+  /** high-tier item cooldown (s) */
+  highTierCD: number;
+  /** water level the tide is moving towards */
+  tideTarget: number;
 }

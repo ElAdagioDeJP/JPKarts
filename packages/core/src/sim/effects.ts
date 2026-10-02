@@ -1,6 +1,6 @@
 // Status effects: every timed state a kart can carry (shields, debuffs...) is data + a registered definition.
 // Adding an effect = one defineEffect() call; the kart update only runs the generic pipeline.
-import type { Fx, Input, Kart, World } from './types';
+import type { Ent, Fx, Input, Kart, World } from './types';
 
 export interface SpeedCtx {
   w: World;
@@ -39,6 +39,8 @@ export interface EffectDef {
   onWorldBounds?(k: Kart): void;
   /** every tick on the ground, with the off-road level (0 road, 1 edge, 2 out) */
   onOffRoad?(w: World, k: Kart, off: number): void;
+  /** a projectile is about to hit this kart: return true when the effect deflected it */
+  onProjectile?(w: World, k: Kart, e: Ent): boolean;
 }
 
 const DEFS: EffectDef[] = [];

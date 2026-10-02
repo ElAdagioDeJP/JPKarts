@@ -1,5 +1,6 @@
-// cuantico: see docs/GDD.md §3.2
+// cuantico: see docs/GDD.md §3
 import { ahead, emit } from '../sim/helpers';
+import { rivalAhead } from '../ai/ai';
 import { T } from '../tunables';
 import { defineItem } from '../sim/items';
 
@@ -9,6 +10,7 @@ defineItem({
   use(w, k) {
     const t = ahead(w, k);
     if (!t) { emit(w, { type: 'alreadyFirst', kart: k.id }); return false; }
+    emit(w, { type: 'incoming', kart: t.id, item: 'cuantico', eta: 0 });
     for (const f of SWAP) {
       const tmp = k[f];
       (k as any)[f] = t[f];
@@ -16,4 +18,5 @@ defineItem({
     }
     emit(w, { type: 'flash', color: '#2ec46b' });
   },
+  aiScore(w, k) { const a = rivalAhead(w, k, 600); return a ? 0.3 + Math.min(0.7, a[1] / 600) : 0; },
 });

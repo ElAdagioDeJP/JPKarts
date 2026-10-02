@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 // CLAUDE.md rule 1: core has no DOM, no audio, no wall-clock and no unseeded randomness.
 // Math.sin/cos/... differ between engines: core must use dmath (deterministic).
-const FORBIDDEN = [/Math\.(sin|cos|tan|atan|atan2|exp|log|pow|hypot)\(/, /\bdocument\b/, /\bwindow\b/, /\bAudioContext\b/, /Math\.random/, /Date\.now/, /performance\.now/, /\bCanvasRenderingContext2D\b/, /\brequestAnimationFrame\b/];
+const FORBIDDEN = [/Math\.(sin|cos|tan|atan|atan2|exp|log|pow|hypot|cbrt)\(/, /\*\*/, /\bdocument\b/, /\bwindow\b/, /\bAudioContext\b/, /Math\.random/, /Date\.now/, /performance\.now/, /\bCanvasRenderingContext2D\b/, /\brequestAnimationFrame\b/];
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((f) => {

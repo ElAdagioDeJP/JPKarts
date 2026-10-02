@@ -1,10 +1,13 @@
-// Item registration. ORDER MATTERS: it defines each item's tier (rarer items last).
+// Item registration. ORDER MATTERS: it defines each item's tier (common first, rarer last).
 import './bocina';
 import './falsa';
 import './goma';
 import './ciego';
 import './burbuja';
+import './muelle';
 import './nitro';
+import './mina';
+import './reflector';
 import './alquitran';
 import './dron';
 import './gancho';

@@ -3,9 +3,11 @@
 import driving from '../data/tunables/driving.json';
 import items from '../data/tunables/items.json';
 import race from '../data/tunables/race.json';
+import ai from '../data/tunables/ai.json';
+import surfaces from '../data/tunables/surfaces.json';
 
 const clone = <V>(v: V): V => JSON.parse(JSON.stringify(v));
-export const T = { driving: clone(driving), items: clone(items), race: clone(race) };
+export const T = { driving: clone(driving), items: clone(items), race: clone(race), ai: clone(ai), surfaces: clone(surfaces) };
 export type Tunables = typeof T;
 export type TunableGroup = keyof Tunables;
 const DEFAULTS: Tunables = clone(T);

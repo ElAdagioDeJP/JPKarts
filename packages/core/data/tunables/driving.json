@@ -31,12 +31,105 @@
     "steerInput": 0.45,
     "turnMul": 1.15,
     "slip": 0.28,
-    "hop": 0.14
+    "hop": 0.14,
+    "level3": 2.4,
+    "boost3": 1.5
   },
-  "steer": { "rate": 2.2, "fullSpeed": 50, "glideMul": 0.8, "airMul": 0.4, "smooth": 10 },
-  "grip": { "offRoad": 6, "glide": 2.5, "air": 0.5 },
-  "air": { "gravity": 300, "glideGravity": 68, "flightVz": 118, "flightSnap": 1.3, "flightLook": 14, "jumpDrop": 30, "jumpMinSpeed": 80, "landHard": -50, "glideBase": 0.75, "glideFly": 0.055, "glideRate": 60, "airFly": 5 },
-  "pad": { "radius": 14, "boost": 0.8, "cooldown": 0.5 },
-  "rocketStart": { "holdMax": 1.1, "boost": 0.9, "speed": 90 },
-  "wrongWay": { "minSpeed": 15, "recover": 2 }
+  "steer": {
+    "rate": 2.2,
+    "fullSpeed": 50,
+    "glideMul": 0.8,
+    "airMul": 0.4,
+    "smooth": 10
+  },
+  "grip": {
+    "offRoad": 6,
+    "glide": 2.5,
+    "air": 0.5
+  },
+  "air": {
+    "gravity": 300,
+    "glideGravity": 68,
+    "flightVz": 118,
+    "flightSnap": 1.3,
+    "flightLook": 14,
+    "jumpDrop": 30,
+    "jumpMinSpeed": 80,
+    "landHard": -50,
+    "glideBase": 0.75,
+    "glideFly": 0.055,
+    "glideRate": 60,
+    "airFly": 5
+  },
+  "pad": {
+    "radius": 14,
+    "boost": 0.8,
+    "cooldown": 0.5
+  },
+  "rocketStart": {
+    "best": [
+      1.0,
+      0.6
+    ],
+    "good": [
+      0.6,
+      0.3
+    ],
+    "burnoutFrom": 2.0,
+    "bestBoost": 1.0,
+    "goodBoost": 0.5,
+    "speed": 90,
+    "burnout": 0.8
+  },
+  "wrongWay": {
+    "minSpeed": 15,
+    "recover": 2
+  },
+  "trick": {
+    "takeoff": 0.25,
+    "boost": 0.6,
+    "bigBoost": 0.9,
+    "bigRadius": 18
+  },
+  "slipstream": {
+    "range": 70,
+    "cone": 0.21,
+    "minSpeed": 100,
+    "charge": 1.2,
+    "boost": 0.8,
+    "drain": 2
+  },
+  "wall": {
+    "gap": 8,
+    "restitution": 0.35,
+    "keep": 0.75,
+    "stunAngle": 1.047,
+    "stun": 0.25,
+    "gomaRestitution": 0.8,
+    "faceBlend": 0.5,
+    "cooldown": 0.2
+  },
+  "hit": {
+    "lightSpin": 0.6,
+    "lightKeep": 0.5,
+    "invuln": 1.0,
+    "recoverMul": 1.2,
+    "lightClassMul": 0.85,
+    "heavyAccelMul": 0.9,
+    "heavyAccelTime": 1.0
+  },
+  "weight": {
+    "lightPushMul": 1.3,
+    "heavyPushMul": 0.7
+  },
+  "spring": {
+    "vz": 165,
+    "time": 1.0
+  },
+  "stuck": {
+    "speed": 15,
+    "aiTime": 3,
+    "humanTime": 6,
+    "respawn": 0.8
+  }
 }
