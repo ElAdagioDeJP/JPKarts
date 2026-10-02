@@ -12,6 +12,12 @@ export interface ModeDef {
   setup?(w: World): void;
   /** false = no coins on the track (time trial) */
   trackCoins?: boolean;
+  /** false = no item boxes (time trial) */
+  itemBoxes?: boolean;
+  /** rules that run every race tick, after the karts and entities (elimination) */
+  tick?(w: World): void;
+  /** laps for `players` karts (elimination: players − 1) */
+  laps?(players: number): number;
   /** points per kart for the final order (cup modes) */
   scoring?(w: World, order: KartId[]): Map<KartId, number>;
 }
@@ -26,7 +32,7 @@ export function modeOf(w: World): ModeDef {
 export const modeList = () => [...REG.values()];
 
 /** Everyone we watch (the humans, or all karts if there are none) crossed the line. */
-const watchedFinished = (w: World) => {
+export const watchedFinished = (w: World) => {
   const humans = w.karts.filter(isHuman), watch = humans.length ? humans : w.karts;
   return watch.every((k) => k.finished);
 };

@@ -38,11 +38,13 @@ export const hitHooks: ((w: World, k: Kart) => void)[] = [];
 export const canBeHit = (k: Kart) => !(immune(k, 'hit') || k.spin > 0 || k.respawn > 0 || k.invuln > 0);
 
 /**
- * Hit a kart. `level`: 0 light (short spin, keeps half its speed), 1 normal, ≥2 strong (shields don't stop it).
+ * Hit a kart. `src`: who caused it (teams: no friendly fire). `level`: 0 light (short spin, keeps half its speed), 1 normal, ≥2 strong (shields don't stop it).
  * Returns true when the kart actually got hit. Lightweights recover faster.
  */
-export function hit(w: World, k: Kart, t: number, level = 1): boolean {
+export function hit(w: World, k: Kart, t: number, level = 1, src = -1): boolean {
   if (!canBeHit(k)) return false;
+  // teams: no friendly fire (src = the kart that caused the hit, -1 for the track)
+  if (src >= 0 && src !== k.id && w.cfg.teams && w.karts[src]?.team === k.team) return false;
   for (const f of [...k.fx]) {
     const d = effectDef(f.type);
     if (d?.absorbHit && d.absorbHit(w, k, f, Math.max(1, level))) return false;

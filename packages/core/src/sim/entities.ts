@@ -85,7 +85,7 @@ defineEntity({
     for (const k of w.karts) {
       if (k.air || k.respawn > 0 || (f.owner === k.id && f.age < F.ownerGrace)) continue;
       if (dhypot(k.x - f.x, k.y - f.y) < F.radius) {
-        hit(w, k, F.hit, 0);
+        hit(w, k, F.hit, 0, f.owner);
         emit(w, { type: 'explode', x: f.x, y: f.y });
         return false;
       }
@@ -114,7 +114,7 @@ defineEntity({
       if (k.id === s.owner) continue;
       if (dhypot(k.x - s.x, k.y - s.y) < C.radius) {
         if (deflected(w, k, s)) break;
-        hit(w, k, C.hit, 1); s.life = 0; break;
+        hit(w, k, C.hit, 1, s.owner); s.life = 0; break;
       }
     }
     return s.life > 0;
@@ -142,7 +142,7 @@ defineEntity({
       if (k.id === r.owner) continue;
       if (dhypot(k.x - r.x, k.y - r.y) < D.radius) {
         if (deflected(w, k, r)) break;
-        hit(w, k, D.hit, 1); r.life = 0; break;
+        hit(w, k, D.hit, 1, r.owner); r.life = 0; break;
       }
     }
     return r.life > 0;
@@ -159,7 +159,7 @@ defineEntity({
     let boom = false;
     for (const k of w.karts) if (!k.air && k.respawn <= 0 && dhypot(k.x - m.x, k.y - m.y) < M.radius * 0.5) boom = true;
     if (!boom) return true;
-    for (const k of w.karts) if (!k.air && dhypot(k.x - m.x, k.y - m.y) < M.radius) hit(w, k, M.hit, 1);
+    for (const k of w.karts) if (!k.air && dhypot(k.x - m.x, k.y - m.y) < M.radius) hit(w, k, M.hit, 1, m.owner);
     emit(w, { type: 'explode', x: m.x, y: m.y });
     return false;
   },
@@ -191,7 +191,7 @@ defineEntity({
     for (const k of w.karts) {
       if (k.id === b.owner || dhypot(k.x - b.x, k.y - b.y) >= B.radius) continue;
       if (deflected(w, k, b)) break;
-      hit(w, k, B.hit, 1);
+      hit(w, k, B.hit, 1, b.owner);
     }
     return b.life > 0;
   },

@@ -35,8 +35,8 @@ defineEffect({
       if (c.inp.t > 0 && c.k.speed < c.max) c.k.speed += J.accel * c.dt;
     },
   },
-  onBump(w, _self, other) {
-    if (!other.fx.some((f) => f.type === 'jug')) hit(w, other, T.items.jugger.bumpHit, T.items.jugger.bumpLevel);
+  onBump(w, self, other) {
+    if (!other.fx.some((f) => f.type === 'jug')) hit(w, other, T.items.jugger.bumpHit, T.items.jugger.bumpLevel, self.id);
   },
 });
 /** Hook: pulls the kart towards its target (data = target kart id). */
@@ -109,7 +109,7 @@ defineEffect({
       if (k.rank <= B.stopRank) removeFx(k, 'bala');
     },
   },
-  onBump(w, _self, other) { hit(w, other, T.items.bala.bumpHit, 1); },
+  onBump(w, self, other) { hit(w, other, T.items.bala.bumpHit, 1, self.id); },
 });
 /** Triple Ciego: shots orbiting the kart; each one blocks a hit (the item in hand counts them). */
 defineEffect({

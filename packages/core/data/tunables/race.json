@@ -155,5 +155,22 @@
     "line": 4,
     "spacing": 16,
     "timeTrialStart": 10
+  },
+  "classes": {
+    "100": {
+      "speed": 1.0,
+      "accel": 1.0
+    },
+    "150": {
+      "speed": 1.15,
+      "accel": 1.12
+    }
+  },
+  "timeTrial": {
+    "coins": 10,
+    "item": "turbo3"
+  },
+  "elimination": {
+    "warnGap": 10
   }
 }

@@ -15,6 +15,7 @@ import { isTimed, spawnStaticHazards, spawnTimedHazard, hazardFamily, type Hazar
 import { charOf, emit, isHuman, kartById, ouch } from './helpers';
 import { giveItem, rollItem, useItem } from './items';
 import '../items';
+import '../modes';
 import { modeOf } from './modes';
 import type { Ctrl, Fx, Input, Kart, RaceConfig, World } from './types';
 import { quantizeInput } from './types';
@@ -30,7 +31,7 @@ function makeKart(w: World, id: number, ch: number, ctrl: Ctrl, g: number, aiDif
     hold: 0, sv: 0, backT: 0, lastLap: 1, rb: ai ? ai.speed : 1, lapStart: 0, best: null, respawn: 0, off: 0, rank: g, padT: 0,
     fx: [], lapFly: 0,
     spinK: T.driving.spinDecay, invuln: 0, wallT: 0, wallCD: 0, slip: 0, trickT: 0, trick: false, trickBig: false, dPrev: false, dLvl: 0,
-    pressCd: -1, burnout: 0, heavyT: 0, lastItem: null, lat, surf: null, ai, stuckT: 0, coins: 0, itemN: 0,
+    pressCd: -1, burnout: 0, heavyT: 0, lastItem: null, lat, surf: null, ai, stuckT: 0, coins: 0, itemN: 0, team: w.cfg.teams ? (w.cfg.grid[g]?.team ?? g % 2) : -1, out: false,
   };
 }
 
@@ -52,7 +53,7 @@ export function createWorld(cfg: RaceConfig, track: Track): World {
     cfg, track, rng: new Rng(cfg.seed), tick: 0, karts: [], ents: [], nextEnt: 1,
     boxes: track.boxes.map(() => ({ active: true, t: 0 })),
     pairCD: [], raceT: 0, phase: 'countdown', cd: T.race.countdown, cdLast: 4, finishDelay: 0, ranked: [], finalOrder: [], events: [],
-    water: track.water?.base ?? 0, highTierCD: 0, tideTarget: track.water?.base ?? 0,
+    water: track.water?.base ?? 0, highTierCD: 0, tideTarget: track.water?.base ?? 0, elimLap: 0,
   };
   w.karts = cfg.grid.map((g, i) => makeKart(w, i, g.ch, g.ctrl, i, g.aiDiff));
   w.pairCD = new Array(w.karts.length * w.karts.length).fill(0);
@@ -88,6 +89,9 @@ function locate(tr: Track, k: Kart): number {
   return Math.sqrt(bd);
 }
 
+/** Engine class multipliers (100cc / 150cc). */
+const engineClass = (w: World) => (T.race.classes as Record<string, { speed: number; accel: number }>)[String(w.cfg.cc ?? 100)] ?? { speed: 1, accel: 1 };
+
 /** Road width multiplier for this kart (snow narrowing the road lap after lap). */
 function narrowing(tr: Track, k: Kart): number {
   const n = tr.authored?.narrow;
@@ -121,6 +125,7 @@ function edgeDistance(tr: Track, k: Kart, d: number): number {
 }
 
 const byRank = (a: Kart, b: Kart) => {
+  if (a.out || b.out) return a.out && b.out ? b.time! - a.time! : a.out ? 1 : -1;
   if (a.finished && b.finished) return a.time! - b.time!;
   if (a.finished) return -1;
   if (b.finished) return 1;
@@ -171,7 +176,8 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
   if (k.burnout > 0) k.burnout -= dt;
   if (k.heavyT > 0) k.heavyT -= dt;
   if (k.respawn > 0) { k.respawn -= dt; if (k.respawn <= 0) respawnKart(w, k); return; }
-  const base = D.baseSpeed * st.spd * (human && !k.finished ? 1 : k.rb) * (1 + Math.min(k.coins, T.race.coins.max) * T.race.coins.speed);
+  const cc = engineClass(w);
+  const base = D.baseSpeed * st.spd * cc.speed * (human && !k.finished ? 1 : k.rb) * (1 + Math.min(k.coins, T.race.coins.max) * T.race.coins.speed);
   const prevProg = k.prog, pi = k.idx, d = locate(tr, k);
   const e = edgeDistance(tr, k, d);
   const off = e > D.offOut ? 2 : e > D.offEdge ? 1 : 0;
@@ -242,7 +248,7 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
     if (k.padT <= 0 && dhypot(k.x - p.x, k.y - p.y) < D.pad.radius) { k.boost = Math.max(k.boost, D.pad.boost); k.padT = D.pad.cooldown; emit(w, { type: 'pad', kart: k.id }); }
   const AIR = D.air;
   if (!k.air) {
-    const acc = D.accel * st.acl * (k.heavyT > 0 ? D.hit.heavyAccelMul : 1);
+    const acc = D.accel * st.acl * cc.accel * (k.heavyT > 0 ? D.hit.heavyAccelMul : 1);
     if (inp.t > 0) k.speed += acc * inp.t * dt * (k.speed < 0 ? D.reverseAccelMul : 1);
     else if (inp.t < 0) k.speed -= (k.speed > 0 ? D.brake : D.brakeReverse) * -inp.t * dt;
     else k.speed -= Math.sign(k.speed) * Math.min(Math.abs(k.speed), D.coast * dt);
@@ -477,7 +483,7 @@ function updateRace(w: World, inputs: readonly Input[], dt: number) {
     }
   // item boxes
   const I = T.items;
-  for (let bi = 0; bi < tr.boxes.length; bi++) {
+  for (let bi = 0; modeOf(w).itemBoxes !== false && bi < tr.boxes.length; bi++) {
     const b = tr.boxes[bi]!, bs = w.boxes[bi]!;
     if (!bs.active) { bs.t -= dt; if (bs.t <= 0) bs.active = true; continue; }
     for (const k of w.karts) {
@@ -493,6 +499,7 @@ function updateRace(w: World, inputs: readonly Input[], dt: number) {
   }
   updateTrackEvents(w, dt);
   updateEntities(w, dt);
+  modeOf(w).tick?.(w);
   // end of race: `finishDelay` seconds after the mode's end condition
   if (w.phase === 'race') {
     if (w.finishDelay <= 0 && modeOf(w).endCondition(w)) w.finishDelay = T.race.finishDelay;
