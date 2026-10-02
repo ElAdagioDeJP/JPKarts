@@ -7,3 +7,4 @@ shots/
 *.log
 .DS_Store
 .vite/
+packages/core/tools/tmp/

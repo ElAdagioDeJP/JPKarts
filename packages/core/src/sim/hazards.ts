@@ -6,7 +6,7 @@
 //  - trampolines: static launch pads (mushrooms)
 //  - gates: block a route on some laps (stadium gates)
 // Every hazard warns ≥ 1 s before it can hurt (pillar "chaos, but fair").
-import { dcos, dhypot, dsin } from '../dmath';
+import { datan2, dcos, dhypot, dsin } from '../dmath';
 import { clamp, lerp } from '../math';
 import { T } from '../tunables';
 import { hAt } from '../track/track';
@@ -146,9 +146,16 @@ function gate(kind: string) {
         // along-track distance to the gate line
         const dx = k.x - tr.x[i]!, dy = k.y - tr.y[i]!, along = dx * dcos(a) + dy * dsin(a), lat = dx * -dsin(a) + dy * dcos(a);
         if (Math.abs(along) < 7 && lat > e.vx && lat < e.vy) {
-          k.x -= dcos(a) * (8 - along); k.y -= dsin(a) * (8 - along);
-          k.speed = Math.min(k.speed, 0) - 20;
           if (k.wallCD <= 0) { emit(w, { type: 'wallBump', kart: k.id, hard: true }); k.wallCD = 0.3; }
+          // the closed gate sends the kart to the start of the detour that goes around it (no stuck loops)
+          const N = tr.N, b = tr.branches.find((b) => (i - b.i0 + N) % N < (b.i1 - b.i0 + N) % N);
+          if (b && b.n > 1) {
+            if (k.ai) k.ai.branch = tr.branches.indexOf(b);
+            k.x = b.x[0]!; k.y = b.y[0]!; k.a = k.va = datan2(b.y[1]! - b.y[0]!, b.x[1]! - b.x[0]!); k.speed = 0; k.drift = 0;
+          } else {
+            k.x -= dcos(a) * (8 - along); k.y -= dsin(a) * (8 - along);
+            k.speed = Math.min(k.speed, 0) - 20;
+          }
         }
       }
       return true;
