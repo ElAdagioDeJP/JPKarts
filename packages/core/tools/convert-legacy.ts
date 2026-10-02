@@ -9,7 +9,7 @@ import type { AuthoredTrackDef, SectionType } from '../src/track/authoredTypes';
 const CUP_OF = ['hoja', 'hoja', 'hoja', 'hoja', 'estrella', 'estrella', 'estrella', 'estrella', 'rayo', 'rayo', 'rayo', 'rayo', 'fuego', 'fuego', 'fuego', 'fuego'];
 const WIDTH: Record<string, number> = { hoja: 50, estrella: 45, rayo: 41, fuego: 37 };
 const LAP: Record<string, [number, number]> = { hoja: [50, 60], estrella: [50, 60], rayo: [50, 62], fuego: [50, 65] };
-const SCALE = 1.38, OUT = join(import.meta.dir, '../data/tracks');
+const SCALE = 1.5, OUT = join(import.meta.dir, '../data/tracks');
 
 type H = AuthoredTrackDef['hazards'][number];
 interface Gimmick {

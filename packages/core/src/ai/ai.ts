@@ -150,8 +150,8 @@ function think(w: World, k: Kart, dbg: AiDebug) {
   const lap = Math.floor(k.prog / tr.N) + 1;
   for (let bi = 0; bi < tr.branches.length; bi++) {
     const b = tr.branches[bi]!, d = along(tr, k.idx, b.i0);
-    if (d > 0 && d < A.shortcut.decide && s.decided !== bi) {
-      s.decided = bi;
+    if (d > 0 && d < A.shortcut.decide && s.decided !== bi + lap * 64) {
+      s.decided = bi + lap * 64; // once per branch and lap
       const forced = w.ents.some((e) => e.kind === 'compuerta' && ((e.target >> lap) & 1) && along(tr, b.i0, Math.floor(e.s)) > 0 && along(tr, Math.floor(e.s), b.i1) > 0 && e.vx < 0 && e.vy > 0);
       s.branch = forced || w.rng.next() < D.shortcut * P.risk ? bi : -1;
     }
