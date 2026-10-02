@@ -13,6 +13,13 @@ export interface Input {
 }
 export const NO_INPUT: Input = { t: 0, s: 0, d: false, item: false };
 
+/** Inputs are quantized to 8 bits per axis (network/replay format). Same value on every peer. */
+export function quantizeInput(i: Input | undefined): Input {
+  if (!i) return NO_INPUT;
+  const q = (v: number) => Math.round(Math.max(-1, Math.min(1, v)) * 127) / 127;
+  return { t: q(i.t), s: q(i.s), d: !!i.d, item: !!i.item };
+}
+
 export interface Kart {
   id: KartId;
   ch: number; // index into CHARS

@@ -6,12 +6,13 @@ import { type Track, dgAt, hAt, liqAt } from '../track/track';
 import { charOf, emit, hit, isHuman, kartById } from './helpers';
 import { aiItemUse, giveItem, rollItem, useItem } from './items';
 import type { Ctrl, Input, Kart, RaceConfig, World } from './types';
-import { NO_INPUT } from './types';
+import { NO_INPUT, quantizeInput } from './types';
+import { datan2, dcos, dhypot, dpow, dsin } from '../dmath';
 
 function makeKart(w: World, id: number, ch: number, ctrl: Ctrl, g: number): Kart {
   const tr = w.track, Df = DIFFS[w.cfg.diff]!;
   const row = g >> 1, back = 8 + row * 7 + (g & 1) * 3, i = (((-back) % tr.N) + tr.N) % tr.N, a = tr.ang[i]!, lat = g & 1 ? 15 : -15;
-  const x = tr.x[i]! - Math.sin(a) * lat, y = tr.y[i]! + Math.cos(a) * lat;
+  const x = tr.x[i]! - dsin(a) * lat, y = tr.y[i]! + dcos(a) * lat;
   return {
     id, ch, ctrl, x, y, z: hAt(tr, x, y), vz: 0, air: false, glide: false, a, va: a, speed: 0, idx: i, prog: -back,
     drift: 0, dc: 0, boost: 0, spin: 0, hop: 0, item: null, roll: 0, finished: false, time: null,
@@ -91,8 +92,8 @@ export function aiInput(w: World, k: Kart): Input {
   const tr = w.track, N = tr.N;
   if (k.laneT <= 0) { k.laneT = w.rng.range(1.5, 4); k.lane = w.rng.range(-22, 22); }
   const look = Math.round(8 + Math.max(0, k.speed) / 18), i = (k.idx + look) % N, a = tr.ang[i]!;
-  const tx = tr.x[i]! - Math.sin(a) * k.lane, ty = tr.y[i]! + Math.cos(a) * k.lane;
-  const diffA = wrapA(Math.atan2(ty - k.y, tx - k.x) - k.a);
+  const tx = tr.x[i]! - dsin(a) * k.lane, ty = tr.y[i]! + dcos(a) * k.lane;
+  const diffA = wrapA(datan2(ty - k.y, tx - k.x) - k.a);
   const curve = Math.abs(wrapA(tr.ang[(k.idx + 28) % N]! - tr.ang[k.idx]!));
   const lim = tr.th.ice ? 95 : 112;
   let t = 1;
@@ -132,8 +133,8 @@ function updateKart(w: World, k: Kart, inp: Input, dt: number) {
   if (k.bubble && off >= 1 && !k.air) { k.bubble = 0; emit(w, { type: 'shieldPop', kart: k.id, offroad: true }); }
   let max = off === 2 ? th.offMax : off === 1 ? 105 : base;
   let inTar = false;
-  if (!k.air) for (const t of w.tars) if (Math.hypot(k.x - t.x, k.y - t.y) < t.r) { inTar = true; break; }
-  if (k.spin > 0) { k.spin -= dt; inp = NO_INPUT; k.speed *= Math.pow(0.15, dt); }
+  if (!k.air) for (const t of w.tars) if (dhypot(k.x - t.x, k.y - t.y) < t.r) { inTar = true; break; }
+  if (k.spin > 0) { k.spin -= dt; inp = NO_INPUT; k.speed *= dpow(0.15, dt); }
   if (k.emp > 0) inp = { ...inp, t: 0, d: false };
   if (k.inv > 0) inp = { ...inp, s: -inp.s * (human ? 1 : 0.6) };
   if (k.boost > 0 && k.emp <= 0) { k.boost -= dt; max = Math.max(max, base * 1.42); if (k.speed < max) k.speed += 320 * dt; }
@@ -142,22 +143,22 @@ function updateKart(w: World, k: Kart, inp: Input, dt: number) {
   if (inTar) { max = Math.min(max, base * 0.45); k.drift = 0; k.dc = 0; inp = { ...inp, d: false }; }
   const tg = k.hookT > 0 ? kartById(w, k.hookTg) : undefined;
   if (k.hookT > 0 && tg) {
-    const dd = Math.hypot(tg.x - k.x, tg.y - k.y);
+    const dd = dhypot(tg.x - k.x, tg.y - k.y);
     max = Math.max(max, base * 1.3);
     if (k.speed < max) k.speed += 220 * dt;
-    const da = wrapA(Math.atan2(tg.y - k.y, tg.x - k.x) - k.a);
+    const da = wrapA(datan2(tg.y - k.y, tg.x - k.x) - k.a);
     if (dd < 260) inp = { ...inp, s: clamp(inp.s + da * 1.5, -1, 1) };
     if (dd < 16) k.hookT = 0;
   }
   k.padT -= dt;
   for (const p of tr.pads)
-    if (k.padT <= 0 && Math.hypot(k.x - p.x, k.y - p.y) < 14) { k.boost = Math.max(k.boost, 0.8); k.padT = 0.5; emit(w, { type: 'pad', kart: k.id }); }
+    if (k.padT <= 0 && dhypot(k.x - p.x, k.y - p.y) < 14) { k.boost = Math.max(k.boost, 0.8); k.padT = 0.5; emit(w, { type: 'pad', kart: k.id }); }
   if (!k.air) {
     if (inp.t > 0) k.speed += 112 * st.acl * dt * (k.speed < 0 ? 3 : 1);
     else if (inp.t < 0) k.speed -= (k.speed > 0 ? 260 : 90) * dt;
     else k.speed -= Math.sign(k.speed) * Math.min(Math.abs(k.speed), 55 * dt);
     if (k.speed > max) k.speed = Math.max(max, k.speed - (off || inTar ? 260 : 200) * dt);
-    const ca = Math.cos(k.a), sa = Math.sin(k.a), sl = (hAt(tr, k.x + ca * 5, k.y + sa * 5) - hAt(tr, k.x - ca * 5, k.y - sa * 5)) / 10;
+    const ca = dcos(k.a), sa = dsin(k.a), sl = (hAt(tr, k.x + ca * 5, k.y + sa * 5) - hAt(tr, k.x - ca * 5, k.y - sa * 5)) / 10;
     k.speed -= sl * 230 * dt;
   } else {
     // in the air: the Flight stat speeds the kart up or slows it down
@@ -184,8 +185,8 @@ function updateKart(w: World, k: Kart, inp: Input, dt: number) {
   if (k.air) grip = k.glide ? 2.5 : 0.5;
   const tgtA = k.a - k.drift * 0.28;
   k.va = wrapA(k.va + wrapA(tgtA - k.va) * Math.min(1, grip * dt));
-  k.x += Math.cos(k.va) * k.speed * dt;
-  k.y += Math.sin(k.va) * k.speed * dt;
+  k.x += dcos(k.va) * k.speed * dt;
+  k.y += dsin(k.va) * k.speed * dt;
   if (k.x < 4 || k.y < 4 || k.x > TS - 4 || k.y > TS - 4) {
     if (k.goma > 0) k.speed *= -0.4;
     k.x = clamp(k.x, 4, TS - 4);
@@ -244,7 +245,7 @@ function updateRace(w: World, inputs: readonly Input[], dt: number) {
     let inp: Input;
     if (!isHuman(k) || k.finished) inp = aiInput(w, k);
     else {
-      inp = inputs[k.id] ?? NO_INPUT;
+      inp = quantizeInput(inputs[k.id]);
       if (inp.item && w.phase === 'race' && k.item && k.roll <= 0) useItem(w, k);
     }
     updateKart(w, k, inp, dt);
@@ -256,7 +257,7 @@ function updateRace(w: World, inputs: readonly Input[], dt: number) {
     for (let j = i + 1; j < n; j++) {
       const a = w.karts[i]!, b = w.karts[j]!;
       if (a.respawn > 0 || b.respawn > 0 || Math.abs(a.z - b.z) > 10) continue;
-      const rad = (KSIZE * ((a.jug > 0 ? 2 : 1) + (b.jug > 0 ? 2 : 1))) / 2, dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+      const rad = (KSIZE * ((a.jug > 0 ? 2 : 1) + (b.jug > 0 ? 2 : 1))) / 2, dx = b.x - a.x, dy = b.y - a.y, d = dhypot(dx, dy);
       if (d >= rad || d < 0.01) continue;
       const nx = dx / d, ny = dy / d, p = (rad - d) / 2;
       a.x -= nx * p; a.y -= ny * p; b.x += nx * p; b.y += ny * p;
@@ -279,7 +280,7 @@ function updateRace(w: World, inputs: readonly Input[], dt: number) {
     const bs = w.boxes[bi]!;
     if (!bs.active) { bs.t -= dt; if (bs.t <= 0) bs.active = true; return; }
     for (const k of w.karts) {
-      if (k.respawn <= 0 && Math.hypot(k.x - b.x, k.y - b.y) < 11 && Math.abs(k.z - b.z) < 14) {
+      if (k.respawn <= 0 && dhypot(k.x - b.x, k.y - b.y) < 11 && Math.abs(k.z - b.z) < 14) {
         bs.active = false; bs.t = 3;
         if (!k.item && k.roll <= 0) {
           if (isHuman(k)) { k.roll = 1.0; emit(w, { type: 'itemRoll', kart: k.id }); }
@@ -294,7 +295,7 @@ function updateRace(w: World, inputs: readonly Input[], dt: number) {
     f.age += dt; f.cdn -= dt;
     for (const k of w.karts) {
       if (!isHuman(k) || k.air || f.cdn > 0) continue;
-      if (Math.hypot(k.x - f.x, k.y - f.y) < 11 && !(f.owner === k.id && f.age < 1)) { k.smudge = 1; f.cdn = 1.5; emit(w, { type: 'smudge', kart: k.id }); }
+      if (dhypot(k.x - f.x, k.y - f.y) < 11 && !(f.owner === k.id && f.age < 1)) { k.smudge = 1; f.cdn = 1.5; emit(w, { type: 'smudge', kart: k.id }); }
     }
   }
   w.fakes = w.fakes.filter((f) => f.age < 25);
@@ -305,7 +306,7 @@ function updateRace(w: World, inputs: readonly Input[], dt: number) {
     if (dgAt(tr, s.x, s.y) > ROAD + 14) { s.life = 0; continue; }
     for (const k of w.karts) {
       if (k.id === s.owner) continue;
-      if (Math.hypot(k.x - s.x, k.y - s.y) < 10) { hit(w, k, 1.0, 1); s.life = 0; break; }
+      if (dhypot(k.x - s.x, k.y - s.y) < 10) { hit(w, k, 1.0, 1); s.life = 0; break; }
     }
   }
   w.shots = w.shots.filter((s) => s.life > 0);
@@ -314,16 +315,16 @@ function updateRace(w: World, inputs: readonly Input[], dt: number) {
     const i0 = Math.floor(r.s), f = r.s - i0, a = ((i0 % N) + N) % N, b = (a + 1) % N;
     const tgt = kartById(w, r.target);
     if (tgt && !tgt.finished) {
-      const at = tr.ang[tgt.idx]!, lt = (tgt.x - tr.x[tgt.idx]!) * -Math.sin(at) + (tgt.y - tr.y[tgt.idx]!) * Math.cos(at);
+      const at = tr.ang[tgt.idx]!, lt = (tgt.x - tr.x[tgt.idx]!) * -dsin(at) + (tgt.y - tr.y[tgt.idx]!) * dcos(at);
       r.lat = lerp(r.lat, lt, Math.min(1, 3 * dt));
-    } else r.lat *= Math.pow(0.4, dt);
+    } else r.lat *= dpow(0.4, dt);
     const an = tr.ang[a]!;
-    r.x = lerp(tr.x[a]!, tr.x[b]!, f) - Math.sin(an) * r.lat;
-    r.y = lerp(tr.y[a]!, tr.y[b]!, f) + Math.cos(an) * r.lat;
+    r.x = lerp(tr.x[a]!, tr.x[b]!, f) - dsin(an) * r.lat;
+    r.y = lerp(tr.y[a]!, tr.y[b]!, f) + dcos(an) * r.lat;
     r.z = hAt(tr, r.x, r.y) + 8;
     for (const k of w.karts) {
       if (k.id === r.owner) continue;
-      if (Math.hypot(k.x - r.x, k.y - r.y) < 11) { hit(w, k, 1.1, 1); r.life = 0; break; }
+      if (dhypot(k.x - r.x, k.y - r.y) < 11) { hit(w, k, 1.1, 1); r.life = 0; break; }
     }
   }
   w.rockets = w.rockets.filter((r) => r.life > 0);
@@ -350,7 +351,7 @@ export function step(w: World, inputs: readonly Input[]) {
   w.tick++;
   if (w.phase === 'countdown') {
     w.cd -= dt;
-    for (const k of w.karts) if (isHuman(k)) { if ((inputs[k.id]?.t ?? 0) > 0) k.held += dt; else k.held = 0; }
+    for (const k of w.karts) if (isHuman(k)) { if (quantizeInput(inputs[k.id]).t > 0) k.held += dt; else k.held = 0; }
     const n = Math.ceil(w.cd);
     if (n < w.cdLast && n > 0) { w.cdLast = n; emit(w, { type: 'countdown', n }); }
     if (w.cd <= 0) {
