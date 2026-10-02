@@ -14,6 +14,14 @@ export const SNAPSHOT_EVERY = 3; // server ticks per snapshot (60 Hz / 3 = 20 Hz
 export type PackedInput = [number, number, number, number, number];
 export const packInput = (seq: number, i: Input): PackedInput => [seq, Math.round(i.t * 127), Math.round(i.s * 127), i.d ? 1 : 0, i.item ? 1 : 0];
 export const unpackInput = (p: PackedInput): Input => ({ t: p[1] / 127, s: p[2] / 127, d: !!p[3], item: !!p[4] });
+/** The server never trusts a client: a packed input must be 5 integers in range (NaN would break determinism). */
+export const validPacked = (p: unknown): p is PackedInput =>
+  Array.isArray(p) && p.length === 5 && p.every((v) => Number.isInteger(v)) && p[0] >= 0 && Math.abs(p[1]) <= 127 && Math.abs(p[2]) <= 127 && (p[3] === 0 || p[3] === 1) && (p[4] === 0 || p[4] === 1);
+/** Player names: printable characters only, trimmed, 12 at most. */
+export const cleanName = (n: unknown) => (typeof n === 'string' ? n.replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, 12).trim() : '') || 'Jugador';
+/** Online room codes: 5 characters without look-alikes (no I, O, 0, 1). */
+export const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export const cleanRoomCode = (c: unknown) => (typeof c === 'string' ? c.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5) : '');
 
 export interface LobbyPlayer { id: number; name: string; ch: number; ready: boolean; host: boolean }
 export interface LobbySettings {
@@ -26,7 +34,7 @@ export interface LobbySettings {
 }
 
 export type ClientMsg =
-  | { t: 'hello'; proto: number; name: string; tun: string }
+  | { t: 'hello'; proto: number; name: string; tun: string; room?: string; create?: boolean }
   | { t: 'pick'; ch: number }
   | { t: 'ready'; ready: boolean }
   | { t: 'settings'; s: LobbySettings }
@@ -36,9 +44,9 @@ export type ClientMsg =
   | { t: 'leave' };
 
 export type ServerMsg =
-  | { t: 'welcome'; id: number; proto: number }
+  | { t: 'welcome'; id: number; proto: number; room?: string }
   | { t: 'reject'; reason: string }
-  | { t: 'lobby'; players: LobbyPlayer[]; settings: LobbySettings; phase: 'lobby' | 'race' | 'standings'; cupRace: number; cupPts: Record<number, number> }
+  | { t: 'lobby'; players: LobbyPlayer[]; settings: LobbySettings; phase: 'lobby' | 'race' | 'standings'; cupRace: number; cupPts: Record<number, number>; room?: string }
   | { t: 'start'; cfg: RaceConfig; kart: number }
   | { t: 'snap'; tick: number; ack: number; state?: WorldState; delta?: Delta; last: Record<number, PackedInput> }
   | { t: 'end'; order: number[]; points: Record<number, number> };

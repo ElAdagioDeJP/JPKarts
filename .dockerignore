@@ -1,0 +1,10 @@
+**/node_modules
+.git
+.claude
+legacy
+docs
+shots*
+apps/desktop/release
+apps/desktop/build
+packages/core/tools/tmp
+*.log

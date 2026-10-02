@@ -32,7 +32,16 @@ export class NetSession {
   visOff = { x: 0, y: 0 };
   bytesIn = 0;
 
-  constructor(public url: string, public name: string, private trackFor: (index: number, mirror: boolean) => Track, private onStart: () => void, private onEnd: () => void) {}
+  /** online room code (shown in the lobby so the host can share it) */
+  room = '';
+  constructor(public url: string, public name: string, private trackFor: (index: number, mirror: boolean) => Track, private onStart: () => void, private onEnd: () => void, private opts: { room?: string; create?: boolean } = {}) {}
+
+  /** Online server address: wss:// for a domain (TLS at the proxy), ws:// for localhost or an IP with a port. */
+  static onlineUrl(addr: string) {
+    const a = addr.trim();
+    if (a.startsWith('ws')) return a;
+    return /^(localhost|\d+\.\d+\.\d+\.\d+)(:\d+)?$/.test(a) ? 'ws://' + (a.includes(':') ? a : a + ':' + LAN_PORT) : 'wss://' + a;
+  }
 
   static urlFrom(addr: string) {
     const a = addr.trim() || 'localhost';
@@ -42,7 +51,7 @@ export class NetSession {
 
   connect() {
     try { this.ws = new WebSocket(this.url); } catch (e) { this.status = 'closed'; this.error = 'Dirección no válida'; return; }
-    this.ws.onopen = () => this.send({ t: 'hello', proto: PROTOCOL_VERSION, name: this.name, tun: handshakeTunables() });
+    this.ws.onopen = () => this.send({ t: 'hello', proto: PROTOCOL_VERSION, name: this.name, tun: handshakeTunables(), ...this.opts });
     this.ws.onmessage = (ev) => { this.bytesIn += String(ev.data).length; this.handle(JSON.parse(String(ev.data)) as ServerMsg); };
     this.ws.onclose = () => { if (this.status !== 'closed') { this.status = 'closed'; if (!this.error) this.error = 'Se perdió la conexión con el anfitrión'; } };
     this.ws.onerror = () => { if (!this.error) this.error = `No se pudo conectar a ${this.url}`; };
@@ -56,7 +65,7 @@ export class NetSession {
 
   private handle(m: ServerMsg) {
     switch (m.t) {
-      case 'welcome': this.id = m.id; this.status = 'lobby'; break;
+      case 'welcome': this.id = m.id; this.status = 'lobby'; this.room = m.room ?? ''; break;
       case 'reject': this.error = m.reason; this.status = 'closed'; this.ws?.close(); break;
       case 'lobby':
         this.players = m.players; this.settings = m.settings; this.phase = m.phase; this.cupRace = m.cupRace; this.cupPts = m.cupPts;

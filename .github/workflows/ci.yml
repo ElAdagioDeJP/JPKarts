@@ -53,3 +53,25 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: apps/desktop/release/*.exe
+
+  docker-online:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Construir la imagen del servidor online
+        run: docker build -t jpkart-online .
+
+      - name: Arrancar y comprobar (health, crear sala, unirse, código erróneo)
+        run: |
+          docker run -d --name kart -p 7777:7777 jpkart-online
+          for i in $(seq 1 20); do curl -fs http://localhost:7777/health && break; sleep 1; done
+          bun install --frozen-lockfile --ignore-scripts
+          bun tools/online-check.mjs ws://localhost:7777 | tee online.json
+          grep -q '"join":{"room"' online.json
+          docker logs kart
