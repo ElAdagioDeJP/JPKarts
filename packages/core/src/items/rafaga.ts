@@ -26,7 +26,7 @@ defineItem({
       const cls = charOf(o).weightClass, m = cls === 'pesado' ? R.heavyMul : cls === 'ligero' ? R.lightMul : 1, s = Math.sign(lat) || 1;
       o.x += -sa * s * R.push * m;
       o.y += ca * s * R.push * m;
-      hit(w, o, R.hit, 0);
+      hit(w, o, R.hit, 0, k.id);
     }
     emit(w, { type: 'gust', kart: k.id });
   },

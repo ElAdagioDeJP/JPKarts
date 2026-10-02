@@ -16,7 +16,7 @@ defineItem({
     for (let hop = 0; hop <= C.hops && cur; hop++) {
       done.add(cur.id);
       emit(w, { type: 'zap', from, to: cur.id });
-      hit(w, cur, C.hit, 0);
+      hit(w, cur, C.hit, 0, k.id);
       from = cur.id;
       const c: typeof cur = cur;
       let next: typeof cur | undefined, bd = C.range;

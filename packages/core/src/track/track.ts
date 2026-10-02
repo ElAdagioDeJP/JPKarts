@@ -1,3 +1,4 @@
+import { mirrorAuthored } from './mirror';
 import { BW, HM, ROAD, TRACK_LEN, TS } from '../constants';
 import type { AuthoredTrackDef } from './authoredTypes';
 import { computeRacingLine, type RacingLine } from '../ai/line';
@@ -362,8 +363,16 @@ export class TrackCache {
   constructor(defs: (TrackDef | AuthoredTrackDef)[], private prepAuthored?: (d: AuthoredTrackDef) => Track) {
     this.all = defs.map((d) => ('spline' in d ? prepAuthored!(d) : prepTrack(d)));
   }
-  get(i: number): Track {
-    return this.all[i]!;
+  private mirrored = new Map<number, Track>();
+  /** `mirror`: the Espejo version (authored tracks; legacy tracks have none and return the normal one). */
+  get(i: number, mirror = false): Track {
+    return mirror ? this.mirrorOf(i) : this.all[i]!;
+  }
+  private mirrorOf(i: number): Track {
+    let t = this.mirrored.get(i);
+    const a = this.all[i]?.authored;
+    if (!t && a && this.prepAuthored) { t = this.prepAuthored(mirrorAuthored(a)); this.mirrored.set(i, t); }
+    return t ?? this.all[i]!;
   }
   get list(): readonly Track[] {
     return this.all;
@@ -377,8 +386,8 @@ export class TrackCache {
     this.builtQ = this.builtQ.filter((x) => x !== old);
     return this.ensureBuilt(i);
   }
-  ensureBuilt(i: number, keep: Track[] = []): Track {
-    const t = this.all[i]!;
+  ensureBuilt(i: number, keep: Track[] = [], mirror = false): Track {
+    const t = this.get(i, mirror);
     if (t.built) return t;
     buildTrack(t);
     this.builtQ.push(t);

@@ -10,7 +10,7 @@ defineItem({
   use(w, k) {
     const B = T.items.bocina;
     for (const o of w.karts)
-      if (o !== k && !o.finished && dhypot(o.x - k.x, o.y - k.y) < B.radius) { addFx(o, 'scare', B.scare, k.id); hit(w, o, B.hit, 0); }
+      if (o !== k && !o.finished && dhypot(o.x - k.x, o.y - k.y) < B.radius) { addFx(o, 'scare', B.scare, k.id); hit(w, o, B.hit, 0, k.id); }
   },
   aiScore(w, k) {
     let near = 0;

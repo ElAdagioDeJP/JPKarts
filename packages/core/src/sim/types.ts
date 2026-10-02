@@ -83,6 +83,10 @@ export interface Kart {
   coins: number;
   /** uses left of the held item (Turbo Triple, Triple Ciego) */
   itemN: number;
+  /** team (0/1) when the race has teams, else -1 */
+  team: number;
+  /** knocked out (elimination); removed from the track */
+  out: boolean;
 }
 
 /** Any world entity (projectile, trap, hazard). Flat numeric fields so it serializes trivially. */
@@ -133,6 +137,8 @@ export type GameEvent =
   | { type: 'zap'; from: KartId; to: KartId }
   | { type: 'gust'; kart: KartId }
   | { type: 'catch'; kart: KartId }
+  | { type: 'eliminated'; kart: KartId; left: number }
+  | { type: 'elimWarn'; kart: KartId }
   | { type: 'lap'; kart: KartId; lap: number; final: boolean }
   | { type: 'finish'; kart: KartId; time: number }
   | { type: 'flash'; color: string }
@@ -145,8 +151,14 @@ export interface RaceConfig {
   laps: number;
   /** game mode id (defineMode); default 'race' */
   mode?: string;
-  /** grid order: character index + controller for each slot */
-  grid: { ch: number; ctrl: Ctrl; aiDiff?: number }[];
+  /** grid order: character index + controller for each slot (team: 0 red, 1 blue when `teams`) */
+  grid: { ch: number; ctrl: Ctrl; aiDiff?: number; team?: number }[];
+  /** engine class (GDD §9): 100 (default) or 150 */
+  cc?: number;
+  /** mirrored track (authored tracks only) */
+  mirror?: boolean;
+  /** two teams, no friendly fire (modifier over race/cup) */
+  teams?: boolean;
 }
 
 export interface World {
@@ -173,4 +185,6 @@ export interface World {
   highTierCD: number;
   /** water level the tide is moving towards */
   tideTarget: number;
+  /** elimination: laps already resolved */
+  elimLap: number;
 }

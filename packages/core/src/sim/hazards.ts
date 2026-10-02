@@ -191,7 +191,8 @@ export function spawnStaticHazards(w: World, spawn: (w: World, kind: string, p: 
     const fam = kindOf(h.kind), i = ((Math.floor(h.at * tr.N) % tr.N) + tr.N) % tr.N;
     if (fam === 'sweeper') spawn(w, h.kind, { s: i, lat: h.lat?.[0] ?? 0, r: h.radius ?? tr.wd[i]! + 10, life: h.period, t: (h.offset ?? 0) });
     if (fam === 'trampoline') spawn(w, h.kind, { s: i, lat: h.lat?.[0] ?? 0, r: h.radius ?? 12 });
-    if (fam === 'gate') spawn(w, h.kind, { s: i, vx: h.lat?.[0] ?? -tr.wd[i]! - 10, vy: h.lat?.[1] ?? tr.wd[i]! + 10, target: (h.laps ?? []).reduce((m, l) => m | (1 << l), 0) });
+    const g0 = h.lat?.[0] ?? -tr.wd[i]! - 10, g1 = h.lat?.[1] ?? tr.wd[i]! + 10;
+    if (fam === 'gate') spawn(w, h.kind, { s: i, vx: Math.min(g0, g1), vy: Math.max(g0, g1), target: (h.laps ?? []).reduce((m, l) => m | (1 << l), 0) });
   }
 }
 
