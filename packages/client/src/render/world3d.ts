@@ -3,6 +3,8 @@ import * as THREE from 'three/webgpu';
 import { CHARS, type Track, hAt } from '@jpkart/core';
 import { OUT, hexRGB, shade, type Spr } from '../art/pixel';
 import { BALLS, D, ICONS, MINE, OLA, PUDDLE, REFLECT_RING, RING, SHOT, TARS, voxelKart } from '../art/sprites';
+import { GRADES, Post } from './post';
+import { Particles } from './particles';
 import { F, buildGroundTexture, buildScenery, buildSkyGradient, buildSkyStrip, type SceneryItem } from './trackArt';
 
 export const RW = 640, RH = 360; // internal world resolution (16:9)
@@ -10,10 +12,15 @@ export const H0 = RH / 2 - 40; // default horizon row (legacy: 40 px above cente
 export const FOG_NEAR = 420, FOG_FAR = 1000;
 export const KART_VOXEL = 0.7; // world units per voxel: on screen it matches the legacy 12.5-unit sprite seen from CAM_BACK
 
-export interface CamView { x: number; y: number; z: number; a: number; hz: number }
+export interface CamView { x: number; y: number; z: number; a: number; hz: number; f?: number; roll?: number }
 export interface KartView {
   id: number; ch: number; x: number; y: number; z: number; a: number; lean: number;
   hop: number; spin: number; big: boolean; bubble: boolean; reflect: boolean; visible: boolean; ground: number; air: boolean;
+  /** 0..1 progress of a trick flip (0 = none) */
+  trick: number;
+  /** 0..1 squash after landing (1 = just landed) */
+  squash: number;
+  local: boolean;
 }
 export interface ThingView { kind: 'box' | 'fake' | 'tar' | 'shot' | 'dron' | 'hole' | 'mine' | 'ola'; x: number; y: number; z: number; f: number; a?: number }
 
@@ -93,6 +100,8 @@ export class WorldRenderer {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(60, RW / RH, 0.5, FOG_FAR + 150);
   backend = '';
+  post!: Post;
+  particles!: Particles;
   private track: Track | null = null;
   private trackGroup = new THREE.Group();
   private skyGroup = new THREE.Group();
@@ -105,6 +114,8 @@ export class WorldRenderer {
   private thingUsed = 0;
   private boxSprites: THREE.Sprite[] = [];
   private water: THREE.Mesh | null = null;
+  private decor: { mesh: THREE.InstancedMesh; items: { x: number; y: number; z: number; w: number; h: number }[] }[] = [];
+  private decorYaw = NaN;
   private waterTex: THREE.CanvasTexture | null = null;
 
   async init(canvas: HTMLCanvasElement, forceWebGL = false) {
@@ -115,6 +126,8 @@ export class WorldRenderer {
     this.backend = (this.renderer.backend as any).isWebGPUBackend ? 'WebGPU' : 'WebGL2';
     this.scene.add(this.skyGroup, this.trackGroup);
     this.camera.rotation.order = 'YXZ';
+    this.post = new Post(this.renderer, this.scene, this.camera);
+    this.particles = new Particles(this.scene);
   }
 
   /** Rebuild every track-dependent object. */
@@ -128,6 +141,9 @@ export class WorldRenderer {
     const fog = new THREE.Color(tr.th.fog);
     this.scene.background = fog;
     this.scene.fog = new THREE.Fog(fog, FOG_NEAR, FOG_FAR);
+    this.post.setGrade(GRADES[tr.th.style] ?? GRADES.grass!);
+    this.post.setBloom(tr.th.style === 'grid' || tr.th.style === 'rock' ? 0.45 : 0.15);
+    this.particles.clear();
     this.buildTerrain(tr);
     this.buildWalls(tr);
     if (tr.water) this.buildWater(tr);
@@ -280,21 +296,46 @@ export class WorldRenderer {
     this.skyGroup.add(gradMesh, stripMesh);
   }
 
+  /** Scenery as one InstancedMesh per sprite kind (cylindrical billboards), shadows in a single mesh. */
   private buildSceneryObjs(list: SceneryItem[]) {
-    for (const d of list) {
-      const s = D[d.k]!;
-      const sp = new THREE.Sprite(matOf(s));
-      sp.center.set(0.5, 0);
-      sp.scale.set((s.w * d.h) / s.h, d.h, 1);
-      sp.position.set(d.x, d.z, d.y);
-      this.trackGroup.add(sp);
-      if (d.h >= 30 && !d.arch) {
-        const sh = new THREE.Mesh(new THREE.CircleGeometry(1, 12), this.shadowMat);
-        sh.rotation.x = -Math.PI / 2;
-        sh.scale.set(((s.w * d.h) / s.h) * 0.35, 3, 1);
-        sh.position.set(d.x, d.z + 0.3, d.y);
-        this.trackGroup.add(sh);
-      }
+    const byKind = new Map<string, SceneryItem[]>();
+    for (const d of list) { let l = byKind.get(d.k); if (!l) byKind.set(d.k, (l = [])); l.push(d); }
+    this.decor = [];
+    for (const [k, items] of byKind) {
+      const spr = D[k]!;
+      const geo = new THREE.PlaneGeometry(1, 1);
+      geo.translate(0, 0.5, 0);
+      const mat = new THREE.MeshBasicMaterial({ map: texOf(spr), alphaTest: 0.5, side: THREE.DoubleSide });
+      const mesh = new THREE.InstancedMesh(geo, mat, items.length);
+      mesh.frustumCulled = false;
+      this.trackGroup.add(mesh);
+      this.decor.push({ mesh, items: items.map((d) => ({ x: d.x, y: d.y, z: d.z, w: (spr.w * d.h) / spr.h, h: d.h })) });
+    }
+    const shadowItems = list.filter((d) => d.h >= 30 && !d.arch);
+    if (shadowItems.length) {
+      const geo = new THREE.CircleGeometry(1, 12);
+      geo.rotateX(-Math.PI / 2);
+      const sh = new THREE.InstancedMesh(geo, this.shadowMat, shadowItems.length);
+      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3();
+      shadowItems.forEach((d, i) => {
+        const spr = D[d.k]!;
+        m.compose(p.set(d.x, d.z + 0.3, d.y), q, sc.set(((spr.w * d.h) / spr.h) * 0.35, 1, 3));
+        sh.setMatrixAt(i, m);
+      });
+      sh.frustumCulled = false;
+      this.trackGroup.add(sh);
+    }
+    this.decorYaw = NaN;
+  }
+
+  /** Re-orient the billboards when the camera turns (cheap: one shared rotation). */
+  private updateDecor(yaw: number) {
+    if (Math.abs(yaw - this.decorYaw) < 0.002) return;
+    this.decorYaw = yaw;
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -yaw - Math.PI / 2), sc = new THREE.Vector3(), p = new THREE.Vector3();
+    for (const d of this.decor) {
+      d.items.forEach((it, i) => { m.compose(p.set(it.x, it.z, it.y), q, sc.set(it.w, it.h, 1)); d.mesh.setMatrixAt(i, m); });
+      d.mesh.instanceMatrix.needsUpdate = true;
     }
   }
 
@@ -354,19 +395,20 @@ export class WorldRenderer {
     return o;
   }
 
-  render(cam: CamView, karts: KartView[], things: ThingView[], boxesActive: boolean[], t: number, water = 0) {
+  render(cam: CamView, karts: KartView[], things: ThingView[], boxesActive: boolean[], t: number, water = 0, dt = 1 / 60) {
     const tr = this.track;
     if (!tr) return;
     // camera: level, yaw = cam.a, principal point at (RW/2, hz) — legacy voxel projection
     const c = this.camera;
-    const halfH = Math.max(cam.hz, RH - cam.hz) + 1;
-    c.fov = (2 * Math.atan(halfH / F) * 180) / Math.PI;
+    const halfH = Math.max(cam.hz, RH - cam.hz) + 1, focal = cam.f ?? F;
+    c.fov = (2 * Math.atan(halfH / focal) * 180) / Math.PI;
     c.aspect = RW / (halfH * 2);
     c.setViewOffset(RW, halfH * 2, 0, halfH - cam.hz, RW, RH);
     c.position.set(cam.x, cam.z, cam.y);
-    c.rotation.set(0, -cam.a - Math.PI / 2, 0);
+    c.rotation.set(0, -cam.a - Math.PI / 2, cam.roll ?? 0);
     c.updateProjectionMatrix();
     this.skyGroup.position.set(cam.x, cam.z, cam.y);
+    this.updateDecor(cam.a);
     if (this.water) { this.water.position.y = water; this.waterTex!.offset.set((t * 0.01) % 1, (t * 0.023) % 1); }
     // boxes
     const bf = BALLS[((t * 8) | 0) % 4]!;
@@ -390,8 +432,13 @@ export class WorldRenderer {
       o.root.position.set(k.x, k.z + hop, k.y);
       const yaw = k.spin > 0 ? -k.a - t * 14 * (Math.PI / 2) : -k.a;
       o.root.rotation.set(0, yaw, 0);
-      o.body.rotation.set(k.lean * 0.12, 0, 0);
-      o.root.scale.setScalar(k.big ? 2 : 1);
+      // trick: a full barrel roll; landing: squash & stretch (ease-out back to 1)
+      o.body.rotation.set(k.lean * 0.12 + (k.trick > 0 ? k.trick * Math.PI * 2 : 0), 0, 0);
+      const sq = k.squash * k.squash;
+      o.body.scale.set(1 + sq * 0.15, 1 - sq * 0.13, 1 + sq * 0.15);
+      // legibility: far rivals are drawn bigger (visual only) so they keep ≥ ~12 px on screen
+      const depth = Math.hypot(k.x - cam.x, k.y - cam.y), farK = k.local ? 1 : Math.max(1, Math.min(1.6, depth / 300));
+      o.root.scale.setScalar((k.big ? 2 : 1) * farK);
       const sw = k.big ? 2 : 1;
       o.shadow.position.set(k.x, k.ground + 0.25, k.y);
       const sh = k.air ? 0.6 : 0.86;
@@ -416,7 +463,8 @@ export class WorldRenderer {
       }
     }
     for (let i = this.thingUsed; i < this.thingPool.length; i++) this.thingPool[i]!.visible = false;
-    this.renderer.render(this.scene, this.camera);
+    this.particles.update(dt, this.camera);
+    this.post.render(this.scene, this.camera);
   }
 
   /** Project a world point (legacy x,y,z) to internal pixel coords; null if behind the camera. */
@@ -430,6 +478,9 @@ export class WorldRenderer {
     v.project(this.camera);
     return { sx: (v.x * 0.5 + 0.5) * RW, sy: (-v.y * 0.5 + 0.5) * RH, k: F / depth };
   }
+
+  /** Draw calls of the last frame (perf overlay). */
+  get drawCalls(): number { return (this.renderer.info as any).render?.drawCalls ?? (this.renderer.info as any).render?.calls ?? 0; }
 
   groundAt(x: number, y: number) {
     return this.track ? hAt(this.track, x, y) : 0;

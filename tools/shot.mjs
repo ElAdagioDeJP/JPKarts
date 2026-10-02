@@ -47,7 +47,7 @@ await page.keyboard.up('ShiftLeft');
 await page.keyboard.up('ArrowRight');
 await key('F2');
 await page.waitForTimeout(1500);
-const stats = await page.evaluate(() => { const g = window.__jpkart; return { fps: g.fps, sim: g.simMs, render: g.renderMs, state: g.state, phase: g.world?.phase, speed: g.local?.speed, prog: g.local?.prog, rank: g.local?.rank }; });
+const stats = await page.evaluate(() => { const g = window.__jpkart; return { ...g.perf(), state: g.state, phase: g.world?.phase, speed: g.local?.speed, prog: g.local?.prog, rank: g.local?.rank }; });
 await page.screenshot({ path: `${out}/07-perf.png` });
 if (process.argv.includes('--debug')) { await key('F2'); await key('F3'); await key('F4'); await page.waitForTimeout(800); await page.screenshot({ path: `${out}/08-debug.png` }); await key('F3'); await key('F4'); }
 await page.keyboard.up('ArrowUp');

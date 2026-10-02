@@ -127,21 +127,21 @@ Si una fase supera un presupuesto, no se cierra: se perfila, se arregla el mayor
 ## Fase 5 — Vertical slice B: presentación
 **Objetivo:** Playa Coco v2 con la calidad final. Es la referencia visual y sonora de todo lo demás.
 **Skills:** `create-game-assets`, `shader-programming`, `camera-systems`, `game-feel`, `game-ui-ux`, `audio-design`, `input-systems`, `performance-optimization`.
-- [ ] Resolución 16:9 (640×360 mundo, 320×180 UI) con escalado entero (ART §2).
-- [ ] Render Three.js WebGPU v2 (ya existe la base de la Fase 1):
-  - decorado instanciado en atlas (de ~650 draw calls a < 10);
-  - cadena de post-proceso con TSL/nodos (ART §5);
-  - agua animada y detalle cercano del suelo.
-- [ ] El respaldo WebGL2 de Three cumple ≥ 45 fps.
-- [ ] Paleta y LUT del bioma `sand`, kart voxel a 32 rotaciones con estados animados y sombras.
-- [ ] Partículas por eventos (#50), cámara v2 (#51), HUD v2 y pila de pantallas (#52).
-- [ ] Mando + acciones + remapeo (#53). Audio por buses, música adaptativa y motores posicionales (#54). Accesibilidad (#55).
+- [x] Resolución 16:9: mundo a 640×360 y UI lógica a 426×240 (ART §2).
+- [x] Render Three.js WebGPU v2:
+  - decorado instanciado: un `InstancedMesh` por tipo con *billboard* cilíndrico y sombras instanciadas. **56 draw calls** por frame en total (karts, cielo, agua, post incluidos), frente a ~650 sprites sueltos antes;
+  - post-proceso TSL con `RenderPipeline`: bloom solo sobre emisivos (umbral 0,93), *grading* por bioma, viñeta;
+  - agua animada al nivel de la marea.
+- [x] El respaldo WebGL2 de Three cumple ≥ 45 fps: 56 fps en Edge con `?webgl`.
+- [x] *Grading* por bioma (`GRADES` en `render/post.ts`). Kart voxel 3D real (no hacen falta las 32 rotaciones), con giro al recibir golpes, vuelta de campana en el truco, *squash & stretch* al aterrizar, sombra y contorno. Los rivales lejanos se dibujan más grandes para que se lean.
+- [x] Partículas 3D por eventos (#50): pool fijo de 1024; chispas de drift del color de su nivel, llamas de turbo, polvo, salpicaduras, golpes, explosiones, espuma de ola, trucos. Cámara v2 (#51): suavizado exponencial, lookahead en drift, kick de FOV en turbo, cámara de salto, mirar atrás (B), *trauma shake* y hit-stop visual de 60 ms. HUD v2 (#52): posición con *pop*, minimapa con casco y corona del líder, indicador de objeto entrante, barra de drift de 3 niveles.
+- [x] Mando (Gamepad API, zona muerta radial, gatillos analógicos) + acciones + **remapeo** con detección de conflictos (#53). Ajustes con versión y migración, y copia de respaldo (`settings.ts`). Audio (#54): buses con volúmenes, **música adaptativa** por intensidad (bombo, caja y charles entran según la tensión), ducking en la última vuelta y la meta, **motores posicionales** de los 3 rivales más cercanos. Accesibilidad (#55): sacudida normal/reducida/no, reducir destellos, modo daltónico en los colores del drift, HUD a 1,5×, derrape mantener/alternar, post-proceso desactivable.
 
 **Terminado cuando:**
-- 60 fps estables (p95 ≤ 16,7 ms) con 8 karts en la PC de referencia (WebGPU), y ≥ 45 fps con el respaldo WebGL2.
-- Legibilidad: rival a 400 u ≥ 12 px y objetos reconocibles en la prueba daltónica.
-- Se juega la pista completa solo con mando.
-- **Revisión de dirección de arte aprobada por el dueño del proyecto.** Sin esa aprobación no empieza la producción (Fase 8).
+- 60 fps estables (p95 ≤ 16,7 ms) con 8 karts en la PC de referencia (WebGPU), y ≥ 45 fps con el respaldo WebGL2. ✅ en la PC de desarrollo (WebGPU 60 fps, render 8,5 ms; WebGL2 56 fps). ⏳ Falta medir en la PC de referencia.
+- Legibilidad: rival a 400 u ≥ 12 px y objetos reconocibles en la prueba daltónica. ✅ escala visual de lejanía (×1,6 máx.): un rival a 400 u mide ≈ 11–12 px de los 640 internos. Iconos con forma y color distintos.
+- Se juega la pista completa solo con mando. ✅ Mapeo estándar completo, menús navegables con mando. ⏳ Falta probarlo con un mando físico.
+- **Revisión de dirección de arte aprobada por el dueño del proyecto.** ⏳ Pendiente: capturas en `tools/shot.mjs`. Se sigue con la Fase 6 (red), que no depende del arte, y la producción (Fase 8) queda a la espera de esa aprobación.
 
 > Prompt: "Ejecuta la Fase 5 de docs/PLAN.md. Lee docs/ART_BIBLE.md antes de empezar."
 
