@@ -7,6 +7,11 @@ import {
 import { OUT } from './art/pixel';
 import { ENTITY_VIEW, hudLines, kartLabel } from './feel/effectView';
 import { DebugOverlay } from './dev/debugOverlay';
+import { ACTION_NAMES, REMAPPABLE } from './input/input';
+import { PAD_NAMES } from './input/gamepad';
+import { loadSettings, saveSettings, DEFAULT_SETTINGS, type Settings } from './settings';
+import { CameraRig, type CamTarget } from './feel/camera';
+import { DRIFT_COL as DCOL, DRIFT_COL_CB, Fx3d } from './feel/fx3d';
 import { BALLS, BIGBALL, FACES, ICONS, rotFrames } from './art/sprites';
 import { Audio } from './audio/audio';
 import { Input } from './input/input';
@@ -15,8 +20,8 @@ import { T } from '@jpkart/core';
 import { H0, RW, WorldRenderer, type KartView, type ThingView } from './render/world3d';
 import { H, Ui, W } from './ui/draw';
 
-type State = 'title' | 'menu' | 'select' | 'cup' | 'track' | 'loading' | 'race' | 'results' | 'podium' | 'standings' | 'final';
-const MENUS: State[] = ['title', 'menu', 'select', 'cup', 'track'];
+type State = 'title' | 'menu' | 'options' | 'controls' | 'select' | 'cup' | 'track' | 'loading' | 'race' | 'results' | 'podium' | 'standings' | 'final';
+const MENUS: State[] = ['title', 'menu', 'options', 'controls', 'select', 'cup', 'track'];
 const CAM_H = 15, CAM_BACK = 34, ZMAX = 1000;
 const UIK = W / RW; // internal world px → UI px
 const DRIFT_COL = ['#fff7e0', '#3df0ff', '#ff8a1f', '#b84aff'];
@@ -38,6 +43,11 @@ export class Game {
   curTrack = 0;
   incoming: { item: string; t: number } | null = null;
   dbg = new DebugOverlay();
+  settings: Settings = loadSettings();
+  optSel = 0;
+  ctlSel = 0;
+  private driftLatch = false;
+  private driftHeldPrev = false;
   tr: Track;
   world: World | null = null;
   recorder: ReplayRecorder | null = null;
@@ -46,7 +56,17 @@ export class Game {
   private prev: Pose[] = [];
   private acc = 0;
   private itemPressed = false;
-  cam = { x: 0, y: 0, a: 0, z: 30, hz: H0 };
+  cam = { x: 0, y: 0, a: 0, z: 30, hz: H0, f: 320, roll: 0 };
+  rig = new CameraRig();
+  fx: Fx3d;
+  /** visual hit-stop: hold the rendered poses for a few frames (simulation keeps running) */
+  private hitStop = 0;
+  /** visual-only animation timers per kart */
+  private trickAnim = new Map<number, number>();
+  private squash = new Map<number, number>();
+  private posPop = 0;
+  private lastRank = -1;
+  private held: Pose[] | null = null;
   attract = 0;
   banner: { t: string; life: number; big?: boolean } | null = null;
   flashC = '#ffffff'; flashT = 0;
@@ -60,7 +80,9 @@ export class Game {
   constructor(public renderer: WorldRenderer, public ui: Ui, public input: Input, public audio: Audio) {
     this.tr = this.tracks.ensureBuilt(0);
     renderer.setTrack(this.tr);
-    input.onFirstGesture = () => audio.init();
+    this.fx = new Fx3d(renderer.particles);
+    input.onFirstGesture = () => { audio.init(); this.applySettings(); };
+    this.applySettings();
   }
 
   private toastMsg: { t: string; life: number } | null = null;
@@ -75,6 +97,9 @@ export class Game {
       if (fresh) { this.tr = fresh; this.renderer.setTrack(fresh); this.toast('Pista reconstruida (' + fresh.N + ' muestras)'); }
     }
   }
+
+  /** Debug/test hooks: perf numbers. */
+  perf() { return { fps: this.fps, sim: this.simMs, render: this.renderMs, drawCalls: this.renderer.drawCalls, backend: this.renderer.backend }; }
 
   /** Debug/test hooks: current replay and state hash. */
   debugReplay() { return { replay: this.recorder?.replay ?? this.lastReplay, hash: this.world ? hashWorld(this.world) : '' }; }
@@ -95,12 +120,15 @@ export class Game {
     switch (this.state) {
       case 'title': if (ok) { this.state = 'menu'; A.blip(); } break;
       case 'menu':
-        if (U) { this.menuSel = (this.menuSel + 2) % 3; A.blip(); }
-        if (D) { this.menuSel = (this.menuSel + 1) % 3; A.blip(); }
+        if (U) { this.menuSel = (this.menuSel + 3) % 4; A.blip(); }
+        if (D) { this.menuSel = (this.menuSel + 1) % 4; A.blip(); }
         if (this.menuSel === 2 && (L || R || ok)) { this.diff = (this.diff + (L ? 2 : 1)) % 3; A.blip(); break; }
+        if (this.menuSel === 3 && ok) { this.state = 'options'; this.optSel = 0; A.blip(); break; }
         if (ok) { this.mode = this.menuSel === 0 ? 'cup' : 'free'; this.state = 'select'; A.blip(); }
         if (back) this.state = 'title';
         break;
+      case 'options': this.optionsInput(code, ok, back, L, R, U, D); break;
+      case 'controls': this.controlsInput(code, ok, back, U, D); break;
       case 'select':
         if (R) { this.sel = (this.sel + 1) % 8; A.blip(); }
         if (L) { this.sel = (this.sel + 7) % 8; A.blip(); }
@@ -166,9 +194,10 @@ export class Game {
     this.recorder = new ReplayRecorder(cfg);
     this.localId = this.world.karts.findIndex((k) => k.ctrl === 'local');
     this.prev = this.world.karts.map((k) => ({ x: k.x, y: k.y, z: k.z, a: k.a }));
-    const p = this.local!;
-    this.cam.a = p.a; this.cam.x = p.x - Math.cos(p.a) * CAM_BACK; this.cam.y = p.y - Math.sin(p.a) * CAM_BACK; this.cam.z = p.z + CAM_H; this.cam.hz = H0;
+    this.rig.cut(this.camTarget()!, this.tr);
+    this.rig.trauma = 0;
     this.acc = 0; this.banner = null; this.flashT = 0; this.parts = []; this.paused = false; this.incoming = null;
+    this.trickAnim.clear(); this.squash.clear(); this.lastRank = -1; this.posPop = 0;
     this.state = 'race';
   }
   private commitPoints() {
@@ -181,12 +210,9 @@ export class Game {
   }
   private localInput(): SimInput {
     const I = this.input;
-    const inp: SimInput = {
-      t: (I.held('acelerar') ? 1 : 0) - (I.held('frenar') ? 1 : 0),
-      s: (I.held('derecha') ? 1 : 0) - (I.held('izquierda') ? 1 : 0),
-      d: I.held('derrapar'),
-      item: this.itemPressed,
-    };
+    let d = I.held('derrapar');
+    if (this.settings.driftToggle) { if (d && !this.driftHeldPrev) this.driftLatch = !this.driftLatch; this.driftHeldPrev = d; d = this.driftLatch && Math.abs(I.steer()) > 0.05; }
+    const inp: SimInput = { t: I.throttle(), s: I.steer(), d, item: this.itemPressed };
     return inp;
   }
   private simulate(dt: number) {
@@ -202,11 +228,22 @@ export class Game {
       step(w, inputs);
       this.recorder?.after(w);
       this.acc -= SIM_DT;
-      for (const e of takeEvents(w)) this.onEvent(e);
+      for (const e of takeEvents(w)) {
+        this.onEvent(e); this.fx.event(e, w);
+        if (e.type === 'trick') this.trickAnim.set(e.kart, 0.001);
+        if (e.type === 'land') { this.squash.set(e.kart, 1); this.trickAnim.delete(e.kart); }
+      }
+      this.tickAnims(SIM_DT);
     }
     this.simMs = performance.now() - t0;
   }
+  private tickAnims(dt: number) {
+    for (const [id, v] of this.trickAnim) { const n = v + dt / 0.45; if (n >= 1) this.trickAnim.delete(id); else this.trickAnim.set(id, n); }
+    for (const [id, v] of this.squash) { const n = v - dt / 0.18; if (n <= 0) this.squash.delete(id); else this.squash.set(id, n); }
+  }
+
   private pose(k: Kart): Pose {
+    if (this.held && this.held[k.id]) return this.held[k.id]!;
     const p = this.prev[k.id], a = this.acc / SIM_DT;
     if (!p || this.paused) return { x: k.x, y: k.y, z: k.z, a: k.a };
     return { x: lerp(p.x, k.x, a), y: lerp(p.y, k.y, a), z: lerp(p.z, k.z, a), a: p.a + wrapA(k.a - p.a) * a };
@@ -226,7 +263,7 @@ export class Game {
       case 'driftStart': if (me(e.kart)) A.beep(260, 0.06, 'square', 0.04); break;
       case 'miniTurbo': if (me(e.kart)) { if (e.level === 2) A.beep(520, 0.3, 'sawtooth', 0.06, 500); else A.beep(420, 0.2, 'sawtooth', 0.05, 300); } break;
       case 'jump': if (me(e.kart)) A.beep(330, 0.12, 'square', 0.04, 200); break;
-      case 'land': if (me(e.kart) && e.hard) A.beep(90, 0.1, 'square', 0.05); break;
+      case 'land': if (me(e.kart) && e.hard) { A.beep(90, 0.1, 'square', 0.05); this.rig.addTrauma(0.2); } break;
       case 'pad': if (me(e.kart)) A.beep(640, 0.2, 'sawtooth', 0.05, 500); break;
       case 'itemRoll': if (me(e.kart)) { A.beep(1100, 0.05, 'square', 0.05); A.beep(600, 0.08, 'square', 0.04, 300); } break;
       case 'itemGet': if (me(e.kart)) A.beep(880, 0.08); break;
@@ -234,25 +271,27 @@ export class Game {
       case 'alreadyFirst': if (me(e.kart)) this.banner = { t: 'Ya vas primero', life: 1 }; break;
       case 'hit': {
         const k = w.karts[e.kart]!, d = p ? Math.hypot(p.x - k.x, p.y - k.y) : 0;
+        if (me(e.kart)) { this.rig.addTrauma(0.55); this.hitStop = 0.06; this.held = w.karts.map((q) => this.pose(q)); }
+        else if (d < 80) this.rig.addTrauma(0.15);
         A.groan(CHARS[k.ch]!, me(e.kart) ? 0.5 : 0.45 * (1 - clamp(d / 380, 0, 1)), Math.random());
         break;
       }
-      case 'bump': if (me(e.a) || me(e.b)) A.beep(120, 0.06, 'square', 0.04); break;
+      case 'bump': if (me(e.a) || me(e.b)) { A.beep(120, 0.06, 'square', 0.04); this.rig.addTrauma(0.08); } break;
       case 'smudge': if (me(e.kart)) A.beep(160, 0.15, 'triangle', 0.05); break;
-      case 'lap': if (me(e.kart)) { this.banner = { t: e.final ? '¡Última vuelta!' : 'Vuelta ' + e.lap, life: 1.8 }; A.beep(e.final ? 990 : 700, 0.2); } break;
-      case 'finish': if (me(e.kart)) { this.banner = { t: '¡Meta!', life: 2.2, big: true }; A.musicWant(null); A.jingle(); } break;
+      case 'lap': if (me(e.kart)) { if (e.final) A.duck(0.8); this.banner = { t: e.final ? '¡Última vuelta!' : 'Vuelta ' + e.lap, life: 1.8 }; A.beep(e.final ? 990 : 700, 0.2); } break;
+      case 'finish': if (me(e.kart)) { A.duck(1.2); this.banner = { t: '¡Meta!', life: 2.2, big: true }; A.musicWant(null); A.jingle(); } break;
       case 'flash': this.flashC = e.color; this.flashT = 0.35; break;
       case 'driftLevel': if (me(e.kart)) A.beep(e.level === 3 ? 760 : e.level === 2 ? 620 : 500, 0.07, 'square', 0.04, 120); break;
       case 'trick': if (me(e.kart)) { this.banner = { t: '¡Truco!', life: 0.7 }; A.beep(980, 0.12, 'square', 0.05, 400); } break;
       case 'slipstream': if (me(e.kart)) { this.banner = { t: '¡Rebufo!', life: 0.6 }; A.beep(360, 0.3, 'sawtooth', 0.04, 500); } break;
-      case 'wallBump': if (me(e.kart)) A.beep(e.hard ? 90 : 140, 0.08, 'square', 0.05); break;
+      case 'wallBump': if (me(e.kart)) { A.beep(e.hard ? 90 : 140, 0.08, 'square', 0.05); this.rig.addTrauma(e.hard ? 0.35 : 0.12); } break;
       case 'burnout': if (me(e.kart)) { this.banner = { t: '¡Quemaste rueda!', life: 1 }; A.beep(110, 0.5, 'sawtooth', 0.05, -40); } break;
       case 'rocketStart': if (me(e.kart)) { this.banner = { t: '¡Turbo de salida!', life: 0.9 }; A.beep(300, 0.35, 'sawtooth', 0.05, 600); } break;
       case 'incoming': if (me(e.kart)) { this.incoming = { item: e.item, t: Math.max(1, e.eta) }; A.beep(1400, 0.08, 'square', 0.05); A.beep(1400, 0.08, 'square', 0.05); } break;
       case 'hazardWarn': if (this.local && this.nearSample(e.at, 0.12)) { this.banner = { t: '¡Ola!', life: 1 }; A.beep(220, 0.6, 'triangle', 0.05, 200); } break;
       case 'tide': this.banner = { t: '¡Sube la marea!', life: 1.6 }; A.beep(180, 0.9, 'sine', 0.06, -60); break;
       case 'reflect': A.beep(1600, 0.15, 'sine', 0.05, -900); break;
-      case 'explode': { const p0 = this.local; if (p0 && Math.hypot(p0.x - e.x, p0.y - e.y) < 260) { A.beep(70, 0.4, 'sawtooth', 0.08, -30); this.flashC = '#ff8a1f'; this.flashT = 0.2; } break; }
+      case 'explode': { const p0 = this.local; if (p0 && Math.hypot(p0.x - e.x, p0.y - e.y) < 260) { A.beep(70, 0.4, 'sawtooth', 0.08, -30); this.flashC = '#ff8a1f'; this.flashT = 0.2; this.rig.addTrauma(0.5 * (1 - Math.hypot(p0.x - e.x, p0.y - e.y) / 260)); } break; }
       case 'raceEnd': if (this.state === 'race') this.state = 'results'; if (this.recorder) { this.lastReplay = this.recorder.replay; this.recorder = null; } break;
     }
   }
@@ -285,15 +324,15 @@ export class Game {
   }
 
   // ---------------- camera ----------------
+  private camTarget(): CamTarget | null {
+    const p = this.local;
+    if (!p) return null;
+    const ps = this.pose(p);
+    return { x: ps.x, y: ps.y, z: ps.z, a: ps.a, drift: p.drift, boost: p.boost > 0, air: p.air, lookBack: this.input.held('mirarAtras'), spinning: p.spin > 0 };
+  }
   private updateCam(dt: number, x: number, y: number, a: number, z: number) {
-    const c = this.cam, tr = this.tr;
-    c.a = wrapA(c.a + wrapA(a - c.a) * Math.min(1, dt * 7));
-    c.x = x - Math.cos(c.a) * CAM_BACK;
-    c.y = y - Math.sin(c.a) * CAM_BACK;
-    const tz = Math.max(z + CAM_H, hAt(tr, c.x, c.y) + 7);
-    c.z = lerp(c.z, tz, Math.min(1, dt * 8));
-    const ahead = hAt(tr, x + Math.cos(c.a) * 60, y + Math.sin(c.a) * 60), pitch = clamp((ahead - z) / 60, -0.4, 0.4);
-    c.hz = lerp(c.hz, H0 + pitch * 320 * 0.55, Math.min(1, dt * 4));
+    const v = this.rig.update(dt, { x, y, z, a, drift: 0, boost: false, air: false, lookBack: false, spinning: false }, this.tr);
+    Object.assign(this.cam, v);
   }
 
   // ---------------- frame ----------------
@@ -304,6 +343,7 @@ export class Game {
     this.fpsAcc += rawDt; this.fpsN++;
     if (this.fpsAcc > 0.5) { this.fps = this.fpsN / this.fpsAcc; this.fpsAcc = 0; this.fpsN = 0; }
     const t = now / 1000;
+    this.input.poll();
     for (const code of this.input.drainPressed()) this.onPress(code);
     const ui = this.ui, A = this.audio;
     ui.begin();
@@ -321,19 +361,22 @@ export class Game {
       const i = Math.floor(this.attract) % tr.N, x = tr.x[i]!, y = tr.y[i]!;
       this.updateCam(dt, x, y, tr.ang[i]!, hAt(tr, x, y));
       this.renderWorld(t, []);
-      ({ title: () => this.drawTitle(t), menu: () => this.drawMenu(t), select: () => this.drawSelect(t), cup: () => this.drawCupSel(t), track: () => this.drawTrackSel() } as Record<string, () => void>)[this.state]!();
+      ({ title: () => this.drawTitle(t), menu: () => this.drawMenu(t), options: () => this.drawOptions(), controls: () => this.drawControls(), select: () => this.drawSelect(t), cup: () => this.drawCupSel(t), track: () => this.drawTrackSel() } as Record<string, () => void>)[this.state]!();
       A.engineSet(false, 0);
     } else if (this.world) {
       const w = this.world, p = this.local!;
       if (!this.paused) this.simulate(dt);
-      const pp = this.pose(p);
-      this.updateCam(this.paused ? 0 : dt, pp.x, pp.y, p.spin > 0 ? this.cam.a : pp.a, pp.z);
+      if (this.hitStop > 0) { this.hitStop -= dt; if (this.hitStop <= 0) this.held = null; }
+      const tg = this.camTarget()!;
+      if (p.respawn > 0 && p.respawn < 0.05) this.rig.cut(tg, this.tr);
+      Object.assign(this.cam, this.rig.update(this.paused ? 0 : dt, tg, this.tr));
+      if (!this.paused) this.fx.frame(w, dt, this.cam.x, this.cam.y, (k) => this.pose(k), this.tr.th.ground[0]);
       this.renderWorld(w.raceT, w.karts);
       if (this.state === 'race') {
-        if (!this.paused) this.spawnParticles();
+        if (!this.paused) this.spawnSpeedLines();
         this.drawParticles(this.paused ? 0 : dt);
         this.drawSmudge();
-        if (this.flashT > 0) { ui.ctx.globalAlpha = Math.min(0.6, this.flashT * 2); ui.ctx.fillStyle = this.flashC; ui.ctx.fillRect(0, 0, W, H); ui.ctx.globalAlpha = 1; this.flashT -= dt; }
+        if (this.flashT > 0) { ui.ctx.globalAlpha = Math.min(this.settings.reduceFlash ? 0.2 : 0.6, this.flashT * 2); ui.ctx.fillStyle = this.flashC; ui.ctx.fillRect(0, 0, W, H); ui.ctx.globalAlpha = 1; this.flashT -= dt; }
         if (w.phase === 'countdown') {
           const n = Math.ceil(w.cd);
           ui.txt(n > 0 ? String(n) : '', W / 2, H / 2 - 40, '#ffe45e', 40, 'center');
@@ -341,6 +384,7 @@ export class Game {
           ui.txtS('Truco: acelera justo en el 1 para salir con turbo', W / 2, H - 30);
         } else this.drawHUD(this.paused ? 0 : dt);
         A.engineSet(!this.paused, p.speed + (p.boost > 0 ? 40 : 0));
+        this.audioFrame(w, p);
         if (this.paused) { ui.bg(0.7); ui.txt('Pausa', W / 2, 80, '#ffe45e', 24, 'center'); ui.txt('P para seguir', W / 2, 130, '#fff7e0', 8, 'center'); ui.txt('Esc para salir al menú', W / 2, 146, '#fff7e0', 8, 'center'); }
       } else {
         ({ results: () => this.drawResults(), standings: () => this.drawStandings(), final: () => this.drawFinal(t), podium: () => this.drawPodiumFree(t) } as Record<string, () => void>)[this.state]!();
@@ -356,7 +400,7 @@ export class Game {
     this.dbg.draw(ui, this.tr, this.world);
     if (this.toastMsg) { this.toastMsg.life -= dt; ui.txtS(this.toastMsg.t, 4, 4, '#9cff9c', 'left'); if (this.toastMsg.life <= 0) this.toastMsg = null; }
     if (this.showPerf) {
-      ui.txtS(`${this.fps.toFixed(0)} fps · ${this.renderer.backend} · sim ${this.simMs.toFixed(2)} ms · render ${this.renderMs.toFixed(2)} ms`, 4, H - 8, '#9cff9c', 'left');
+      ui.txtS(`${this.fps.toFixed(0)} fps · ${this.renderer.backend} · sim ${this.simMs.toFixed(2)} ms · render ${this.renderMs.toFixed(2)} ms · ${this.renderer.drawCalls} draw calls`, 4, H - 8, '#9cff9c', 'left');
     }
   }
 
@@ -365,14 +409,14 @@ export class Game {
     for (const k of karts) {
       const ps = this.pose(k);
       const vis = k.respawn <= 0 || ((t * 10) | 0) % 2 === 1;
-      views.push({ id: k.id, ch: k.ch, x: ps.x, y: ps.y, z: k.respawn > 0 ? ps.z - 6 : ps.z, a: ps.a, lean: k.drift ? k.drift : k.sv, hop: k.hop, spin: k.spin, big: hasFx(k, 'jug'), bubble: hasFx(k, 'bubble'), reflect: hasFx(k, 'reflect'), visible: vis, ground: hAt(this.tr, ps.x, ps.y), air: k.air });
+      views.push({ id: k.id, ch: k.ch, x: ps.x, y: ps.y, z: k.respawn > 0 ? ps.z - 6 : ps.z, a: ps.a, lean: k.drift ? k.drift : k.sv, hop: k.hop, spin: k.spin, big: hasFx(k, 'jug'), bubble: hasFx(k, 'bubble'), reflect: hasFx(k, 'reflect'), visible: vis, ground: hAt(this.tr, ps.x, ps.y), air: k.air, trick: this.trickAnim.get(k.id) ?? 0, squash: this.squash.get(k.id) ?? 0, local: k.id === this.localId });
     }
     if (w) {
       for (const e of w.ents) { const kind = ENTITY_VIEW[e.kind]; if (kind) things.push({ kind, x: e.x, y: e.y, z: e.z, f: e.kind === 'mine' ? e.age : e.t }); }
     }
     const boxes = w ? w.boxes.map((b) => b.active) : this.tr.boxes.map(() => true);
     const t0 = performance.now();
-    this.renderer.render(this.cam, views, things, boxes, t, w?.water ?? this.tr.water?.base ?? 0);
+    this.renderer.render(this.cam, views, things, boxes, t, w?.water ?? this.tr.water?.base ?? 0, 1 / 60);
     this.renderMs = performance.now() - t0;
     if (w && this.state === 'race') this.drawLabels(karts);
   }
@@ -392,22 +436,13 @@ export class Game {
     }
   }
 
-  private spawnParticles() {
-    const p = this.local!, tr = this.tr;
+  /** Screen-space speed lines at high speed (the rest of the particles are 3D, see feel/fx3d.ts). */
+  private spawnSpeedLines() {
+    const p = this.local!;
     if (p.respawn > 0) return;
-    const ps = this.pose(p), base = this.renderer.project(ps.x, ps.y, ps.z);
-    if (!base) return;
-    const w = 12.5 * base.k * UIK, h = 13.3 * base.k * UIK, x0 = base.sx * UIK - w / 2, by = base.sy * UIK - 2;
-    const lx = x0 + w * 0.15, rx = x0 + w * 0.85, r = (a: number, b: number) => a + Math.random() * (b - a);
-    void h;
-    if (p.drift && p.speed > 60) {
-      const col = DRIFT_COL[p.dLvl]!;
-      for (let i = 0; i < 3; i++) this.parts.push({ x: (i % 2 ? rx : lx) + r(-2, 2), y: by + r(-1, 1), vx: r(-30, 30) - p.drift * 20, vy: r(-40, -10), life: 0.25, c: col, s: r(1, 2.5) });
-    }
-    if (p.boost > 0) for (let i = 0; i < 3; i++) this.parts.push({ x: x0 + w / 2 + r(-5, 5), y: by, vx: r(-10, 10), vy: r(10, 40), life: 0.2, c: ['#ffe45e', '#ff8a1f', '#fff7e0'][(Math.random() * 3) | 0]!, s: r(1.5, 3) });
-    if (p.off === 2 && Math.abs(p.speed) > 20) this.parts.push({ x: Math.random() < 0.5 ? lx : rx, y: by, vx: r(-20, 20), vy: r(-30, -5), life: 0.3, c: tr.th.ground[0], s: 1.5 });
-    if (tr.th.ice && Math.abs(wrapA(p.va - p.a)) > 0.15 && p.speed > 60) this.parts.push({ x: Math.random() < 0.5 ? lx : rx, y: by, vx: r(-20, 20), vy: r(-20, -5), life: 0.3, c: '#ffffff', s: 1.5 });
-    if (p.speed > 120 && Math.random() < 0.4) this.parts.push({ x: r(0, W), y: r(H * 0.55, H), vx: 0, vy: 0, life: 0.08, c: 'rgba(255,255,255,0.35)', s: 1, line: true });
+    const r = (a: number, b: number) => a + Math.random() * (b - a);
+    if (p.speed > 120 && Math.random() < (p.boost > 0 ? 0.9 : 0.4)) this.parts.push({ x: r(0, W), y: r(H * 0.55, H), vx: 0, vy: 0, life: 0.08, c: 'rgba(255,255,255,0.35)', s: 1, line: true });
+    if (p.slip > 0.3 && Math.random() < 0.5) this.parts.push({ x: r(W * 0.2, W * 0.8), y: r(H * 0.3, H * 0.8), vx: 0, vy: 0, life: 0.1, c: 'rgba(200,240,255,' + (0.2 + p.slip * 0.3).toFixed(2) + ')', s: 1, line: true });
   }
   private drawParticles(dt: number) {
     const ctx = this.ui.ctx;
@@ -431,6 +466,12 @@ export class Game {
 
   // ---------------- HUD ----------------
   private drawHUD(dt: number) {
+    const sc = this.settings.hudScale;
+    this.ui.ctx.save();
+    this.ui.ctx.scale(sc, sc);
+    try { this.drawHUDScaled(dt, W / sc, H / sc); } finally { this.ui.ctx.restore(); }
+  }
+  private drawHUDScaled(dt: number, W: number, H: number) {
     const ui = this.ui, ctx = ui.ctx, w = this.world!, p = this.local!, tr = this.tr;
     const lap = clamp(Math.floor(p.prog / tr.N) + 1, 1, LAPS);
     ui.panel(4, 4, 82, this.mode === 'cup' ? 32 : 26, 'rgba(27,23,64,0.75)', '#6d66b0');
@@ -438,7 +479,12 @@ export class Game {
     ui.txt(fmtTime(w.raceT), 8, 19, '#ffe45e');
     if (this.mode === 'cup' && this.cup) ui.txtS('Carrera ' + (this.cup.race + 1) + '/' + this.cup.def.tracks.length, 8, 30, '#fff7e0', 'left');
     const pos = p.rank + 1;
-    ui.txt(pos + 'º', W - 8, 6, pos === 1 ? '#ffe45e' : pos <= 3 ? '#fff7e0' : '#c8c4f0', 24, 'right');
+    if (p.rank !== this.lastRank) { this.posPop = this.lastRank >= 0 ? 1 : 0; this.lastRank = p.rank; }
+    this.posPop = Math.max(0, this.posPop - dt * 4);
+    const pop = 1 + Math.sin(this.posPop * Math.PI) * 0.35;
+    ctx.save(); ctx.translate(W - 8, 6); ctx.scale(pop, pop);
+    ui.txt(pos + 'º', 0, 0, pos === 1 ? '#ffe45e' : pos <= 3 ? '#fff7e0' : '#c8c4f0', 24, 'right');
+    ctx.restore();
     const bx = W / 2 - 15, by = 5;
     ui.panel(bx, by, 30, 30, '#1b1740', p.roll > 0 ? (((w.raceT * 10) | 0) % 2 ? '#ffe45e' : '#fff7e0') : '#fff7e0');
     const list = itemList();
@@ -458,7 +504,8 @@ export class Game {
       const x = mx + k.x * m.k, y = my + k.y * m.k, r = k.id === this.localId ? 3 : 2;
       ctx.fillStyle = OUT; ctx.fillRect(x - r, y - r, r * 2, r * 2);
       if (k.id === this.localId) { ctx.fillStyle = '#fff7e0'; ctx.fillRect(x - 2, y - 2, 4, 4); }
-      ctx.fillStyle = CHARS[k.ch]!.kart; ctx.fillRect(x - 1, y - 1, 2, 2);
+      ctx.fillStyle = CHARS[k.ch]!.helmet; ctx.fillRect(x - 1, y - 1, 2, 2);
+      if (k.rank === 0) { ctx.fillStyle = '#ffd23a'; ctx.fillRect(x - 2, y - r - 2, 1, 1); ctx.fillRect(x, y - r - 3, 1, 1); ctx.fillRect(x + 1, y - r - 2, 1, 1); }
     }
     w.ranked.forEach((id, i) => {
       const k = w.karts[id]!, y = 44 + i * 17;
@@ -467,7 +514,7 @@ export class Game {
       ui.txtS(String(i + 1), 26, y + 5, id === this.localId ? '#ffe45e' : '#fff7e0', 'left');
     });
     if (p.drift) {
-      const L3 = T.driving.drift.level3, c = DRIFT_COL[p.dLvl]!, ww = Math.min(60, (p.dc / L3) * 60);
+      const L3 = T.driving.drift.level3, c = (this.fx.colorblind ? DRIFT_COL_CB : DCOL)[p.dLvl]!, ww = Math.min(60, (p.dc / L3) * 60);
       ui.panel(W / 2 - 31, H - 14, 62, 6, '#1b1740'); ctx.fillStyle = c; ctx.fillRect(W / 2 - 30, H - 13, ww, 4);
     }
     if (this.incoming) {
@@ -491,6 +538,123 @@ export class Game {
     if (this.audio.muted) ui.txtS('Sin sonido', W / 2, H - 24);
   }
 
+  // ---------------- settings ----------------
+  applySettings() {
+    const S = this.settings;
+    this.audio.setVolumes(S.volume.music, S.volume.sfx);
+    this.rig.shakeScale = S.shake;
+    this.fx.colorblind = S.colorblind;
+    this.renderer.post.enabled = S.post;
+    for (const [a, ks] of Object.entries(S.keys)) if (ks?.length) (this.input.bindings as any)[a] = [...ks];
+    for (const [a, bs] of Object.entries(S.pad)) if (bs) (this.input.pad.bindings as any)[a] = [...bs];
+  }
+  private storeSettings() {
+    const S = this.settings;
+    S.keys = Object.fromEntries(REMAPPABLE.map((a) => [a, this.input.bindings[a]]));
+    S.pad = Object.fromEntries(REMAPPABLE.map((a) => [a, this.input.pad.bindings[a]]));
+    saveSettings(S);
+    this.applySettings();
+  }
+  private optionRows(): [string, string][] {
+    const S = this.settings, onoff = (b: boolean) => (b ? 'Sí' : 'No');
+    return [
+      ['Música', '■'.repeat(Math.round(S.volume.music * 10)).padEnd(10, '·')],
+      ['Efectos', '■'.repeat(Math.round(S.volume.sfx * 10)).padEnd(10, '·')],
+      ['Sacudida de cámara', S.shake >= 1 ? 'Normal' : S.shake > 0 ? 'Reducida' : 'No'],
+      ['Reducir destellos', onoff(S.reduceFlash)],
+      ['Modo daltónico', onoff(S.colorblind)],
+      ['Tamaño del HUD', S.hudScale > 1 ? '1,5×' : '1×'],
+      ['Post-proceso', onoff(S.post)],
+      ['Derrape', S.driftToggle ? 'Alternar' : 'Mantener'],
+      ['Controles…', ''],
+      ['Restaurar valores', ''],
+      ['Volver', ''],
+    ];
+  }
+  private optionsInput(_code: string, ok: boolean, back: boolean, L: boolean, R: boolean, U: boolean, D: boolean) {
+    const S = this.settings, n = this.optionRows().length, A = this.audio;
+    if (U) { this.optSel = (this.optSel + n - 1) % n; A.blip(); }
+    if (D) { this.optSel = (this.optSel + 1) % n; A.blip(); }
+    if (back) { this.storeSettings(); this.state = 'menu'; return; }
+    const step = L ? -1 : R || ok ? 1 : 0;
+    if (!step) return;
+    const c = (v: number) => Math.max(0, Math.min(1, Math.round(v * 10) / 10));
+    switch (this.optSel) {
+      case 0: S.volume.music = c(S.volume.music + step * 0.1); break;
+      case 1: S.volume.sfx = c(S.volume.sfx + step * 0.1); break;
+      case 2: S.shake = S.shake >= 1 ? (step > 0 ? 0.3 : 0) : S.shake > 0 ? (step > 0 ? 0 : 1) : step > 0 ? 1 : 0.3; break;
+      case 3: S.reduceFlash = !S.reduceFlash; break;
+      case 4: S.colorblind = !S.colorblind; break;
+      case 5: S.hudScale = S.hudScale > 1 ? 1 : 1.5; break;
+      case 6: S.post = !S.post; break;
+      case 7: S.driftToggle = !S.driftToggle; break;
+      case 8: if (ok) { this.state = 'controls'; this.ctlSel = 0; } break;
+      case 9: if (ok) { this.settings = structuredClone(DEFAULT_SETTINGS); this.input.resetBindings(); this.toast('Valores restaurados'); } break;
+      case 10: if (ok) { this.storeSettings(); this.state = 'menu'; return; } break;
+    }
+    A.blip();
+    this.storeSettings();
+  }
+  private controlsInput(code: string, ok: boolean, back: boolean, U: boolean, D: boolean) {
+    const n = REMAPPABLE.length + 1;
+    if (U) { this.ctlSel = (this.ctlSel + n - 1) % n; this.audio.blip(); }
+    if (D) { this.ctlSel = (this.ctlSel + 1) % n; this.audio.blip(); }
+    if (back || (ok && this.ctlSel === REMAPPABLE.length)) { this.storeSettings(); this.state = 'options'; return; }
+    if (ok && this.ctlSel < REMAPPABLE.length) {
+      const action = REMAPPABLE[this.ctlSel]!;
+      this.toast('Pulsa una tecla o un botón para «' + ACTION_NAMES[action] + '»…');
+      this.input.capture = (c) => {
+        if (c === 'Escape') { this.toast('Cancelado'); return; }
+        const lost = this.input.rebind(action, c);
+        this.toast(lost ? `Asignado. «${ACTION_NAMES[lost]}» ya no usa esa tecla.` : 'Asignado.');
+        this.storeSettings();
+      };
+    }
+    void code;
+  }
+  private keyName(code: string) {
+    const N: Record<string, string> = { ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', ShiftLeft: 'Mayús', ShiftRight: 'Mayús d.', Space: 'Espacio', Enter: 'Intro', ControlLeft: 'Ctrl', ControlRight: 'Ctrl d.', AltLeft: 'Alt', Tab: 'Tab' };
+    return N[code] ?? code.replace(/^Key/, '').replace(/^Digit/, '').replace(/^Numpad/, 'Num ');
+  }
+  private drawOptions() {
+    const ui = this.ui, rows = this.optionRows(), ox = (W - 300) / 2;
+    ui.bg(0.82);
+    ui.txt('Opciones', W / 2, 8, '#ffe45e', 16, 'center');
+    rows.forEach(([k, v], i) => {
+      const y = 32 + i * 17, on = i === this.optSel;
+      ui.panel(ox, y, 300, 13, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
+      ui.txt(k, ox + 6, y + 3, on ? '#ffe45e' : '#fff7e0');
+      if (v) ui.txt((on ? '< ' : '') + v + (on ? ' >' : ''), ox + 294, y + 3, '#fff7e0', 8, 'right');
+    });
+    ui.txtS('Flechas o mando para cambiar · Esc para volver (se guarda solo)', W / 2, 226, '#9c95d6');
+  }
+  private drawControls() {
+    const ui = this.ui, ox = (W - 340) / 2, I = this.input;
+    ui.bg(0.85);
+    ui.txt('Controles', W / 2, 8, '#ffe45e', 16, 'center');
+    [...REMAPPABLE, null].forEach((a, i) => {
+      const y = 32 + i * 19, on = i === this.ctlSel;
+      ui.panel(ox, y, 340, 15, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
+      if (!a) { ui.txt('Volver', ox + 6, y + 4, on ? '#ffe45e' : '#fff7e0'); return; }
+      ui.txt(ACTION_NAMES[a], ox + 6, y + 4, on ? '#ffe45e' : '#fff7e0');
+      ui.txtS(I.bindings[a].slice(0, 2).map((k) => this.keyName(k)).join(' / ') || '—', ox + 200, y + 5, '#fff7e0', 'left');
+      ui.txtS(I.pad.bindings[a].map((b) => PAD_NAMES[b] ?? 'B' + b).join(' / ') || '—', ox + 300, y + 5, '#8fe0ff', 'left');
+    });
+    ui.txtS(I.pad.connected ? 'Mando conectado' : 'Sin mando (conéctalo y pulsa un botón)', W / 2, 212, I.pad.connected ? '#9cff9c' : '#9c95d6');
+    ui.txtS('Enter: cambiar · si la tecla ya se usaba, se quita de la otra acción', W / 2, 226, '#9c95d6');
+  }
+
+  /** Positional rival engines + adaptive music intensity. */
+  private audioFrame(w: World, p: Kart) {
+    const near = w.karts.filter((k) => k !== p && k.respawn <= 0).map((k) => {
+      const dx = k.x - p.x, dy = k.y - p.y, dist = Math.hypot(dx, dy);
+      return { dist, pan: Math.sin(Math.atan2(dy, dx) - this.cam.a), speed: k.speed };
+    }).sort((a, b) => a.dist - b.dist).slice(0, 3);
+    this.audio.rivalEngines(near);
+    const crowd = near.filter((r) => r.dist < 120).length / 3, lastLap = p.prog >= (LAPS - 1) * this.tr.N ? 0.35 : 0;
+    this.audio.intensity = Math.min(1, 0.25 + crowd * 0.4 + lastLap + (p.rank === 0 ? 0.1 : 0) + (p.boost > 0 ? 0.1 : 0));
+  }
+
   // ---------------- menus ----------------
   private drawTitle(t: number) {
     const ui = this.ui, ctx = ui.ctx;
@@ -510,10 +674,10 @@ export class Game {
     const ui = this.ui;
     ui.bg(0.6);
     ui.txt('JP KART', W / 2, 24, '#ffe45e', 24, 'center');
-    const items = ['Torneo', 'Carrera libre', 'Dificultad: ' + DIFFS[this.diff]!.name];
-    const help = ['4 copas de 4 carreras. Se suman los puntos.', 'Elige cualquiera de las 16 pistas.', 'Qué tan rápidos y listos son los rivales.'];
+    const items = ['Torneo', 'Carrera libre', 'Dificultad: ' + DIFFS[this.diff]!.name, 'Opciones'];
+    const help = ['4 copas de 4 carreras. Se suman los puntos.', 'Elige cualquiera de las 16 pistas.', 'Qué tan rápidos y listos son los rivales.', 'Sonido, accesibilidad, gráficos y controles.'];
     items.forEach((s, i) => {
-      const on = i === this.menuSel, y = 76 + i * 34;
+      const on = i === this.menuSel, y = 66 + i * 30;
       ui.panel(W / 2 - 90, y, 180, 24, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
       if (on) ui.img(BALLS[((t * 8) | 0) % 4]!.cv, W / 2 - 84, y + 4, 16, 16);
       ui.txt(i === 2 ? (on ? '< ' : '') + s + (on ? ' >' : '') : s, W / 2, y + 8, on ? '#ffe45e' : '#fff7e0', 8, 'center');

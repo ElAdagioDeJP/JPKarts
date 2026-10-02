@@ -11,6 +11,10 @@ export class Audio {
   private eng: { o: OscillatorNode; g: GainNode } | null = null;
   private mus = { id: null as SongId | null, mul: 1, step: 0, next: 0, bus: null as GainNode | null, lead: null as GainNode | null, noise: null as AudioBuffer | null, timer: 0 as any };
   volumes = { music: 0.9, sfx: 1, engine: 1, voice: 1 };
+  /** 0..1: drives the drum layers of the adaptive music */
+  intensity = 0.5;
+  private rivals: { o: OscillatorNode; g: GainNode; p: StereoPannerNode }[] = [];
+  private duckUntil = 0;
 
   init() {
     if (this.AC) return;
@@ -29,6 +33,15 @@ export class Audio {
       const g = AC.createGain(); g.gain.value = 0;
       o.connect(f); f.connect(g); g.connect(this.engBus); o.start();
       this.eng = { o, g };
+      // three positional engine voices for the nearest rivals
+      for (let i = 0; i < 3; i++) {
+        const ro = AC.createOscillator(); ro.type = 'sawtooth';
+        const rf = AC.createBiquadFilter(); rf.type = 'lowpass'; rf.frequency.value = 420;
+        const rg = AC.createGain(); rg.gain.value = 0;
+        const rp = AC.createStereoPanner();
+        ro.connect(rf); rf.connect(rg); rg.connect(rp); rp.connect(this.engBus); ro.start();
+        this.rivals.push({ o: ro, g: rg, p: rp });
+      }
     } catch { this.AC = null; }
   }
 
@@ -50,6 +63,38 @@ export class Audio {
     const t = this.AC.currentTime;
     this.eng.g.gain.setTargetAtTime(on && !this.muted ? 0.014 : 0, t, 0.05);
     this.eng.o.frequency.setTargetAtTime(48 + Math.abs(speed) * 0.75, t, 0.05);
+  }
+
+  /** Bus volumes from the settings (0..1 sliders; perceived loudness handled by squaring). */
+  setVolumes(music: number, sfx: number) {
+    this.volumes.music = music * music;
+    this.volumes.sfx = sfx;
+    if (!this.AC) return;
+    this.sfx.gain.setTargetAtTime(sfx * sfx, this.AC.currentTime, 0.05);
+    this.voice.gain.setTargetAtTime(sfx * sfx, this.AC.currentTime, 0.05);
+    this.engBus.gain.setTargetAtTime(sfx * sfx, this.AC.currentTime, 0.05);
+  }
+
+  /** Nearest rivals' engines: distance attenuation and stereo pan by angle (audio-design). */
+  rivalEngines(list: { dist: number; pan: number; speed: number }[]) {
+    if (!this.AC) return;
+    const t = this.AC.currentTime;
+    this.rivals.forEach((v, i) => {
+      const r = list[i];
+      const vol = r && !this.muted ? 0.009 * Math.max(0, 1 - r.dist / 260) : 0;
+      v.g.gain.setTargetAtTime(vol, t, 0.08);
+      if (r) { v.p.pan.setTargetAtTime(Math.max(-1, Math.min(1, r.pan)), t, 0.08); v.o.frequency.setTargetAtTime(44 + Math.abs(r.speed) * 0.7, t, 0.08); }
+    });
+  }
+
+  /** Ducking: dip the music under big moments, then recover. */
+  duck(seconds = 0.5) {
+    if (!this.AC || !this.mus.bus) return;
+    const t = this.AC.currentTime;
+    this.duckUntil = t + seconds;
+    this.mus.bus.gain.cancelScheduledValues(t);
+    this.mus.bus.gain.setTargetAtTime(this.volumes.music * 0.45, t, 0.03);
+    this.mus.bus.gain.setTargetAtTime(this.volumes.music * 0.9, t + seconds, 0.25);
   }
 
   /** Synthesized "¡ay!" groan. */
@@ -120,9 +165,12 @@ export class Audio {
           this.note(mus.bus!, 'triangle', this.mtof(bn), t, sd * 1.8, 0.13);
         }
         this.note(mus.bus!, 'square', this.mtof(root + 24 + ch[inBar % 3]!), t, sd * 0.8, 0.012);
-        if (inBar % 4 === 0 && inBar !== 4 && inBar !== 12) this.drum('k', t);
-        if ((inBar === 4 || inBar === 12) && !S.soft) this.drum('s', t);
-        if (S.h16 || inBar % 2 === 0) this.drum('h', t);
+        // adaptive layers: calm = bass + lead; more intensity adds kick, snare and hats
+        const I = this.intensity;
+        if (I > 0.2 && inBar % 4 === 0 && inBar !== 4 && inBar !== 12) this.drum('k', t);
+        if (I > 0.45 && (inBar === 4 || inBar === 12) && !S.soft) this.drum('s', t);
+        if (I > 0.65 && (S.h16 || inBar % 2 === 0)) this.drum('h', t);
+        else if (I > 0.35 && inBar % 4 === 2) this.drum('h', t);
       }
       mus.step++;
       mus.next += sd;
@@ -135,7 +183,7 @@ export class Audio {
     if (id !== this.mus.id) { this.mus.id = id; this.mus.step = 0; this.mus.next = AC.currentTime + 0.08; }
     if (!id) return;
     this.mus.mul = mul;
-    this.mus.bus!.gain.setTargetAtTime(this.muted ? 0 : vol * this.volumes.music, AC.currentTime, 0.08);
+    if (AC.currentTime > this.duckUntil) this.mus.bus!.gain.setTargetAtTime(this.muted ? 0 : vol * this.volumes.music, AC.currentTime, 0.08);
   }
   jingle() {
     const AC = this.AC;
