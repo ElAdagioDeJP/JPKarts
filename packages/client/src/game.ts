@@ -25,7 +25,7 @@ import { H, Ui, W } from './ui/draw';
 import { loadGhost, loadProgress, saveGhost, saveProgress } from './meta/store';
 import { PlayerInput, SOURCE_NAMES, assignSources } from './input/players';
 
-type State = 'title' | 'menu' | 'options' | 'controls' | 'lan' | 'lobby' | 'select' | 'cup' | 'track' | 'loading' | 'race' | 'results' | 'podium' | 'standings' | 'final' | 'replay';
+type State = 'title' | 'menu' | 'options' | 'controls' | 'lan' | 'online' | 'lobby' | 'select' | 'cup' | 'track' | 'loading' | 'race' | 'results' | 'podium' | 'standings' | 'final' | 'replay';
 type Mode = 'free' | 'cup' | 'timetrial' | 'elimination' | 'battle' | 'capture';
 const MODE_ID: Record<Mode, string> = { free: 'race', cup: 'cup', timetrial: 'timetrial', elimination: 'elimination', battle: 'battle', capture: 'capture' };
 const isArena = (m: Mode) => m === 'battle' || m === 'capture';
@@ -51,7 +51,7 @@ const uiRect = (i: number, n: number): [number, number, number, number] =>
   n <= 1 ? [0, 0, W, H] : n === 2 ? [0, i * (H / 2), W, H / 2] : [(i % 2) * (W / 2), (i >> 1) * (H / 2), W / 2, H / 2];
 const TEAM_COL = ['#ff5a6a', '#5aa8ff'];
 const TEAM_NAME = ['Rojo', 'Azul'];
-const MENUS: State[] = ['title', 'menu', 'options', 'controls', 'lan', 'lobby', 'select', 'cup', 'track'];
+const MENUS: State[] = ['title', 'menu', 'options', 'controls', 'lan', 'online', 'lobby', 'select', 'cup', 'track'];
 const CAM_H = 15, CAM_BACK = 34, ZMAX = 1000;
 const UIK = W / RW; // internal world px → UI px
 const DRIFT_COL = ['#fff7e0', '#3df0ff', '#ff8a1f', '#b84aff'];
@@ -109,6 +109,11 @@ export class Game {
   lanName = 'Jugador';
   lanAddr = typeof location !== 'undefined' && location.hostname && location.hostname !== '' ? location.hostname : 'localhost';
   optSel = 0;
+  /** online: server address (remembered), room code and the selected field (0 name, 1 server, 2 code, 3 create, 4 join) */
+  onlineAddr = (() => { try { return localStorage.getItem('jpkart.online.server') ?? ((import.meta as { env?: Record<string, string> }).env?.VITE_ONLINE_SERVER ?? ''); } catch { return ''; } })();
+  onlineCode = '';
+  onlineField = 1;
+  private netOnline = false;
   ctlSel = 0;
   tr: Track;
   world: World | null = null;
@@ -192,16 +197,19 @@ export class Game {
     switch (this.state) {
       case 'title': if (ok) { this.state = 'menu'; A.blip(); } break;
       case 'menu':
-        if (U) { this.menuSel = (this.menuSel + 7) % 8; A.blip(); }
-        if (D) { this.menuSel = (this.menuSel + 1) % 8; A.blip(); }
-        if (this.menuSel === 6 && (L || R || ok)) { this.diff = (this.diff + (L ? 2 : 1)) % 3; A.blip(); break; }
-        if (this.menuSel === 7 && ok) { this.state = 'options'; this.optSel = 0; A.blip(); break; }
-        if (this.menuSel === 5 && ok) { this.state = 'lan'; this.lanField = 0; this.input.textMode = true; A.blip(); break; }
+        if (U) { this.menuSel = (this.menuSel + 8) % 9; A.blip(); }
+        if (D) { this.menuSel = (this.menuSel + 1) % 9; A.blip(); }
+        if (this.menuSel === 7 && (L || R || ok)) { this.diff = (this.diff + (L ? 2 : 1)) % 3; A.blip(); break; }
+        if (this.menuSel === 8 && ok) { this.state = 'options'; this.optSel = 0; A.blip(); break; }
+        if (this.menuSel === 6 && ok) { this.state = 'lan'; this.lanField = 0; this.input.textMode = true; A.blip(); break; }
+        if (this.menuSel === 5 && ok) { this.state = 'online'; this.onlineField = this.onlineAddr ? 2 : 1; this.input.textMode = true; A.blip(); break; }
         if (ok) { this.mode = (['cup', 'free', 'timetrial', 'elimination', 'battle'] as Mode[])[this.menuSel]!; this.trackSel = 0; if (this.mode !== 'free' && this.mode !== 'cup') this.teams = false; this.state = 'select'; A.blip(); }
         if (back) this.state = 'title';
         break;
       case 'options': this.optionsInput(code, ok, back, L, R, U, D); break;
-      case 'lan': this.lanInput(code, back, U, D); break;
+      // text fields: only the arrows (and the pad) move between fields, W/S are letters
+      case 'lan': this.lanInput(code, back, ...this.textNav(code, U, D)); break;
+      case 'online': this.onlineInput(code, back, ...this.textNav(code, U, D)); break;
       case 'lobby': this.lobbyInput(code, ok, back, L, R, U, D); break;
       case 'controls': this.controlsInput(code, ok, back, U, D); break;
       case 'select':
@@ -577,7 +585,7 @@ export class Game {
       const i = Math.floor(this.attract) % tr.N, x = tr.x[i]!, y = tr.y[i]!;
       this.updateCam(dt, x, y, tr.ang[i]!, hAt(tr, x, y));
       this.renderWorld(t, []);
-      ({ title: () => this.drawTitle(t), menu: () => this.drawMenu(t), options: () => this.drawOptions(), controls: () => this.drawControls(), lan: () => this.drawLan(t), lobby: () => this.drawLobby(t), select: () => this.drawSelect(t), cup: () => this.drawCupSel(t), track: () => this.drawTrackSel() } as Record<string, () => void>)[this.state]!();
+      ({ title: () => this.drawTitle(t), menu: () => this.drawMenu(t), options: () => this.drawOptions(), controls: () => this.drawControls(), lan: () => this.drawLan(t), online: () => this.drawOnline(t), lobby: () => this.drawLobby(t), select: () => this.drawSelect(t), cup: () => this.drawCupSel(t), track: () => this.drawTrackSel() } as Record<string, () => void>)[this.state]!();
       A.engineSet(false, 0);
     } else if (this.world) {
       const w = this.world, p = this.local!;
@@ -873,16 +881,54 @@ export class Game {
       if (g) this.connectLan(g.address + ':' + g.port);
     }
   }
+  private textNav(code: string, U: boolean, D: boolean): [boolean, boolean] {
+    return this.input.textMode ? [code === 'ArrowUp' || code === 'Pad12', code === 'ArrowDown' || code === 'Pad13'] : [U, D];
+  }
+  private onlineInput(code: string, back: boolean, U: boolean, D: boolean) {
+    if (back) { this.input.textMode = false; this.state = 'menu'; return; }
+    if (U) this.onlineField = (this.onlineField + 4) % 5;
+    if (D || code === 'Tab') this.onlineField = (this.onlineField + 1) % 5;
+    this.input.textMode = this.onlineField < 3;
+    if (code !== 'Enter' && code !== 'NumpadEnter' && code !== 'Pad0') return;
+    const create = this.onlineField === 3 || (this.onlineField < 3 && !this.onlineCode);
+    if (!this.onlineAddr.trim()) { this.toast('Escribe la dirección del servidor online'); this.onlineField = 1; return; }
+    if (!create && this.onlineCode.length < 5) { this.toast('El código de sala tiene 5 letras'); this.onlineField = 2; return; }
+    try { localStorage.setItem('jpkart.online.server', this.onlineAddr.trim()); } catch { /* private mode */ }
+    this.input.textMode = false;
+    this.connectLan(this.onlineAddr, this.lanName, create ? { create: true } : { room: this.onlineCode });
+  }
+  private drawOnline(t: number) {
+    const ui = this.ui, ox = (W - 300) / 2, caret = ((t * 2) | 0) % 2 ? '_' : ' ';
+    this.typeInto();
+    ui.bg(0.85);
+    ui.txt('Online', W / 2, 10, '#ffe45e', 16, 'center');
+    ([['Tu nombre', this.lanName], ['Servidor (dominio o IP:puerto)', this.onlineAddr], ['Código de sala (para unirte)', this.onlineCode]] as const).forEach(([k, v], i) => {
+      const y = 36 + i * 36, on = i === this.onlineField;
+      ui.txtS(k, ox, y, '#9c95d6', 'left');
+      ui.panel(ox, y + 10, 300, 18, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
+      ui.txt(v + (on ? caret : ''), ox + 6, y + 15, '#fff7e0');
+    });
+    ['Crear sala nueva', 'Unirse con el código'].forEach((r, i) => {
+      const y = 150 + i * 18, on = this.onlineField === 3 + i;
+      ui.panel(ox, y, 300, 15, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
+      ui.txt(r, W / 2, y + 4, on ? '#ffe45e' : '#fff7e0', 8, 'center');
+    });
+    ui.txtS('Crea la sala y pasa el código a tus amigos. La conexión va cifrada (wss).', W / 2, 202, '#fff7e0');
+    ui.txtS('Intro: crear o unirse · ↑↓ cambia de campo · Esc vuelve', W / 2, 226, '#9c95d6');
+  }
   private typeInto() {
     for (const ch of this.input.typed.splice(0)) {
-      const field = this.lanField === 0 ? 'lanName' : 'lanAddr';
+      const online = this.state === 'online', f = online ? this.onlineField : this.lanField;
+      const field = f === 0 ? 'lanName' : online ? (f === 1 ? 'onlineAddr' : 'onlineCode') : 'lanAddr';
       if (ch === 'Backspace') this[field] = this[field].slice(0, -1);
-      else if (this[field].length < (field === 'lanName' ? 12 : 40)) this[field] += ch;
+      else if (field === 'onlineCode') { if (this.onlineCode.length < 5 && /[a-z0-9]/i.test(ch)) this.onlineCode += ch.toUpperCase(); }
+      else if (this[field].length < (field === 'lanName' ? 12 : 60)) this[field] += ch;
     }
   }
-  connectLan(addr = this.lanAddr, name = this.lanName) {
+  connectLan(addr = this.lanAddr, name = this.lanName, online?: { room?: string; create?: boolean }) {
     this.net?.close();
-    const net = new NetSession(NetSession.urlFrom(addr), name || 'Jugador', (i, mirror) => this.tracks.ensureBuilt(i, [this.tr], mirror), () => this.startNetRace(), () => { this.state = 'results'; });
+    this.netOnline = !!online;
+    const net = new NetSession(online ? NetSession.onlineUrl(addr) : NetSession.urlFrom(addr), name || 'Jugador', (i, mirror) => this.tracks.ensureBuilt(i, [this.tr], mirror), () => this.startNetRace(), () => { this.state = 'results'; }, online);
     this.net = net;
     net.connect();
     this.state = 'lobby';
@@ -932,7 +978,7 @@ export class Game {
     const net = this.net;
     if (!net) { this.state = 'menu'; return; }
     if (back) { this.leaveNet(); return; }
-    if (net.status === 'closed') { if (ok) { this.state = 'lan'; this.input.textMode = true; } return; }
+    if (net.status === 'closed') { if (ok) { this.state = net.url.startsWith('wss') || this.netOnline ? 'online' : 'lan'; this.input.textMode = true; } return; }
     const me = net.me;
     if (!me) return;
     if (L || R) net.send({ t: 'pick', ch: (me.ch + (L ? 7 : 1)) % 8 });
@@ -985,7 +1031,7 @@ export class Game {
   private drawLobby(t: number) {
     const ui = this.ui, net = this.net, ox = (W - 340) / 2;
     ui.bg(0.85);
-    ui.txt('Sala LAN', W / 2, 8, '#ffe45e', 16, 'center');
+    ui.txt(net?.room ? 'Sala online ' + net.room : 'Sala LAN', W / 2, 8, '#ffe45e', 16, 'center');
     if (!net) return;
     if (net.status === 'connecting') { ui.txt('Conectando a ' + net.url + '...', W / 2, 100, '#fff7e0', 8, 'center'); return; }
     if (net.status === 'closed') { ui.txt(net.error || 'Conexión cerrada', W / 2, 96, '#ff6a6a', 8, 'center'); ui.txtS('Intro: volver a intentar · Esc: menú', W / 2, 120, '#9c95d6'); return; }
@@ -1146,15 +1192,15 @@ export class Game {
     const ui = this.ui;
     ui.bg(0.6);
     ui.txt('JP KART', W / 2, 10, '#ffe45e', 24, 'center');
-    const items = ['Torneo', 'Carrera libre', 'Contrarreloj', 'Eliminación', 'Batalla', 'Multijugador LAN', 'Dificultad: ' + DIFFS[this.diff]!.name, 'Opciones'];
-    const help = ['4 copas de 4 carreras. Se suman los puntos.', 'Elige cualquiera de las pistas, nuevas o clásicas.', 'Tú solo contra el reloj y tu fantasma.', 'El último de cada vuelta queda fuera.', 'Globos o captura de la bandera en 4 arenas.', 'Juega con amigos en la misma red.', 'Qué tan rápidos y listos son los rivales.', 'Sonido, accesibilidad, gráficos y controles.'];
+    const items = ['Torneo', 'Carrera libre', 'Contrarreloj', 'Eliminación', 'Batalla', 'Online', 'Multijugador LAN', 'Dificultad: ' + DIFFS[this.diff]!.name, 'Opciones'];
+    const help = ['4 copas de 4 carreras. Se suman los puntos.', 'Elige cualquiera de las pistas, nuevas o clásicas.', 'Tú solo contra el reloj y tu fantasma.', 'El último de cada vuelta queda fuera.', 'Globos o captura de la bandera en 4 arenas.', 'Crea una sala en internet y comparte su código.', 'Juega con amigos en la misma red.', 'Qué tan rápidos y listos son los rivales.', 'Sonido, accesibilidad, gráficos y controles.'];
     items.forEach((s, i) => {
-      const on = i === this.menuSel, y = 42 + i * 18;
-      ui.panel(W / 2 - 90, y, 180, 16, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
-      if (on) ui.img(BALLS[((t * 8) | 0) % 4]!.cv, W / 2 - 84, y + 1, 14, 14);
-      ui.txt(i === 6 ? (on ? '< ' : '') + s + (on ? ' >' : '') : s, W / 2, y + 4, on ? '#ffe45e' : '#fff7e0', 8, 'center');
+      const on = i === this.menuSel, y = 40 + i * 17;
+      ui.panel(W / 2 - 90, y, 180, 15, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
+      if (on) ui.img(BALLS[((t * 8) | 0) % 4]!.cv, W / 2 - 84, y + 1, 13, 13);
+      ui.txt(i === 7 ? (on ? '< ' : '') + s + (on ? ' >' : '') : s, W / 2, y + 3, on ? '#ffe45e' : '#fff7e0', 8, 'center');
     });
-    ui.txtS(help[this.menuSel]!, W / 2, 198);
+    ui.txtS(help[this.menuSel]!, W / 2, 200);
     ui.txtS('Flechas para moverte, Enter para elegir', W / 2, 214, '#9c95d6');
   }
   private statBar10(key: StatKey, v: number, x: number, y: number) {

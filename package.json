@@ -15,7 +15,8 @@
     "validate:tracks": "bun packages/core/tools/validate-tracks.ts",
     "server": "bun packages/server/src/cli.ts",
     "desktop": "bun run --cwd apps/desktop dev",
-    "dist:win": "bun run --cwd apps/desktop dist:win"
+    "dist:win": "bun run --cwd apps/desktop dist:win",
+    "server:online": "bun packages/server/src/online.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",

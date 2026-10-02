@@ -1,6 +1,6 @@
 // Authoritative race room, independent of the transport (WebSocket in main.ts, in-memory in tests).
 import {
-  ALL_TRACKS, ARENA_INDICES, CLASSES, CUPS, LAPS, PROTOCOL_VERSION, classCfg, ReplayRecorder, Rng, SNAPSHOT_EVERY, TrackCache, buildGrid, createWorld, diffJson, handshakeTunables, modeOf,
+  ALL_TRACKS, ARENA_INDICES, CLASSES, CUPS, LAPS, PROTOCOL_VERSION, classCfg, cleanName, validPacked, ReplayRecorder, Rng, SNAPSHOT_EVERY, TrackCache, buildGrid, createWorld, diffJson, handshakeTunables, modeOf,
   newAiState, prepAuthored, serializeWorld, step, takeEvents, unpackInput,
   type ClientMsg, type Delta, type Input, type LobbyPlayer, type LobbySettings, type PackedInput, type ServerMsg, type World, type WorldState,
 } from '@jpkart/core';
@@ -22,7 +22,7 @@ const MAX_PLAYERS = 8, MAX_QUEUE = 6;
 
 export class Room {
   players = new Map<number, Player>();
-  settings: LobbySettings = { mode: 'free', trackIndex: 0, cup: 0, diff: 1, laps: LAPS };
+  settings: LobbySettings = { mode: 'free', trackIndex: CUPS[0]!.tracks[0]!, cup: 0, diff: 1, laps: LAPS };
   phase: 'lobby' | 'race' | 'standings' = 'lobby';
   world: World | null = null;
   recorder: ReplayRecorder | null = null;
@@ -32,6 +32,8 @@ export class Room {
   /** bytes sent per client (metrics) */
   sentBytes = 0;
   private seed: number;
+  /** online room code (undefined on LAN) */
+  code: string | undefined;
   /** last broadcast state: snapshots after the first one are deltas against it */
   private lastState: WorldState | null = null;
 
@@ -48,7 +50,7 @@ export class Room {
 
   private lobbyMsg(): ServerMsg {
     const players: LobbyPlayer[] = [...this.players.entries()].map(([id, p]) => ({ id, name: p.name, ch: p.ch, ready: p.ready, host: p.host }));
-    return { t: 'lobby', players, settings: this.settings, phase: this.phase, cupRace: this.cupRace, cupPts: this.cupPts };
+    return { t: 'lobby', players, settings: this.settings, phase: this.phase, cupRace: this.cupRace, cupPts: this.cupPts, room: this.code };
   }
 
   join(conn: Conn) {
@@ -81,25 +83,27 @@ export class Room {
       const taken = new Set([...this.players.values()].map((q) => q.ch));
       let ch = 0;
       while (taken.has(ch)) ch++;
-      this.players.set(conn.id, { conn, name: (m.name || 'Jugador').slice(0, 12), ch, ready: false, host: this.players.size === 0, queue: [], last: [0, 0, 0, 0, 0], kart: -1 });
-      conn.send({ t: 'welcome', id: conn.id, proto: PROTOCOL_VERSION });
-      this.log(`${m.name} entró`);
+      const name = cleanName(m.name);
+      this.players.set(conn.id, { conn, name, ch, ready: false, host: this.players.size === 0, queue: [], last: [0, 0, 0, 0, 0], kart: -1 });
+      conn.send({ t: 'welcome', id: conn.id, proto: PROTOCOL_VERSION, room: this.code });
+      this.log(`${name} entró` + (this.code ? ` en la sala ${this.code}` : ''));
       this.broadcast(this.lobbyMsg());
       return;
     }
     if (!p) return;
     switch (m.t) {
       case 'pick': {
-        if (this.phase !== 'lobby' || m.ch < 0 || m.ch > 7) return;
+        if (this.phase !== 'lobby' || !Number.isInteger(m.ch) || m.ch < 0 || m.ch > 7) return;
         if ([...this.players.values()].some((q) => q !== p && q.ch === m.ch)) return;
         p.ch = m.ch; p.ready = false;
         this.broadcast(this.lobbyMsg());
         break;
       }
-      case 'ready': p.ready = m.ready; this.broadcast(this.lobbyMsg()); break;
+      case 'ready': p.ready = m.ready === true; this.broadcast(this.lobbyMsg()); break;
       case 'settings': {
         if (!p.host || this.phase !== 'lobby') return;
         const s = m.s;
+        if (!s || typeof s !== 'object' || ![s.trackIndex, s.cup, s.diff].every(Number.isInteger)) return;
         if (s.trackIndex < 0 || s.trackIndex >= ALL_TRACKS.length || s.cup < 0 || s.cup >= CUPS.length || s.diff < 0 || s.diff > 2) return;
         if (!['free', 'cup', 'elimination', 'battle', 'capture'].includes(s.mode) || (s.cls && !(CLASSES as readonly string[]).includes(s.cls))) return;
         const arena = ARENA_INDICES.includes(s.trackIndex);
@@ -124,7 +128,8 @@ export class Room {
       }
       case 'in': {
         if (this.phase !== 'race') return;
-        for (const i of m.i) if (i[0] > (p.queue.at(-1)?.[0] ?? p.last[0])) p.queue.push(i);
+        if (!Array.isArray(m.i) || m.i.length > 12) return;
+        for (const i of m.i) if (validPacked(i) && i[0] > (p.queue.at(-1)?.[0] ?? p.last[0])) p.queue.push(i);
         while (p.queue.length > MAX_QUEUE) p.queue.shift();
         break;
       }

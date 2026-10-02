@@ -254,9 +254,17 @@ Para cada lote:
 
 ## Fase 11 (opcional) — Online
 **Skills:** `performance-optimization`.
-- [ ] Dockerfile del server y despliegue en Hetzner con Dokploy (Traefik + WSS).
-- [ ] Opción "Online" en el menú con código de sala. Límites por sala y validación de inputs en el servidor (no se confía en el cliente).
+- [x] Dockerfile del server y despliegue en Hetzner con Dokploy (Traefik + WSS).
+  - `Dockerfile` en dos etapas: `bun build` deja un único archivo de 260 KB y la imagen final es `oven/bun:1.4-slim` con el usuario `bun` y `HEALTHCHECK`.
+  - Guía paso a paso en `docs/DEPLOY.md`.
+  - El job de CI `docker-online` construye la imagen y la prueba.
+  - ⏳ El despliegue real necesita el VPS y el dominio del dueño del proyecto.
+- [x] Opción "Online" en el menú con código de sala. Límites por sala y validación de inputs en el servidor (no se confía en el cliente).
+  - `packages/server/src/online.ts`: salas con códigos de 5 caracteres, como mucho 200 salas, 150 mensajes/s y 8 KB por mensaje; `/health`.
+  - Validación (`validPacked`, `cleanName` y ajustes): 4 tests en `server/test/online.test.ts`.
+  - En el cliente, la pantalla Online tiene nombre, servidor y código, y el lobby muestra el código.
+  - `tools/lan-check.mjs --online=…`: dos navegadores crean la sala y se unen con el código contra el bundle del servidor y corren juntos (corrección p95 = 0).
 
-**Terminado cuando:** carrera completa entre 2 redes distintas con ≤ 120 ms de latencia y reconciliación estable.
+**Terminado cuando:** carrera completa entre 2 redes distintas con ≤ 120 ms de latencia y reconciliación estable. ⏳ Prueba humana con el servidor desplegado. En local, `net.test.ts` cubre 80 ms con un 2 % de paquetes retrasados: corrección p95 de 2,8 u.
 
 > Prompt: "Ejecuta la Fase 11 de docs/PLAN.md."
