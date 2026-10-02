@@ -23,7 +23,7 @@ export const cleanName = (n: unknown) => (typeof n === 'string' ? n.replace(/[\u
 export const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const cleanRoomCode = (c: unknown) => (typeof c === 'string' ? c.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5) : '');
 
-export interface LobbyPlayer { id: number; name: string; ch: number; ready: boolean; host: boolean }
+export interface LobbyPlayer { id: number; name: string; ch: number; ready: boolean; host: boolean; seat?: number; conn?: number }
 export interface LobbySettings {
   mode: 'free' | 'cup' | 'elimination' | 'battle' | 'capture';
   trackIndex: number; cup: number; diff: number; laps: number;
@@ -35,19 +35,23 @@ export interface LobbySettings {
 
 export type ClientMsg =
   | { t: 'hello'; proto: number; name: string; tun: string; room?: string; create?: boolean }
-  | { t: 'pick'; ch: number }
+  | { t: 'pick'; ch: number; seat?: number }
   | { t: 'ready'; ready: boolean }
+  /** split screen over the network: one more local player on this connection (seat 1, 2, 3) */
+  | { t: 'addSeat'; name: string }
   | { t: 'settings'; s: LobbySettings }
   | { t: 'start' }
   | { t: 'next' }
-  | { t: 'in'; i: PackedInput[] }
+  /** `seats[k]`: the inputs of local seat k + 1 (same seq numbers as `i`) */
+  | { t: 'in'; i: PackedInput[]; seats?: PackedInput[][] }
   | { t: 'leave' };
 
 export type ServerMsg =
   | { t: 'welcome'; id: number; proto: number; room?: string }
   | { t: 'reject'; reason: string }
   | { t: 'lobby'; players: LobbyPlayer[]; settings: LobbySettings; phase: 'lobby' | 'race' | 'standings'; cupRace: number; cupPts: Record<number, number>; room?: string }
-  | { t: 'start'; cfg: RaceConfig; kart: number }
+  /** `seats`: the karts of the extra local seats, in seat order */
+  | { t: 'start'; cfg: RaceConfig; kart: number; seats?: number[] }
   | { t: 'snap'; tick: number; ack: number; state?: WorldState; delta?: Delta; last: Record<number, PackedInput> }
   | { t: 'end'; order: number[]; points: Record<number, number> };
 

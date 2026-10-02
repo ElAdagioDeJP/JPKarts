@@ -251,7 +251,10 @@ Para cada lote:
   - `WorldRenderer.renderSplit`: la escena se actualiza una vez y se dibuja por viewport con scissor (WebGPU y WebGL2). El post-proceso se salta en pantalla dividida.
   - `input/players.ts`: con mandos suficientes, uno por jugador. Si no, el teclado se divide (flechas / WASD) y los mandos toman a los demás.
   - La tecla J elige de 1 a 4 jugadores. Cada jugador tiene cámara, banners, aviso `incoming` y HUD propios (las vistas delegan con accesores en `Game`).
-- [ ] Mezclado con LAN (2 locales + remotos). ⏳ No hecho: cada conexión al servidor lleva un solo kart; hace falta que una sesión pueda llevar varios.
+- [x] Mezclado con LAN y online (2 locales + remotos).
+  - Una conexión puede añadir hasta 3 asientos (`addSeat`, tecla J en la sala). El servidor manda un solo mensaje por conexión, `start` lleva los karts de los asientos y `in` sus inputs.
+  - `PredictedRace` predice todos los karts locales.
+  - Comprobado con un smoke test de red (un cliente con 2 jugadores más otro remoto; servidor = replay) y con `tools/lan-check.mjs --seats` (el anfitrión ve 2 vistas, 3 humanos, corrección p95 = 0).
 
 **Terminado cuando:** 2 jugadores locales a 60 fps y 4 jugadores a ≥ 45 fps en la PC de referencia. ✅ en la PC de desarrollo (`tools/split-check.mjs`): 2 y 4 jugadores a ~56 fps en headless (máximo del navegador sin pantalla); render 2,5 ms (2J) y 3,1 ms (4J) con WebGPU, y 1,3 ms / 3,0 ms con WebGL2. ⏳ Falta medirlo en la PC de referencia.
 

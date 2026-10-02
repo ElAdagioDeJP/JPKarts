@@ -152,3 +152,45 @@ test('red: Batalla de globos en una arena — servidor = replay', () => {
   expect(w.cfg.mode).toBe('battle');
   expect(w.karts.some((k) => k.balloons > 0)).toBe(true);
 }, 120000);
+
+test('red: pantalla dividida en red — un cliente con 2 jugadores locales y otro remoto; servidor = replay', () => {
+  const net = new Net(0.06, 0.02, lcg(7));
+  const room = new Room(99);
+  const tracks = new TrackCache(ALL_TRACKS, prepAuthored);
+  const races: (PredictedRace | null)[] = [null, null];
+  const conns: Conn[] = [0, 1].map((i) => ({
+    id: i + 1, close() {},
+    send(m: ServerMsg) { net.send('s' + i, () => { if (m.t === 'start') races[i] = new PredictedRace(m.cfg, tracks.ensureBuilt(m.cfg.trackIndex, [], !!m.cfg.mirror), m.kart, m.seats ?? []); if (m.t === 'snap') races[i]?.onSnapshot(m); }); },
+  }));
+  const toServer = (i: number, m: ClientMsg) => net.send('c' + i, () => room.onMessage(conns[i]!, m));
+  conns.forEach((_, i) => toServer(i, { t: 'hello', proto: PROTOCOL_VERSION, name: 'J' + i, tun: handshakeTunables() }));
+  toServer(0, { t: 'addSeat', name: 'J0 2' });
+  toServer(1, { t: 'ready', ready: true });
+  net.now += 0.5; net.flush();
+  toServer(0, { t: 'settings', s: { mode: 'free', trackIndex: 17, cup: 0, diff: 1, laps: 3 } });
+  net.now += 0.5; net.flush();
+  toServer(0, { t: 'start' });
+  net.now += 0.5; net.flush(); net.now += 0.5; net.flush();
+  expect(races[0]!.seats.length).toBe(1);
+  expect(room.world!.karts.filter((k) => k.ctrl !== 'ai').length).toBe(3);
+  for (let f = 0; f < 25 * 60; f++) {
+    net.now += 1 / 60;
+    net.flush();
+    races.forEach((r, i) => {
+      if (!r) return;
+      const extra = r.seats.map((k) => pilot(r.world, k, f + 11));
+      const { packed, seats } = r.tick(pilot(r.world, r.kart, f + i * 37), extra);
+      toServer(i, seats.length ? { t: 'in', i: [packed], seats: seats.map((x) => [x]) } : { t: 'in', i: [packed] });
+    });
+    room.tick();
+  }
+  const w = room.world!;
+  const { world, mismatch } = playReplay(JSON.parse(JSON.stringify(room.recorder!.replay)), room.tracks.ensureBuilt(w.cfg.trackIndex));
+  expect(mismatch).toBe(-1);
+  expect(hashWorld(world)).toBe(hashWorld(w));
+  // the three humans (two on one screen) really drove
+  for (const k of [races[0]!.kart, races[0]!.seats[0]!, races[1]!.kart]) expect(w.karts[k]!.prog).toBeGreaterThan(40);
+  // the shared screen predicts its second kart as well as the first one
+  const r0 = races[0]!, dx = (k: number) => Math.hypot(r0.world.karts[k]!.x - w.karts[k]!.x, r0.world.karts[k]!.y - w.karts[k]!.y);
+  expect(dx(r0.seats[0]!)).toBeLessThan(40);
+}, 120000);

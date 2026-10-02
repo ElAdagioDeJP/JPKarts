@@ -9,6 +9,8 @@ export interface Conn { id: number; send(m: ServerMsg): void; close(): void }
 
 interface Player {
   conn: Conn;
+  /** 0 = the connection's own player; 1–3 = extra local players on the same screen (split screen) */
+  seat: number;
   name: string;
   ch: number;
   ready: boolean;
@@ -41,15 +43,18 @@ export class Room {
     this.seed = seed;
   }
 
+  /** The connection's player plus its extra seats, in seat order. */
+  private seatsOf(connId: number) { return [...this.players.values()].filter((q) => q.conn.id === connId).sort((a, b) => a.seat - b.seat); }
   private send(p: Player, m: ServerMsg) {
     const s = JSON.stringify(m);
     this.sentBytes += s.length;
     p.conn.send(m);
   }
-  private broadcast(m: ServerMsg) { for (const p of this.players.values()) this.send(p, m); }
+  /** One message per connection (extra seats share their connection). */
+  private broadcast(m: ServerMsg) { for (const p of this.players.values()) if (p.seat === 0) this.send(p, m); }
 
   private lobbyMsg(): ServerMsg {
-    const players: LobbyPlayer[] = [...this.players.entries()].map(([id, p]) => ({ id, name: p.name, ch: p.ch, ready: p.ready, host: p.host }));
+    const players: LobbyPlayer[] = [...this.players.entries()].map(([id, p]) => ({ id, name: p.name, ch: p.ch, ready: p.ready, host: p.host, seat: p.seat, conn: p.conn.id }));
     return { t: 'lobby', players, settings: this.settings, phase: this.phase, cupRace: this.cupRace, cupPts: this.cupPts, room: this.code };
   }
 
@@ -61,16 +66,27 @@ export class Room {
   leave(id: number) {
     const p = this.players.get(id);
     if (!p) return;
+    for (const q of this.seatsOf(p.conn.id)) if (q !== p) { this.players.delete(this.idOf(q)); this.dropKart(q); }
     this.players.delete(id);
     this.log(`${p.name} salió`);
     if (p.host) { const next = this.players.values().next().value as Player | undefined; if (next) next.host = true; }
-    // mid-race: the AI takes over the kart
-    if (this.world && p.kart >= 0) {
-      const k = this.world.karts[p.kart];
-      if (k) { k.ctrl = 'ai'; k.ai = newAiState(this.world); }
-    }
+    this.dropKart(p);
     if (!this.players.size) { this.phase = 'lobby'; this.world = null; }
     this.broadcast(this.lobbyMsg());
+  }
+
+  /** Player ids: the connection id for seat 0, negative ids for the extra seats (they never collide). */
+  private idOf(p: Player) { return p.seat === 0 ? p.conn.id : -(p.conn.id * 8 + p.seat); }
+  /** mid-race: the AI takes over the kart */
+  private dropKart(p: Player) {
+    if (!this.world || p.kart < 0) return;
+    const k = this.world.karts[p.kart];
+    if (k) { k.ctrl = 'ai'; k.ai = newAiState(this.world); }
+  }
+  private seatPlayer(conn: Conn, seat: unknown): Player | undefined {
+    const s = seat === undefined ? 0 : seat;
+    if (!Number.isInteger(s) || (s as number) < 0 || (s as number) > 3) return undefined;
+    return this.players.get(s === 0 ? conn.id : -(conn.id * 8 + (s as number)));
   }
 
   onMessage(conn: Conn, m: ClientMsg) {
@@ -84,7 +100,7 @@ export class Room {
       let ch = 0;
       while (taken.has(ch)) ch++;
       const name = cleanName(m.name);
-      this.players.set(conn.id, { conn, name, ch, ready: false, host: this.players.size === 0, queue: [], last: [0, 0, 0, 0, 0], kart: -1 });
+      this.players.set(conn.id, { conn, seat: 0, name, ch, ready: false, host: this.players.size === 0, queue: [], last: [0, 0, 0, 0, 0], kart: -1 });
       conn.send({ t: 'welcome', id: conn.id, proto: PROTOCOL_VERSION, room: this.code });
       this.log(`${name} entró` + (this.code ? ` en la sala ${this.code}` : ''));
       this.broadcast(this.lobbyMsg());
@@ -92,10 +108,22 @@ export class Room {
     }
     if (!p) return;
     switch (m.t) {
+      case 'addSeat': {
+        const seats = this.seatsOf(conn.id);
+        if (this.phase !== 'lobby' || seats.length >= 4 || this.players.size >= MAX_PLAYERS) return;
+        const taken = new Set([...this.players.values()].map((q) => q.ch));
+        let ch = 0;
+        while (taken.has(ch)) ch++;
+        const seat = seats.length, q: Player = { conn, seat, name: cleanName(m.name), ch, ready: true, host: false, queue: [], last: [0, 0, 0, 0, 0], kart: -1 };
+        this.players.set(this.idOf(q), q);
+        this.broadcast(this.lobbyMsg());
+        break;
+      }
       case 'pick': {
-        if (this.phase !== 'lobby' || !Number.isInteger(m.ch) || m.ch < 0 || m.ch > 7) return;
-        if ([...this.players.values()].some((q) => q !== p && q.ch === m.ch)) return;
-        p.ch = m.ch; p.ready = false;
+        const sp = this.seatPlayer(conn, m.seat);
+        if (!sp || this.phase !== 'lobby' || !Number.isInteger(m.ch) || m.ch < 0 || m.ch > 7) return;
+        if ([...this.players.values()].some((q) => q !== sp && q.ch === m.ch)) return;
+        sp.ch = m.ch; sp.ready = sp.seat > 0;
         this.broadcast(this.lobbyMsg());
         break;
       }
@@ -123,14 +151,17 @@ export class Room {
       case 'next': {
         if (!p.host || this.phase !== 'standings') return;
         if (this.settings.mode === 'cup' && this.cupRace < CUPS[this.settings.cup]!.tracks.length - 1) { this.cupRace++; this.startRace(); }
-        else { this.phase = 'lobby'; for (const q of this.players.values()) q.ready = false; this.broadcast(this.lobbyMsg()); }
+        else { this.phase = 'lobby'; for (const q of this.players.values()) q.ready = q.seat > 0; this.broadcast(this.lobbyMsg()); }
         break;
       }
       case 'in': {
         if (this.phase !== 'race') return;
-        if (!Array.isArray(m.i) || m.i.length > 12) return;
-        for (const i of m.i) if (validPacked(i) && i[0] > (p.queue.at(-1)?.[0] ?? p.last[0])) p.queue.push(i);
-        while (p.queue.length > MAX_QUEUE) p.queue.shift();
+        const lists: [Player | undefined, unknown][] = [[p, m.i], ...(Array.isArray(m.seats) ? m.seats.slice(0, 3).map((l, k) => [this.seatPlayer(conn, k + 1), l] as [Player | undefined, unknown]) : [])];
+        for (const [q, list] of lists) {
+          if (!q || !Array.isArray(list) || list.length > 12) continue;
+          for (const i of list) if (validPacked(i) && i[0] > (q.queue.at(-1)?.[0] ?? q.last[0])) q.queue.push(i);
+          while (q.queue.length > MAX_QUEUE) q.queue.shift();
+        }
         break;
       }
       case 'leave': this.leave(conn.id); break;
@@ -151,10 +182,11 @@ export class Room {
     const cfg = { trackIndex: ti, diff: S.diff, seed, laps, grid, mode, cc: cc.cc, mirror, teams: !!S.teams };
     this.world = createWorld(cfg, track);
     this.recorder = new ReplayRecorder(cfg);
+    for (const p of this.players.values()) { p.kart = this.world.karts.findIndex((k) => k.ch === p.ch); p.queue = []; p.last = [0, 0, 0, 0, 0]; }
     for (const p of this.players.values()) {
-      p.kart = this.world.karts.findIndex((k) => k.ch === p.ch);
-      p.queue = []; p.last = [0, 0, 0, 0, 0];
-      this.send(p, { t: 'start', cfg, kart: p.kart });
+      if (p.seat !== 0) continue;
+      const extra = this.seatsOf(p.conn.id).filter((q) => q.seat > 0).map((q) => q.kart);
+      this.send(p, extra.length ? { t: 'start', cfg, kart: p.kart, seats: extra } : { t: 'start', cfg, kart: p.kart });
     }
     this.lastState = null;
     this.phase = 'race';
@@ -181,7 +213,7 @@ export class Room {
       const last: Record<number, PackedInput> = {};
       for (const p of this.players.values()) last[p.kart] = p.last;
       const delta = this.lastState ? (diffJson(this.lastState, state) as Delta | undefined) ?? {} : undefined;
-      for (const p of this.players.values()) this.send(p, delta ? { t: 'snap', tick: w.tick, ack: p.last[0], delta, last } : { t: 'snap', tick: w.tick, ack: p.last[0], state, last });
+      for (const p of this.players.values()) if (p.seat === 0) this.send(p, delta ? { t: 'snap', tick: w.tick, ack: p.last[0], delta, last } : { t: 'snap', tick: w.tick, ack: p.last[0], state, last });
       this.lastState = state;
     }
     if (ended) {

@@ -248,7 +248,7 @@ export class Game {
         break;
       case 'race':
         if (this.net && back) { this.leaveNet(); return; }
-        if (this.net) { if (I.is(code, 'objeto')) this.itemPressed = true; break; }
+        if (this.net) { if (this.views.length === 1 && I.is(code, 'objeto')) this.itemPressed = true; break; }
         if (I.is(code, 'pausa') || (back && !this.paused)) { this.paused = !this.paused; A.beep(440, 0.06); return; }
         if (this.paused && back) { this.paused = false; this.state = 'menu'; this.world = null; this.renderer.clearKarts(); A.engineSet(false, 0); return; }
         if (this.paused && code === 'Enter') { this.paused = false; return; }
@@ -950,10 +950,13 @@ export class Game {
     this.renderer.clearKarts();
     this.world = r.world;
     this.ghost = null; this.resultNotes = [];
-    this.localId = r.kart;
+    const karts = [r.kart, ...r.seats], srcs = assignSources(karts.length);
+    this.views = karts.map((k, i) => ({ ...newView(), localId: k, input: karts.length > 1 ? new PlayerInput(srcs[i]!, this.input) : null }));
+    this.v = this.views[0]!;
     this.prev = this.world.karts.map((k) => ({ x: k.x, y: k.y, z: k.z, a: k.a }));
     this.mode = r.cfg.mode === 'race' || !r.cfg.mode ? 'free' : (r.cfg.mode as Mode);
-    this.rig.cut(this.camTarget()!, this.tr);
+    for (const v of this.views) { this.v = v; this.rig.cut(this.camTarget()!, this.tr); }
+    this.v = this.views[0]!;
     this.acc = 0; this.banner = null; this.flashT = 0; this.parts = []; this.paused = false; this.incoming = null;
     this.state = 'race';
   }
@@ -964,10 +967,11 @@ export class Game {
     while (this.acc >= SIM_DT) {
       this.world = r.world;
       this.prev = r.world.karts.map((k) => ({ x: k.x, y: k.y, z: k.z, a: k.a }));
-      const { packed, events } = r.tick(this.localInput());
-      this.itemPressed = false;
-      net.send({ t: 'in', i: [packed] });
-      for (const e of events) { this.onEvent(e); this.fx.event(e, r.world); if (e.type === 'trick') this.trickAnim.set(e.kart, 0.001); if (e.type === 'land') this.squash.set(e.kart, 1); }
+      const ins = this.views.map((v) => { this.v = v; const i = this.localInput(); v.itemPressed = false; if (v.input) v.input.itemPressed = false; return i; });
+      this.v = this.views[0]!;
+      const { packed, seats, events } = r.tick(ins[0]!, ins.slice(1));
+      net.send(seats.length ? { t: 'in', i: [packed], seats: seats.map((x) => [x]) } : { t: 'in', i: [packed] });
+      for (const e of events) { this.v = this.viewFor(e); this.onEvent(e); this.v = this.views[0]!; this.fx.event(e, r.world); if (e.type === 'trick') this.trickAnim.set(e.kart, 0.001); if (e.type === 'land') this.squash.set(e.kart, 1); }
       this.tickAnims(SIM_DT);
       this.acc -= SIM_DT;
     }
@@ -982,6 +986,7 @@ export class Game {
     const me = net.me;
     if (!me) return;
     if (L || R) net.send({ t: 'pick', ch: (me.ch + (L ? 7 : 1)) % 8 });
+    if ((_code === 'KeyJ' || _code === 'Pad8') && net.localSeats.length < 4) net.send({ t: 'addSeat', name: (me.name || 'Jugador').slice(0, 9) + ' ' + (net.localSeats.length + 1) });
     if (_code === 'KeyR' || (ok && !net.isHost)) net.send({ t: 'ready', ready: !me.ready });
     if (net.isHost) {
       const s = { ...net.settings };
@@ -1044,13 +1049,13 @@ export class Game {
       const y = 60 + i * 18, me = p.id === net.id;
       ui.panel(ox, y, 340, 15, me ? '#3a3478' : '#241f55', me ? '#ffe45e' : '#6d66b0');
       ui.img(FACES[p.ch]!.cv, ox + 4, y - 1, 16, 16);
-      ui.txt(p.name + (p.host ? ' ★' : ''), ox + 26, y + 4, me ? '#ffe45e' : '#fff7e0');
+      ui.txt(p.name + (p.host ? ' ★' : '') + (p.seat ? ' (pantalla de ' + (net.players.find((q) => q.conn === p.conn && !q.seat)?.name ?? '?') + ')' : ''), ox + 26, y + 4, me || p.conn === net.id ? '#ffe45e' : '#fff7e0');
       ui.txt(CHARS[p.ch]!.short, ox + 200, y + 4, '#9c95d6');
       ui.txt(p.host ? 'anfitrión' : p.ready ? 'listo ✓' : 'no listo', ox + 334, y + 4, p.ready || p.host ? '#9cff9c' : '#ff8a9a', 8, 'right');
     });
     const help = net.isHost
       ? '←→ piloto · ↑↓ modo · Q/E pista · F IA · X clase · T equipos · Intro'
-      : '←→ personaje · Intro o R: listo · espera al anfitrión';
+      : '←→ personaje · Intro o R: listo · J: otro jugador aquí';
     ui.txtS(help, W / 2, 214, '#9c95d6');
     ui.txtS('Esc: salir de la sala', W / 2, 226, '#9c95d6');
     void t;
