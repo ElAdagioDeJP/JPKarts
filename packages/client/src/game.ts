@@ -23,11 +23,32 @@ import { T } from '@jpkart/core';
 import { H0, RW, WorldRenderer, type KartView, type ThingView } from './render/world3d';
 import { H, Ui, W } from './ui/draw';
 import { loadGhost, loadProgress, saveGhost, saveProgress } from './meta/store';
+import { PlayerInput, SOURCE_NAMES, assignSources } from './input/players';
 
 type State = 'title' | 'menu' | 'options' | 'controls' | 'lan' | 'lobby' | 'select' | 'cup' | 'track' | 'loading' | 'race' | 'results' | 'podium' | 'standings' | 'final' | 'replay';
 type Mode = 'free' | 'cup' | 'timetrial' | 'elimination' | 'battle' | 'capture';
 const MODE_ID: Record<Mode, string> = { free: 'race', cup: 'cup', timetrial: 'timetrial', elimination: 'elimination', battle: 'battle', capture: 'capture' };
 const isArena = (m: Mode) => m === 'battle' || m === 'capture';
+
+/** Everything that exists once per local player (split screen, Phase 10). */
+interface PlayerView {
+  localId: number;
+  cam: { x: number; y: number; a: number; z: number; hz: number; f: number; roll: number };
+  rig: CameraRig;
+  banner: { t: string; life: number; big?: boolean } | null;
+  incoming: { item: string; t: number } | null;
+  posPop: number; lastRank: number; coinPop: number;
+  itemPressed: boolean; driftLatch: boolean; driftHeldPrev: boolean;
+  /** null = player 1 alone (every binding) */
+  input: PlayerInput | null;
+}
+const newView = (): PlayerView => ({
+  localId: -1, cam: { x: 0, y: 0, a: 0, z: 30, hz: H0, f: 320, roll: 0 }, rig: new CameraRig(), banner: null, incoming: null,
+  posPop: 0, lastRank: -1, coinPop: 0, itemPressed: false, driftLatch: false, driftHeldPrev: false, input: null,
+});
+/** Viewport of player i of n, in UI pixels (W × H): 2 = top/bottom, 3–4 = quadrants. */
+const uiRect = (i: number, n: number): [number, number, number, number] =>
+  n <= 1 ? [0, 0, W, H] : n === 2 ? [0, i * (H / 2), W, H / 2] : [(i % 2) * (W / 2), (i >> 1) * (H / 2), W / 2, H / 2];
 const TEAM_COL = ['#ff5a6a', '#5aa8ff'];
 const TEAM_NAME = ['Rojo', 'Azul'];
 const MENUS: State[] = ['title', 'menu', 'options', 'controls', 'lan', 'lobby', 'select', 'cup', 'track'];
@@ -67,7 +88,7 @@ export class Game {
   /** messages for the last result screen (records, unlocks) */
   resultNotes: string[] = [];
   /** end-of-race replay with the highlight camera (#62) */
-  private replayView: { player: ReplayPlayer; world: World; localId: number; back: State; focus: number; hold: number; ranks: number[] } | null = null;
+  private replayView: { player: ReplayPlayer; world: World; localId: number; back: State; focus: number; hold: number; ranks: number[]; views: PlayerView[] } | null = null;
   private pendingMirror = false;
   paused = false; pendingRace = 0; loadF = 0;
   cup: CupState | null = null;
@@ -79,7 +100,6 @@ export class Game {
   get grid() { return this.trackCups.flatMap((c) => c.tracks); }
   /** index (into ALL_TRACKS) of the track being raced */
   curTrack = 0;
-  incoming: { item: string; t: number } | null = null;
   dbg = new DebugOverlay();
   settings: Settings = loadSettings();
   net: NetSession | null = null;
@@ -90,29 +110,37 @@ export class Game {
   lanAddr = typeof location !== 'undefined' && location.hostname && location.hostname !== '' ? location.hostname : 'localhost';
   optSel = 0;
   ctlSel = 0;
-  private driftLatch = false;
-  private driftHeldPrev = false;
   tr: Track;
   world: World | null = null;
   recorder: ReplayRecorder | null = null;
   lastReplay: Replay | null = null;
-  localId = -1;
+  /** one view per local player; the accessors below read and write the active one (`v`) */
+  views: PlayerView[] = [newView()];
+  v: PlayerView = this.views[0]!;
+  /** local players for the next race (1–4) */
+  players = 1;
+  get localId() { return this.v.localId; } set localId(x: number) { this.v.localId = x; }
+  get cam() { return this.v.cam; }
+  get rig() { return this.v.rig; }
+  get banner() { return this.v.banner; } set banner(x: PlayerView['banner']) { this.v.banner = x; }
+  get incoming() { return this.v.incoming; } set incoming(x: PlayerView['incoming']) { this.v.incoming = x; }
+  private get posPop() { return this.v.posPop; } private set posPop(x: number) { this.v.posPop = x; }
+  private get lastRank() { return this.v.lastRank; } private set lastRank(x: number) { this.v.lastRank = x; }
+  get coinPop() { return this.v.coinPop; } set coinPop(x: number) { this.v.coinPop = x; }
+  private get itemPressed() { return this.v.itemPressed; } private set itemPressed(x: boolean) { this.v.itemPressed = x; }
+  private get driftLatch() { return this.v.driftLatch; } private set driftLatch(x: boolean) { this.v.driftLatch = x; }
+  private get driftHeldPrev() { return this.v.driftHeldPrev; } private set driftHeldPrev(x: boolean) { this.v.driftHeldPrev = x; }
+  private single() { this.views = [newView()]; this.v = this.views[0]!; }
   private prev: Pose[] = [];
   private acc = 0;
-  private itemPressed = false;
-  cam = { x: 0, y: 0, a: 0, z: 30, hz: H0, f: 320, roll: 0 };
-  rig = new CameraRig();
   fx: Fx3d;
   /** visual hit-stop: hold the rendered poses for a few frames (simulation keeps running) */
   private hitStop = 0;
   /** visual-only animation timers per kart */
   private trickAnim = new Map<number, number>();
   private squash = new Map<number, number>();
-  private posPop = 0;
-  private lastRank = -1;
   private held: Pose[] | null = null;
   attract = 0;
-  banner: { t: string; life: number; big?: boolean } | null = null;
   flashC = '#ffffff'; flashT = 0;
   parts: Particle[] = [];
   minis = new Map<Track, { cv: HTMLCanvasElement; k: number }>();
@@ -180,6 +208,7 @@ export class Game {
         if (R) { this.sel = (this.sel + 1) % 8; A.blip(); }
         if (L) { this.sel = (this.sel + 7) % 8; A.blip(); }
         if (U || D) { this.sel = (this.sel + 4) % 8; A.blip(); }
+        if ((code === 'KeyJ' || code === 'Pad8') && this.mode !== 'timetrial') { this.players = (this.players % 4) + 1; A.blip(); }
         if (ok) { this.state = this.mode === 'cup' ? 'cup' : 'track'; A.beep(780, 0.1); }
         if (back) this.state = 'menu';
         break;
@@ -215,7 +244,7 @@ export class Game {
         if (I.is(code, 'pausa') || (back && !this.paused)) { this.paused = !this.paused; A.beep(440, 0.06); return; }
         if (this.paused && back) { this.paused = false; this.state = 'menu'; this.world = null; this.renderer.clearKarts(); A.engineSet(false, 0); return; }
         if (this.paused && code === 'Enter') { this.paused = false; return; }
-        if (!this.paused && I.is(code, 'objeto')) this.itemPressed = true;
+        if (!this.paused && this.views.length === 1 && I.is(code, 'objeto')) this.itemPressed = true;
         break;
       case 'results':
         if (this.net) { if (ok && this.net.isHost) this.net.send({ t: 'next' }); if (back) this.leaveNet(); break; }
@@ -239,7 +268,12 @@ export class Game {
       case 'final': if (ok || back) this.toMenu(); break;
     }
   }
-  private toMenu() { this.state = 'menu'; this.world = null; this.ghost = null; this.renderer.clearKarts(); }
+  private toMenu() { this.state = 'menu'; this.world = null; this.ghost = null; this.single(); this.renderer.clearKarts(); }
+  /** Which player's view an event belongs to (its kart is local), else player 1. */
+  private viewFor(e: GameEvent): PlayerView {
+    if (this.views.length > 1) for (const f of ['kart', 'to', 'from', 'a', 'by'] as const) { const id = (e as Record<string, unknown>)[f]; const v = typeof id === 'number' ? this.views.find((q) => q.localId === id) : undefined; if (v) return v; }
+    return this.views[0]!;
+  }
   /** Cup/track screens: X cycles the engine class (only unlocked ones), E toggles teams (race and cup). */
   private classKeys(code: string): boolean {
     if (code === 'KeyX' || code === 'Pad2') {
@@ -268,7 +302,8 @@ export class Game {
     this.renderer.clearKarts();
     const seed = (Math.random() * 2 ** 31) | 0;
     const rng = new Rng(seed ^ 0x5bd1e995);
-    const humans = [{ ch: this.sel, ctrl: 'local' as const }];
+    const n = this.mode === 'timetrial' ? 1 : this.players;
+    const humans = [this.sel, ...CHARS.map((_, i) => (this.sel + i) % CHARS.length).slice(1, n)].map((ch) => ({ ch, ctrl: 'local' as const }));
     let grid = this.mode === 'timetrial' ? humans
       : this.mode === 'cup' && this.cup && this.cup.race > 0
         ? buildGrid(rng, humans, { cupPts: this.cup.pts, humanSlot: 0 })
@@ -284,10 +319,11 @@ export class Game {
       void loadGhost(ALL_TRACKS[ti]!.id, this.cls).then((g) => { if (g && g.cfg.trackIndex === ti && this.world?.cfg === cfg) { this.ghost = new ReplayPlayer(g, tr); this.toast('Fantasma: ' + fmtTime(g.ticks / 60)); } });
     }
     this.recorder = new ReplayRecorder(cfg);
-    this.localId = this.world.karts.findIndex((k) => k.ctrl === 'local');
+    const srcs = assignSources(humans.length), wk = this.world.karts;
+    this.views = humans.map((h, i) => ({ ...newView(), localId: wk.findIndex((k) => k.ch === h.ch), input: humans.length > 1 ? new PlayerInput(srcs[i]!, this.input) : null }));
     this.prev = this.world.karts.map((k) => ({ x: k.x, y: k.y, z: k.z, a: k.a }));
-    this.rig.cut(this.camTarget()!, this.tr);
-    this.rig.trauma = 0;
+    for (const v of this.views) { this.v = v; this.rig.cut(this.camTarget()!, this.tr); this.rig.trauma = 0; }
+    this.v = this.views[0]!;
     this.acc = 0; this.banner = null; this.flashT = 0; this.parts = []; this.paused = false; this.incoming = null;
     this.trickAnim.clear(); this.squash.clear(); this.lastRank = -1; this.posPop = 0;
     this.state = 'race';
@@ -314,10 +350,10 @@ export class Game {
     for (const id of w.finalOrder) { const ch = w.karts[id]!.ch, p = pts.get(id) ?? 0; c.pts[ch] = (c.pts[ch] ?? 0) + p; c.gain[ch] = p; }
   }
   private localInput(): SimInput {
-    const I = this.input;
+    const I = this.v.input ?? this.input;
     let d = I.held('derrapar');
     if (this.settings.driftToggle) { if (d && !this.driftHeldPrev) this.driftLatch = !this.driftLatch; this.driftHeldPrev = d; d = this.driftLatch && Math.abs(I.steer()) > 0.05; }
-    const inp: SimInput = { t: I.throttle(), s: I.steer(), d, item: this.itemPressed };
+    const inp: SimInput = { t: I.throttle(), s: I.steer(), d, item: this.itemPressed || !!this.v.input?.itemPressed };
     return inp;
   }
   private simulate(dt: number) {
@@ -330,14 +366,15 @@ export class Game {
       this.prev = w.karts.map((k) => ({ x: k.x, y: k.y, z: k.z, a: k.a }));
       if (this.ghost && !this.ghost.done) { const g = this.ghost.world.karts[0]!; this.ghostPrev = { x: g.x, y: g.y, z: g.z, a: g.a }; this.ghost.step(); }
       const inputs: SimInput[] = [];
-      inputs[this.localId] = this.localInput();
-      this.itemPressed = false;
+      for (const v of this.views) { this.v = v; inputs[v.localId] = this.localInput(); v.itemPressed = false; if (v.input) v.input.itemPressed = false; }
+      this.v = this.views[0]!;
       this.recorder?.record(w, inputs);
       step(w, inputs);
       this.recorder?.after(w);
       this.acc -= SIM_DT;
       for (const e of takeEvents(w)) {
-        this.onEvent(e); this.fx.event(e, w);
+        this.v = this.viewFor(e); this.onEvent(e); this.v = this.views[0]!;
+        this.fx.event(e, w);
         if (e.type === 'trick') this.trickAnim.set(e.kart, 0.001);
         if (e.type === 'land') { this.squash.set(e.kart, 1); this.trickAnim.delete(e.kart); }
       }
@@ -351,7 +388,9 @@ export class Game {
     const player = new ReplayPlayer(this.lastReplay, this.tr);
     // skip the countdown
     while (player.world.phase === 'countdown' && !player.done) player.step();
-    this.replayView = { player, world: this.world, localId: this.localId, back: this.state, focus: this.localId, hold: 3, ranks: player.world.karts.map((k) => k.rank) };
+    const views = this.views;
+    this.views = [views[0]!]; this.v = views[0]!;
+    this.replayView = { player, world: this.world, localId: this.localId, back: this.state, focus: this.localId, hold: 3, ranks: player.world.karts.map((k) => k.rank), views };
     this.world = player.world;
     this.prev = this.world.karts.map((k) => ({ x: k.x, y: k.y, z: k.z, a: k.a }));
     this.renderer.clearKarts();
@@ -361,6 +400,7 @@ export class Game {
   private endReplayView() {
     const r = this.replayView;
     if (!r) return;
+    this.views = r.views; this.v = r.views[0]!;
     this.world = r.world; this.localId = r.localId; this.state = r.back; this.replayView = null;
     this.renderer.clearKarts();
   }
@@ -409,7 +449,6 @@ export class Game {
   }
 
   // ---------------- events → feedback ----------------
-  coinPop = 0;
   private onEvent(e: GameEvent) {
     const A = this.audio, w = this.world!, me = (id: number) => id === this.localId;
     const p = this.local;
@@ -542,17 +581,23 @@ export class Game {
       A.engineSet(false, 0);
     } else if (this.world) {
       const w = this.world, p = this.local!;
+      for (const v of this.views) v.input?.poll();
       if (!this.paused) this.simulate(dt);
       if (this.hitStop > 0) { this.hitStop -= dt; if (this.hitStop <= 0) this.held = null; }
-      const tg = this.camTarget()!;
-      if (p.respawn > 0 && p.respawn < 0.05) this.rig.cut(tg, this.tr);
-      Object.assign(this.cam, this.rig.update(this.paused ? 0 : dt, tg, this.tr));
+      for (const v of this.views) {
+        this.v = v;
+        const tg = this.camTarget(), q = this.local;
+        if (!tg || !q) continue;
+        if (q.respawn > 0 && q.respawn < 0.05) this.rig.cut(tg, this.tr);
+        Object.assign(this.cam, this.rig.update(this.paused ? 0 : dt, tg, this.tr));
+      }
+      this.v = this.views[0]!;
       if (!this.paused) this.fx.frame(w, dt, this.cam.x, this.cam.y, (k) => this.pose(k), this.tr.th.ground[0]);
       this.updateAtmosphere(w, dt);
       this.renderWorld(w.raceT, w.karts);
       if (this.state === 'replay') this.drawReplayHud(t);
       else if (this.state === 'race') {
-        if (!this.paused) this.spawnSpeedLines();
+        if (!this.paused && this.views.length === 1) this.spawnSpeedLines();
         this.drawParticles(this.paused ? 0 : dt);
         this.drawSmudge();
         this.drawWeather(dt);
@@ -562,7 +607,7 @@ export class Game {
           ui.txt(n > 0 ? String(n) : '', W / 2, H / 2 - 40, '#ffe45e', 40, 'center');
           ui.txt(this.tr.def.name, W / 2, 34, '#fff7e0', 8, 'center');
           ui.txtS('Truco: acelera justo en el 1 para salir con turbo', W / 2, H - 30);
-        } else this.drawHUD(this.paused ? 0 : dt);
+        } else this.drawHUDs(this.paused ? 0 : dt);
         A.engineSet(!this.paused, p.speed + (p.boost > 0 ? 40 : 0));
         this.audioFrame(w, p);
         if (this.paused) { ui.bg(0.7); ui.txt('Pausa', W / 2, 80, '#ffe45e', 24, 'center'); ui.txt('P para seguir', W / 2, 130, '#fff7e0', 8, 'center'); ui.txt('Esc para salir al menú', W / 2, 146, '#fff7e0', 8, 'center'); }
@@ -589,7 +634,7 @@ export class Game {
     for (const k of karts) {
       const ps = this.pose(k);
       const vis = !k.out && (k.respawn <= 0 || ((t * 10) | 0) % 2 === 1);
-      views.push({ id: k.id, ch: k.ch, x: ps.x, y: ps.y, z: k.respawn > 0 ? ps.z - 6 : ps.z, a: ps.a, lean: k.drift ? k.drift : k.sv, hop: k.hop, spin: k.spin, big: hasFx(k, 'jug'), bubble: hasFx(k, 'bubble'), reflect: hasFx(k, 'reflect'), visible: vis, ground: hAt(this.tr, ps.x, ps.y), air: k.air, trick: this.trickAnim.get(k.id) ?? 0, squash: this.squash.get(k.id) ?? 0, local: k.id === this.localId });
+      views.push({ id: k.id, ch: k.ch, x: ps.x, y: ps.y, z: k.respawn > 0 ? ps.z - 6 : ps.z, a: ps.a, lean: k.drift ? k.drift : k.sv, hop: k.hop, spin: k.spin, big: hasFx(k, 'jug'), bubble: hasFx(k, 'bubble'), reflect: hasFx(k, 'reflect'), visible: vis, ground: hAt(this.tr, ps.x, ps.y), air: k.air, trick: this.trickAnim.get(k.id) ?? 0, squash: this.squash.get(k.id) ?? 0, local: this.views.some((v) => v.localId === k.id) });
     }
     if (this.ghost && this.state === 'race') {
       const g = this.ghost.world.karts[0]!, pg = this.ghostPrev, a = this.acc / SIM_DT;
@@ -599,13 +644,16 @@ export class Game {
     if (w) {
       const me = this.local, tc: ThingCtx = { t, lap: me ? Math.floor(me.prog / this.tr.N) + 1 : 1, lava: this.tr.def.liquid?.kind === 'lava' };
       for (const e of w.ents) THING_ART[e.kind]?.(e, tc, things);
-      for (const k of karts) if (k.respawn <= 0) { const ps = this.pose(k); orbitArt(k, ps.x, ps.y, ps.z, t, things); if (k.balloons > 0 && k.id !== this.localId) balloonArt(k, k.team >= 0 ? TEAM_COL[k.team]! : CHARS[k.ch]!.helmet, ps.x, ps.y, ps.z, t, things); }
+      for (const k of karts) if (k.respawn <= 0) { const ps = this.pose(k); orbitArt(k, ps.x, ps.y, ps.z, t, things); if (k.balloons > 0 && (this.views.length > 1 || k.id !== this.localId)) balloonArt(k, k.team >= 0 ? TEAM_COL[k.team]! : CHARS[k.ch]!.helmet, ps.x, ps.y, ps.z, t, things); }
     }
     const boxes = w ? w.boxes.map((b) => b.active) : this.tr.boxes.map(() => true);
-    const t0 = performance.now();
-    this.renderer.render(this.cam, views, things, boxes, t, w?.water ?? this.tr.water?.base ?? 0, 1 / 60);
+    const t0 = performance.now(), water = w?.water ?? this.tr.water?.base ?? 0, n = this.views.length;
+    if (n > 1 && w && this.state === 'race') {
+      const k = RW / W;
+      this.renderer.renderSplit(this.views.map((v, i) => { const [x, y, ww, hh] = uiRect(i, n); return { cam: v.cam, rect: [x * k, y * k, ww * k, hh * k] as [number, number, number, number] }; }), views, things, boxes, t, water, 1 / 60);
+    } else this.renderer.render(this.cam, views, things, boxes, t, water, 1 / 60);
     this.renderMs = performance.now() - t0;
-    if (w && (this.state === 'race' || this.state === 'replay')) this.drawLabels(karts.filter((k) => !k.out));
+    if (w && (this.state === 'race' || this.state === 'replay') && n === 1) this.drawLabels(karts.filter((k) => !k.out));
   }
 
   private drawLabels(karts: Kart[]) {
@@ -693,6 +741,25 @@ export class Game {
   }
 
   // ---------------- HUD ----------------
+  /** One HUD per local player, scaled into its viewport. */
+  private drawHUDs(dt: number) {
+    const n = this.views.length;
+    if (n === 1) { this.drawHUD(dt); return; }
+    const ctx = this.ui.ctx, sc = 0.5 * this.settings.hudScale;
+    this.views.forEach((v, i) => {
+      this.v = v;
+      const [x, y, w, h] = uiRect(i, n);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+      ctx.translate(x, y); ctx.scale(sc, sc);
+      try { this.drawHUDScaled(dt, w / sc, h / sc); } finally { ctx.restore(); }
+    });
+    this.v = this.views[0]!;
+    ctx.fillStyle = OUT;
+    if (n === 2) ctx.fillRect(0, H / 2 - 1, W, 2);
+    else { ctx.fillRect(W / 2 - 1, 0, 2, H); ctx.fillRect(0, H / 2 - 1, W, 2); }
+    if (n === 3) { ctx.fillStyle = 'rgba(27,23,64,0.9)'; ctx.fillRect(W / 2 + 1, H / 2 + 1, W / 2, H / 2); this.ui.img(this.mini(this.tr).cv, W * 0.75 - 28, H * 0.75 - 28, 56, 56); }
+  }
   private drawHUD(dt: number) {
     const sc = this.settings.hudScale;
     this.ui.ctx.save();
@@ -831,6 +898,7 @@ export class Game {
   private startNetRace() {
     const r = this.net!.race!;
     this.curTrack = r.cfg.trackIndex;
+    this.single();
     this.tr = this.tracks.get(r.cfg.trackIndex, !!r.cfg.mirror);
     this.renderer.setTrack(this.tr);
     this.renderer.clearKarts();
@@ -1104,6 +1172,11 @@ export class Game {
     const ui = this.ui, ox = (W - 320) / 2;
     ui.bg();
     ui.txt('Elige piloto', W / 2, 6, '#ffe45e', 16, 'center');
+    if (this.mode !== 'timetrial') {
+      const n = this.players, srcs = assignSources(n);
+      ui.txtS('Jugadores: ' + n + ' (J)', ox + 318, 8, n > 1 ? '#8fe0ff' : '#9c95d6', 'right');
+      if (n > 1) ui.txtS(srcs.map((src, i) => 'J' + (i + 1) + ' ' + (i ? CHARS[(this.sel + i) % CHARS.length]!.short : CHARS[this.sel]!.short) + ': ' + SOURCE_NAMES(src)).join('   '), W / 2, 230, '#8fe0ff');
+    }
     CHARS.forEach((c, i) => {
       const col = i % 4, row = i >> 2, x = ox + 18 + col * 74, y = 28 + row * 56, on = i === this.sel;
       ui.panel(x, y, 62, 48, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');

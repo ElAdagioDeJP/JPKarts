@@ -242,9 +242,13 @@ Para cada lote:
 
 ## Fase 10 (opcional) — Pantalla dividida local
 **Skills:** `camera-systems`, `input-systems`, `game-ui-ux`, `performance-optimization`.
-- [ ] 2–4 viewports WebGL, un mando por jugador, HUD por viewport. También funciona mezclado con LAN (2 locales + remotos).
+- [x] 2–4 viewports, un mando por jugador, HUD por viewport.
+  - `WorldRenderer.renderSplit`: la escena se actualiza una vez y se dibuja por viewport con scissor (WebGPU y WebGL2). El post-proceso se salta en pantalla dividida.
+  - `input/players.ts`: con mandos suficientes, uno por jugador. Si no, el teclado se divide (flechas / WASD) y los mandos toman a los demás.
+  - La tecla J elige de 1 a 4 jugadores. Cada jugador tiene cámara, banners, aviso `incoming` y HUD propios (las vistas delegan con accesores en `Game`).
+- [ ] Mezclado con LAN (2 locales + remotos). ⏳ No hecho: cada conexión al servidor lleva un solo kart; hace falta que una sesión pueda llevar varios.
 
-**Terminado cuando:** 2 jugadores locales a 60 fps y 4 jugadores a ≥ 45 fps en la PC de referencia.
+**Terminado cuando:** 2 jugadores locales a 60 fps y 4 jugadores a ≥ 45 fps en la PC de referencia. ✅ en la PC de desarrollo (`tools/split-check.mjs`): 2 y 4 jugadores a ~56 fps en headless (máximo del navegador sin pantalla); render 2,5 ms (2J) y 3,1 ms (4J) con WebGPU, y 1,3 ms / 3,0 ms con WebGL2. ⏳ Falta medirlo en la PC de referencia.
 
 > Prompt: "Ejecuta la Fase 10 de docs/PLAN.md."
 
