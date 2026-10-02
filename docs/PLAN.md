@@ -23,11 +23,11 @@ Documentos:
 | Tick de simulación completo (8 karts, 256 entidades) | **≤ 2,0 ms** | `bun run bench` (headless, p95 de 10.000 ticks) |
 | — de ello, IA (7 karts) | ≤ 0,8 ms | bench, desglose por sistema |
 | — de ello, entidades + colisiones | ≤ 0,5 ms | bench |
-| Render CPU (preparación + envío) WebGL | ≤ 4 ms | overlay de rendimiento (F2), p95 |
-| Render GPU WebGL a 640×360 interno | ≤ 8 ms | `EXT_disjoint_timer_query` si existe; si no, el fps |
-| Fallback Canvas 2D (frame completo) | ≤ 22 ms (≥ 45 fps) | overlay |
+| Render CPU (preparación + envío) Three.js WebGPU | ≤ 4 ms | overlay de rendimiento (F2), p95 |
+| Render GPU a 640×360 interno | ≤ 8 ms | `renderer.info` / timestamp queries de WebGPU; si no, el fps |
+| Respaldo WebGL2 de Three (frame completo) | ≤ 22 ms (≥ 45 fps) | overlay con `?webgl` |
 | Serializar snapshot (servidor) | ≤ 0,3 ms | bench de red |
-| Reservas del sistema | entidades 256 · partículas 1024 (WebGL) / 256 (2D) · proyectiles 64 | asserts en dev |
+| Reservas del sistema | entidades 256 · partículas 1024 (WebGPU) / 512 (WebGL2) · proyectiles 64 | asserts en dev |
 | Asignaciones en el tick de sim | **0** en el camino caliente | bench con `--track-alloc` (heap antes/después) |
 
 Si una fase supera un presupuesto, no se cierra: se perfila, se arregla el mayor coste y se vuelve a medir (`performance-optimization`).
@@ -41,20 +41,21 @@ Si una fase supera un presupuesto, no se cierra: se perfila, se arregla el mayor
 ## Fase 1 — Monorepo y port a TS (core/client), comportamiento idéntico
 **Objetivo:** el legacy portado a TypeScript, ya separado en `core` (sin DOM) y `client`, jugándose igual que `legacy/jp-kart.html`.
 **Skills:** `router`, `performance-optimization` (solo para medir la línea base).
-- [ ] Monorepo con Bun workspaces: `packages/core`, `packages/client` (Vite), tsconfig estricto, `bun test`, ESLint con regla que **prohíbe** `document`/`window`/`Math.random`/`performance.now` en `core` (Math.random se tolera con `// legacy-rng` hasta la Fase 2).
-- [ ] Partir el legacy por responsabilidad:
-  - `core`: pistas (gen + build de heightmap y datos de colisión), karts, objetos, IA, vuelta, ranking.
-  - `client`: sprites/pixel art, render voxel (Canvas 2D), HUD, menús, audio, input.
-- [ ] Quitar `player` global: cada kart tiene `ctrl: 'local' | 'remote' | 'ai'`. Cámara y HUD siguen al kart local.
-- [ ] `beep()`, `banner` y `flash()` salen de core: core emite eventos y el client hace sonido y banner.
-- [ ] Fuente Press Start 2P local (sin Google Fonts).
-- [ ] Medir la línea base (fps y ms de render/sim del legacy en la PC de referencia) y anotarla aquí.
+- [x] Monorepo con Bun workspaces: `packages/core`, `packages/client` (Vite), tsconfig estricto, `bun test`. La regla "core sin DOM/`Math.random`/reloj real" la hace cumplir un test (`core/test/rules.test.ts`) y `core` compila sin la lib DOM.
+- [x] Partir el legacy por responsabilidad:
+  - `core`: pistas (gen + build de heightmap), karts, objetos (ya en registro `defineItem`), IA, vuelta, ranking.
+  - `client`: pixel art, **render Three.js `WebGPURenderer`** (decisión obligatoria del dueño; respaldo WebGL2 automático), HUD, menús, audio, input.
+- [x] Quitar `player` global: cada kart tiene `ctrl: 'local' | 'remote' | 'ai'`. Cámara y HUD siguen al kart local.
+- [x] `beep()`, `banner` y `flash()` salen de core: core emite eventos y el client hace sonido y banner.
+- [x] Fuente Press Start 2P local (`@fontsource/press-start-2p`).
+- [x] Medir la línea base. **Port en la PC de desarrollo (Edge):** WebGPU 60 fps, sim 0,2–0,4 ms/frame, render CPU 3–7 ms; WebGL2 60 fps, render CPU ~10 ms. El legacy no expone métricas (IIFE cerrada); falta medir en la PC de referencia.
+- Adelantado de la Fase 2: RNG con semilla, paso fijo de 60 Hz e ids en vez de referencias. Cuesta lo mismo hacerlo al portar.
 
 **Terminado cuando:**
-- `bun run dev` abre el juego y se juegan las 16 pistas en Carrera y Copa.
-- Comparación lado a lado con el legacy: misma pista y personaje, los tiempos de vuelta del humano están dentro de ±3 %.
-- `core` compila sin la lib DOM.
-- La línea base está anotada.
+- `bun run dev` abre el juego y se juegan las 16 pistas en Carrera y Copa. ✅ (lo comprueba `tools/shot.mjs` en Edge: título → selección → carrera, WebGPU y WebGL2)
+- Comparación lado a lado con el legacy: misma pista y personaje, los tiempos de vuelta del humano están dentro de ±3 %. ⏳ **Pendiente de prueba humana.** Automático: la IA termina 3 vueltas en 1:40–3:00 (`core/test/race.test.ts`), coherente con la vuelta de ~43 s del legacy.
+- `core` compila sin la lib DOM. ✅
+- La línea base está anotada. ✅
 
 > Prompt: "Lee CLAUDE.md, docs/PLAN.md y legacy/jp-kart.html. Ejecuta la Fase 1."
 
@@ -120,18 +121,17 @@ Si una fase supera un presupuesto, no se cierra: se perfila, se arregla el mayor
 **Objetivo:** Playa Coco v2 con la calidad final. Es la referencia visual y sonora de todo lo demás.
 **Skills:** `create-game-assets`, `shader-programming`, `camera-systems`, `game-feel`, `game-ui-ux`, `audio-design`, `input-systems`, `performance-optimization`.
 - [ ] Resolución 16:9 (640×360 mundo, 320×180 UI) con escalado entero (ART §2).
-- [ ] Render WebGL2:
-  - raymarch del heightmap en un fragment shader;
-  - sprites en batch con profundidad;
-  - cadena de post-proceso (ART §5).
-- [ ] Canvas 2D queda como fallback congelado.
-- [ ] Prueba de paridad visual: diferencia < 2 % sin post-proceso.
+- [ ] Render Three.js WebGPU v2 (ya existe la base de la Fase 1):
+  - decorado instanciado en atlas (de ~650 draw calls a < 10);
+  - cadena de post-proceso con TSL/nodos (ART §5);
+  - agua animada y detalle cercano del suelo.
+- [ ] El respaldo WebGL2 de Three cumple ≥ 45 fps.
 - [ ] Paleta y LUT del bioma `sand`, kart voxel a 32 rotaciones con estados animados y sombras.
 - [ ] Partículas por eventos (#50), cámara v2 (#51), HUD v2 y pila de pantallas (#52).
 - [ ] Mando + acciones + remapeo (#53). Audio por buses, música adaptativa y motores posicionales (#54). Accesibilidad (#55).
 
 **Terminado cuando:**
-- 60 fps estables (p95 ≤ 16,7 ms) con 8 karts en la PC de referencia (WebGL), y ≥ 45 fps en el fallback.
+- 60 fps estables (p95 ≤ 16,7 ms) con 8 karts en la PC de referencia (WebGPU), y ≥ 45 fps con el respaldo WebGL2.
 - Legibilidad: rival a 400 u ≥ 12 px y objetos reconocibles en la prueba daltónica.
 - Se juega la pista completa solo con mando.
 - **Revisión de dirección de arte aprobada por el dueño del proyecto.** Sin esa aprobación no empieza la producción (Fase 8).

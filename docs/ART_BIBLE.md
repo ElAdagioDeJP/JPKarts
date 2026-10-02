@@ -20,7 +20,7 @@
 
 ## 2. Resolución y escala
 
-- **Recomendado: pasar a 16:9.** Mundo a **640×360** y UI virtual a **320×180**, con escalado **entero** y filtrado *nearest*:
+- **16:9 (aprobado e implementado).** Mundo a **640×360** y UI lógica a **426×240** (se mantiene el alto de 240 del legacy para conservar los layouts de los menús; el canvas de UI se dibuja a ×3 para texto nítido). Escalado *nearest*:
   - ×2 = 1280×720;
   - ×3 = 1920×1080 exacto.
 - Hoy es 4:3 (mundo 640×480, UI 320×240). En monitores 16:9 deja bandas.
@@ -73,27 +73,25 @@
 - **Squash & stretch** al aterrizar (×1,15 / ×0,87 durante 80 ms, ease-out). Lo hace el client a partir del evento `land`.
 - **Sombra** en el suelo: elipse oscura con alfa 0,35. Se encoge con la altura, así se lee el salto.
 
-## 5. Render: ¿WebGL?
+## 5. Render: Three.js + WebGPU (decisión tomada)
 
-### Recomendación: **sí, WebGL2 como render principal y Canvas 2D como fallback congelado.**
+**Decisión del dueño del proyecto (obligatoria): Three.js con `WebGPURenderer`.** Si el navegador no tiene WebGPU, Three cae solo a su backend WebGL2. Se fuerza con `?webgl`. El renderer Canvas 2D del legacy **no se porta**: Three ya da el respaldo y mantener dos renderers no compensa.
 
-| | Canvas 2D (actual, CPU) | WebGL2 (propuesto) |
+| | Legacy (Canvas 2D, CPU) | Actual (Three.js WebGPU) |
 |---|---|---|
-| Terreno | raycast por columna en JS (640 col × hasta ZMAX = 1000 pasos) | el **mismo algoritmo** en un fragment shader (raymarch sobre el heightmap como textura). Mismo look, coste en GPU |
-| Sprites | `drawImage` + z-buffer manual en JS | billboards en batch (1 atlas, 1–3 draw calls) con test de profundidad contra la que escribe el terreno |
-| Post-proceso | imposible a 60 fps | bloom suave, viñeta, LUT por pista, distorsión por calor, lluvia/nieve en pantalla, dithering de paleta final |
-| Pantalla dividida | inviable (2× el coste en CPU) | viable (2–4 viewports) |
-| CPU libre para sim e IA | poca | mucha |
-| Riesgo | ninguno | GPUs integradas viejas; diferencias de precisión. Se mitiga con la calidad (pasos de raymarch, resolución interna) |
+| Terreno | raycast *voxel-space* por columna en JS | **malla** de 512×512 vértices construida desde el heightmap de `core`; textura del suelo de 2048² generada igual que en el legacy (nearest al ampliar, mipmaps al reducir) |
+| Cielo | filas con dithering + franja panorámica | dos cilindros centrados en la cámara (degradado con dithering y panorama de 360°) con el mismo mapeo ángulo→columna que el legacy |
+| Proyección | horizonte desplazado (`hz`) | cámara nivelada con `setViewOffset`: el punto principal queda en `(RW/2, hz)`; misma focal `F = 320` |
+| Sprites | `drawImage` + z-buffer manual | `THREE.Sprite` con `alphaTest` (decorado, cajas, proyectiles); charcos y alquitrán son planos en el suelo |
+| Karts | 4 sprites por personaje | **malla voxel real** (el mismo modelo `voxelKart`), caras ocultas eliminadas, sombreado por cara horneado y contorno por casco invertido (`BackSide`) |
+| Niebla | `fogMix` lineal 420→1000 | `THREE.Fog` lineal 420→1000 |
+| HUD/menús | mismo canvas | canvas 2D superpuesto a 426×240 lógicos (×3) |
 
-**Costes estimados:**
-- Renderer WebGL2 con paridad visual: **L (2–3 semanas a tiempo parcial)**.
-- Post-proceso y partículas GPU: **M**.
-- Mantener el fallback: **S**, si se **congela**. El fallback Canvas 2D es el renderer del legacy portado en la Fase 1, sin post-proceso, con menos pasos de raycast. No recibe efectos nuevos: solo tiene que verse correcto.
+**Medido (Fase 1, PC de desarrollo, Edge):** WebGPU a 60 fps con render CPU de 3–7 ms. WebGL2 a 60 fps con render CPU de unos 10 ms.
 
-**Por qué el mismo algoritmo y no una malla 3D:** una malla de 768² celdas pide LOD y chunks, y cambia el look. El raymarch en shader garantiza que se vea como el legacy y deja el heightmap como única fuente de verdad, igual que la colisión de `core`.
+**Paridad:** el aspecto no es idéntico píxel a píxel; se cambió a propósito por karts 3D y una malla. Lo que sí se conserva es lo jugable: la geometría, las alturas, la textura, las posiciones y los tamaños en pantalla. El tamaño del kart (`KART_VOXEL = 0,7`) se ajustó para que en pantalla mida lo mismo que el sprite del legacy visto desde `CAM_BACK`.
 
-**Paridad:** se añade una prueba visual con el mismo `seed`, la misma cámara y una captura de cada renderer, con una diferencia de píxeles < 2 % (excepto el post-proceso). Va en `PLAN.md`, fase de presentación.
+**Lo que hace WebGPU (Fase 5, con TSL/nodos de Three):** post-proceso, partículas GPU, agua animada, LUT por pista, pantalla dividida y sprites instanciados en un atlas, para pasar de ~650 draw calls de decorado a menos de 10.
 
 ### Cadena de post-proceso (orden)
 1. Mundo a resolución interna (640×360) en FBO.
@@ -110,7 +108,7 @@ Todos los efectos se pueden desactivar en **Opciones › Gráficos** y tienen 3 
 
 ## 6. Efectos y partículas
 
-Un **pool fijo** de partículas en el client: 1024 máx. en WebGL y 256 en el fallback. Nunca se crean ni se liberan por frame (`performance-optimization`).
+Un **pool fijo** de partículas en el client: 1024 máx. con WebGPU y 512 con el respaldo WebGL2. Nunca se crean ni se liberan por frame (`performance-optimization`).
 
 | Efecto | Disparador (evento de core) | Descripción |
 |---|---|---|
@@ -159,7 +157,7 @@ Se mantiene la síntesis con WebAudio (sin archivos de audio), coherente con "to
 
 ## 9. HUD y menús (`game-ui-ux`)
 
-- **HUD anclado a las esquinas** de la UI virtual (320×180), dentro de un margen seguro de 8 px:
+- **HUD anclado a las esquinas** de la UI lógica (426×240), dentro de un margen seguro de 8 px:
 
 | Zona | Contenido |
 |---|---|

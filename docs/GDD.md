@@ -451,7 +451,7 @@ Stats derivados **(legacy)**:
 - **Remapeo** con detección de conflictos, "restaurar por defecto" y guardado en `settings.json`.
 - **Buffer de entrada:** `derrapar` y `objeto` se recuerdan 0,1 s (para no perder pulsaciones entre ticks y frames).
 - El paquete de red sigue siendo `{t, s, d, item, seq}`, con `s` analógico cuantizado a 8 bits.
-- **Pantalla dividida local** (2–4 jugadores): fase opcional (ver `PLAN.md`). Solo es viable con el render WebGL.
+- **Pantalla dividida local** (2–4 jugadores): fase opcional (ver `PLAN.md`). Es viable porque el render va en GPU (Three.js WebGPU).
 
 ## 11. Audio (resumen; detalle en `docs/ART_BIBLE.md` §8)
 
