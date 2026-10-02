@@ -12,7 +12,7 @@ export class PredictedRace {
   world: World;
   seq = 0;
   /** inputs sent but not yet acknowledged by the server */
-  private pending: { seq: number; input: Input }[] = [];
+  private pending: { seq: number; input: Input; extra: Input[] }[] = [];
   /** last known input of every remote human (from snapshots) */
   private others: Record<number, Input> = {};
   /** local kart position error introduced by the last reconciliation (for smoothing and metrics) */
@@ -22,23 +22,25 @@ export class PredictedRace {
   /** last full authoritative state (deltas are applied on top of it) */
   private base: WorldState | null = null;
 
-  constructor(public cfg: RaceConfig, track: Track, public kart: number) {
+  /** `seats`: the karts of extra local players (split screen over the network) */
+  constructor(public cfg: RaceConfig, track: Track, public kart: number, public seats: number[] = []) {
     this.world = createWorld(cfg, track);
   }
 
-  private inputsFor(local: Input): Input[] {
+  private inputsFor(local: Input, extra: Input[]): Input[] {
     const arr: Input[] = [];
     for (const [id, i] of Object.entries(this.others)) arr[Number(id)] = i;
     arr[this.kart] = local;
+    this.seats.forEach((k, s) => { arr[k] = extra[s] ?? arr[k]!; });
     return arr;
   }
 
   /** Predict one tick with the local input. Returns the packed input to send and the predicted events. */
-  tick(input: Input): { packed: PackedInput; events: GameEvent[] } {
+  tick(input: Input, extra: Input[] = []): { packed: PackedInput; seats: PackedInput[]; events: GameEvent[] } {
     this.seq++;
-    this.pending.push({ seq: this.seq, input });
-    step(this.world, this.inputsFor(input));
-    return { packed: packInput(this.seq, input), events: takeEvents(this.world) };
+    this.pending.push({ seq: this.seq, input, extra });
+    step(this.world, this.inputsFor(input, extra));
+    return { packed: packInput(this.seq, input), seats: extra.map((e) => packInput(this.seq, e)), events: takeEvents(this.world) };
   }
 
   /** Apply a server snapshot: restore, drop acknowledged inputs, re-simulate the rest (events discarded). */
@@ -46,13 +48,13 @@ export class PredictedRace {
     const me = this.world.karts[this.kart];
     const before = me ? { x: me.x, y: me.y } : null;
     this.serverTick = m.tick;
-    for (const [id, p] of Object.entries(m.last)) if (Number(id) !== this.kart) this.others[Number(id)] = unpackInput(p);
+    for (const [id, p] of Object.entries(m.last)) if (Number(id) !== this.kart && !this.seats.includes(Number(id))) this.others[Number(id)] = unpackInput(p);
     if (m.state) this.base = m.state;
     else if (m.delta && this.base) this.base = patchJson(this.base, m.delta) as WorldState;
     if (!this.base) return;
     restoreWorld(this.world, this.base);
     this.pending = this.pending.filter((p) => p.seq > m.ack);
-    for (const p of this.pending) step(this.world, this.inputsFor(p.input));
+    for (const p of this.pending) step(this.world, this.inputsFor(p.input, p.extra));
     takeEvents(this.world);
     const after = this.world.karts[this.kart];
     if (before && after) {

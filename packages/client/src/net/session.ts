@@ -61,6 +61,8 @@ export class NetSession {
   close() { this.send({ t: 'leave' }); this.status = 'closed'; this.ws?.close(); }
 
   get me(): LobbyPlayer | undefined { return this.players.find((p) => p.id === this.id); }
+  /** Players on this screen (split screen over the network): this connection's seats. */
+  get localSeats(): LobbyPlayer[] { return this.players.filter((p) => p.conn === this.id).sort((a, b) => (a.seat ?? 0) - (b.seat ?? 0)); }
   get isHost() { return !!this.me?.host; }
 
   private handle(m: ServerMsg) {
@@ -72,7 +74,7 @@ export class NetSession {
         if (m.phase !== 'race' && this.status === 'race') this.status = 'lobby';
         break;
       case 'start':
-        this.race = new PredictedRace(m.cfg, this.trackFor(m.cfg.trackIndex, !!m.cfg.mirror), m.kart);
+        this.race = new PredictedRace(m.cfg, this.trackFor(m.cfg.trackIndex, !!m.cfg.mirror), m.kart, m.seats ?? []);
         this.status = 'race'; this.lastEnd = null; this.visOff = { x: 0, y: 0 };
         this.onStart();
         break;
