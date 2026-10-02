@@ -1,0 +1,476 @@
+{
+  "id": "ciudad-neon",
+  "name": "Ciudad Neón",
+  "cup": "rayo",
+  "theme": "grid",
+  "themeOverrides": {
+    "ground": [
+      "#1a1433",
+      "#1d1638",
+      "#221a40"
+    ],
+    "edge": "#3df0ff",
+    "curbA": "#1a1026",
+    "curbB": "#ff3df0",
+    "road": "#2a2440",
+    "road2": "#322b4c",
+    "line": "#ffe45e",
+    "out": [
+      "#150f2a",
+      "#1a1433"
+    ],
+    "sky": [
+      "#05030f",
+      "#0a0620",
+      "#1a0f3a",
+      "#2e1a5a",
+      "#4a2a7a",
+      "#7a3a9a"
+    ],
+    "fog": "#3a1f5a",
+    "strip": "city",
+    "mt1": "#2a1f4a",
+    "hill": "#1a1433",
+    "sun": null,
+    "deco": [
+      "building0",
+      "building1",
+      "building0",
+      "lamp",
+      "lamp2"
+    ],
+    "lm": [
+      "billboard",
+      "billboard",
+      "billboard",
+      "building1"
+    ],
+    "post": [
+      "neonpost",
+      "neonpost2"
+    ],
+    "grip": 11,
+    "offMax": 70
+  },
+  "song": "turbo",
+  "mul": 1,
+  "size": 3072,
+  "spline": [
+    {
+      "x": 597,
+      "y": 705,
+      "h": 8,
+      "w": 41
+    },
+    {
+      "x": 699,
+      "y": 416,
+      "h": 30,
+      "w": 41
+    },
+    {
+      "x": 882,
+      "y": 642,
+      "h": 29,
+      "w": 41
+    },
+    {
+      "x": 964,
+      "y": 953,
+      "h": 42,
+      "w": 41
+    },
+    {
+      "x": 1240,
+      "y": 1073,
+      "h": 28,
+      "w": 41
+    },
+    {
+      "x": 1429,
+      "y": 813,
+      "h": -22,
+      "w": 41
+    },
+    {
+      "x": 1696,
+      "y": 689,
+      "h": -46,
+      "w": 41
+    },
+    {
+      "x": 2000,
+      "y": 795,
+      "h": -24,
+      "w": 41
+    },
+    {
+      "x": 2212,
+      "y": 1027,
+      "h": -5,
+      "w": 41
+    },
+    {
+      "x": 2218,
+      "y": 1345,
+      "h": 0,
+      "w": 41
+    },
+    {
+      "x": 2104,
+      "y": 1647,
+      "h": 30,
+      "w": 41
+    },
+    {
+      "x": 2245,
+      "y": 1914,
+      "h": 59,
+      "w": 41
+    },
+    {
+      "x": 2493,
+      "y": 2119,
+      "h": 36,
+      "w": 41
+    },
+    {
+      "x": 2412,
+      "y": 2342,
+      "h": -1,
+      "w": 41
+    },
+    {
+      "x": 2106,
+      "y": 2247,
+      "h": -22,
+      "w": 41
+    },
+    {
+      "x": 1809,
+      "y": 2132,
+      "h": -21,
+      "w": 41
+    },
+    {
+      "x": 1494,
+      "y": 2193,
+      "h": -33,
+      "w": 41
+    },
+    {
+      "x": 1346,
+      "y": 2467,
+      "h": -22,
+      "w": 41
+    },
+    {
+      "x": 1119,
+      "y": 2657,
+      "h": 28,
+      "w": 41
+    },
+    {
+      "x": 848,
+      "y": 2495,
+      "h": 55,
+      "w": 41
+    },
+    {
+      "x": 917,
+      "y": 2217,
+      "h": 33,
+      "w": 41
+    },
+    {
+      "x": 1078,
+      "y": 1945,
+      "h": 13,
+      "w": 41
+    },
+    {
+      "x": 1011,
+      "y": 1636,
+      "h": 8,
+      "w": 41
+    },
+    {
+      "x": 700,
+      "y": 1604,
+      "h": -20,
+      "w": 41
+    },
+    {
+      "x": 528,
+      "y": 1372,
+      "h": -51,
+      "w": 41
+    },
+    {
+      "x": 558,
+      "y": 1050,
+      "h": -29,
+      "w": 41
+    },
+    {
+      "x": 595,
+      "y": 730,
+      "h": 7,
+      "w": 41
+    }
+  ],
+  "sections": [
+    {
+      "from": 0,
+      "to": 0.063,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.063,
+      "to": 0.102,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.102,
+      "to": 0.161,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.161,
+      "to": 0.224,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.224,
+      "to": 0.271,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.271,
+      "to": 0.307,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.307,
+      "to": 0.405,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.405,
+      "to": 0.452,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.452,
+      "to": 0.468,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.468,
+      "to": 0.503,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.503,
+      "to": 0.566,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.566,
+      "to": 0.582,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.582,
+      "to": 0.625,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.625,
+      "to": 0.657,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.657,
+      "to": 0.684,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.684,
+      "to": 0.7,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.7,
+      "to": 0.716,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.716,
+      "to": 0.732,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.732,
+      "to": 0.755,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.755,
+      "to": 0.783,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.783,
+      "to": 0.806,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.806,
+      "to": 0.857,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.857,
+      "to": 0.873,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.873,
+      "to": 0.912,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    }
+  ],
+  "walls": [
+    {
+      "from": 0.97,
+      "to": 0.05,
+      "side": "ambos"
+    }
+  ],
+  "surfaces": [
+    {
+      "from": 0.16895771878072763,
+      "to": 0.18895771878072765,
+      "kind": "charco",
+      "lat": [
+        -30,
+        0
+      ]
+    },
+    {
+      "from": 0.23778761061946901,
+      "to": 0.25778761061946903,
+      "kind": "charco",
+      "lat": [
+        -30,
+        0
+      ]
+    }
+  ],
+  "branches": [
+    {
+      "from": 0.632251720747296,
+      "to": 0.7866273352999017,
+      "via": [
+        {
+          "x": 1233,
+          "y": 2156,
+          "h": -7
+        }
+      ],
+      "w": 22
+    }
+  ],
+  "itemRows": [
+    0.08,
+    0.35,
+    0.6,
+    0.85
+  ],
+  "pads": [
+    {
+      "at": 0.1,
+      "lat": -16
+    },
+    {
+      "at": 0.42,
+      "lat": 16
+    },
+    {
+      "at": 0.65,
+      "lat": -16
+    }
+  ],
+  "ramps": [
+    {
+      "at": 0.25
+    },
+    {
+      "at": 0.5
+    },
+    {
+      "at": 0.8
+    }
+  ],
+  "flights": [],
+  "hazards": [
+    {
+      "kind": "auto",
+      "at": 0.007866273352999017,
+      "period": 6,
+      "warn": 1.2,
+      "lat": [
+        -80,
+        80
+      ]
+    },
+    {
+      "kind": "auto",
+      "at": 0.17895771878072764,
+      "period": 7,
+      "warn": 1.2,
+      "lat": [
+        80,
+        -80
+      ],
+      "offset": 2
+    }
+  ],
+  "terrain": {
+    "seed": 94,
+    "amp": 18,
+    "base": 0
+  },
+  "metrics": {
+    "minHalfWidth": 39,
+    "lapSeconds": [
+      50,
+      62
+    ]
+  }
+}

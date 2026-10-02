@@ -35,6 +35,8 @@ export const aiDebug = new Map<number, AiDebug>();
 
 /** Difficulty parameters of a kart's AI (or the race's when no kart is given). */
 export const aiDiff = (w: World, k?: Kart) => T.ai.difficulty[k?.ai?.diff ?? w.cfg.diff]!;
+/** Entities the AI steers around. */
+const AVOID = new Set(['mine', 'fake', 'ola', 'tren', 'vaca', 'auto', 'pinguino', 'roca', 'pelota', 'bolanieve', 'geiser', 'laser', 'meteoro', 'aspa', 'seta']);
 const persona = (k: Kart) => T.ai.personality[CHARS[k.ch]!.personality];
 const yawRate = (k: Kart) => T.driving.steer.rate * CHARS[k.ch]!.hnd * 0.92;
 
@@ -127,8 +129,8 @@ function think(w: World, k: Kart, dbg: AiDebug) {
   // avoid traps / hazards on our path
   for (const e of w.ents) {
     const def = entityDef(e.kind);
-    if (!(def.zone || e.kind === 'mine' || e.kind === 'fake' || e.kind === 'ola')) continue;
-    if (e.owner === k.id && e.kind !== 'ola') continue;
+    if (!(def.zone || AVOID.has(e.kind))) continue;
+    if (e.owner === k.id && e.owner >= 0) continue;
     const dx = e.x - k.x, dy = e.y - k.y, d = dhypot(dx, dy);
     if (d > A.avoid.range) continue;
     if (Math.abs(wrapA(datan2(dy, dx) - k.a)) > 0.6) continue;
@@ -144,12 +146,14 @@ function think(w: World, k: Kart, dbg: AiDebug) {
   s.noise = s.noise * 0.6 + w.rng.range(-D.lineNoise, D.lineNoise) * 0.4;
   // simulated mistakes: `mistakes` per ~55 s lap
   if (s.mistake <= 0 && w.rng.next() < D.mistakes / (55 * A.tacticsHz)) s.mistake = 0.5;
-  // shortcuts: decide once when approaching the entry
+  // shortcuts: decide once when approaching the entry (forced when a gate closes the main road this lap)
+  const lap = Math.floor(k.prog / tr.N) + 1;
   for (let bi = 0; bi < tr.branches.length; bi++) {
     const b = tr.branches[bi]!, d = along(tr, k.idx, b.i0);
     if (d > 0 && d < A.shortcut.decide && s.decided !== bi) {
       s.decided = bi;
-      s.branch = w.rng.next() < D.shortcut * P.risk ? bi : -1;
+      const forced = w.ents.some((e) => e.kind === 'compuerta' && ((e.target >> lap) & 1) && along(tr, b.i0, Math.floor(e.s)) > 0 && along(tr, Math.floor(e.s), b.i1) > 0 && e.vx < 0 && e.vy > 0);
+      s.branch = forced || w.rng.next() < D.shortcut * P.risk ? bi : -1;
     }
   }
   dbg.scores = scores;

@@ -163,30 +163,6 @@ defineEntity({
     return false;
   },
 });
-/** Wave (track hazard): sweeps across the road; a light hit and a push towards land. */
-defineEntity({
-  kind: 'ola', blackHole: 'none',
-  update(w, o, dt) {
-    const H = T.race.hazards.ola, tr = w.track, i = o.s;
-    o.t += dt;
-    const f = Math.min(1, o.t / o.life);
-    o.lat = lerp(o.vx, o.vy, f);
-    const a = tr.ang[i]!;
-    o.x = tr.x[i]! - dsin(a) * o.lat;
-    o.y = tr.y[i]! + dcos(a) * o.lat;
-    o.z = hAt(tr, o.x, o.y);
-    const dir = Math.sign(o.vy - o.vx);
-    for (const k of w.karts) {
-      if (k.air || !canBeHit(k)) continue;
-      if (dhypot(k.x - o.x, k.y - o.y) < H.radius + 10) {
-        hit(w, k, 0, 0);
-        k.x += -dsin(a) * dir * H.push;
-        k.y += dcos(a) * dir * H.push;
-      }
-    }
-    return o.t < o.life;
-  },
-});
 /** Black hole animation (the clearing happens on use). */
 defineEntity({
   kind: 'hole', blackHole: 'none',

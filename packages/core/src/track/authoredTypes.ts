@@ -28,8 +28,18 @@ export interface AuthoredTrackDef {
   pads: { at: number; lat: number }[];
   /** jump ramps on the road: a height bump; `big` gives a longer trick boost */
   ramps: { at: number; big?: boolean }[];
-  hazards: { kind: string; at: number; period: number; warn: number; offset?: number; lat?: [number, number] }[];
-  water?: { base: number; laps: Record<string, number>; rate: number; fallDepth: number; puddleDepth: number; shore: [number, number][]; seaDepth: number };
+  /** gliding ramps (legacy "vuelo"): the Flight stat matters */
+  flights?: number[];
+  /** see sim/hazards.ts: crossers, sweepers, eruptions, rollers, trampolines, gates (laps = closed laps for gates) */
+  hazards: { kind: string; at: number; period: number; warn: number; offset?: number; lat?: [number, number]; radius?: number; laps?: number[] }[];
+  /** weather from a lap on (rain lowers grip) */
+  weather?: { kind: 'lluvia' | 'niebla' | 'arena' | 'noche'; fromLap: number };
+  /** the race goes from day to night */
+  dayNight?: boolean;
+  /** road narrowing per lap (snow): width multiplier for [from, to) */
+  narrow?: { from: number; to: number; laps: Record<string, number> };
+  /** water (sea with a shore, or lakes/lava where the ground is below the level) */
+  water?: { kind?: 'agua' | 'lava' | 'rio'; base: number; laps: Record<string, number>; rate: number; fallDepth: number; puddleDepth: number; shore: [number, number][]; seaDepth: number };
   terrain: { seed: number; amp: number; base: number };
   /** cup metrics the validator enforces */
   metrics: { minHalfWidth: number; lapSeconds: [number, number] };

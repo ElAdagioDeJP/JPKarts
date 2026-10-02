@@ -1,0 +1,428 @@
+{
+  "id": "estadio-central",
+  "name": "Estadio Central",
+  "cup": "rayo",
+  "theme": "clay",
+  "themeOverrides": {
+    "ground": [
+      "#b85a2a",
+      "#a85026",
+      "#c86632"
+    ],
+    "edge": "#fff7e0",
+    "curbA": "#ffffff",
+    "curbB": "#2ec46b",
+    "road": "#3a6fb5",
+    "road2": "#3466aa",
+    "line": "#ffffff",
+    "out": [
+      "#2e8a4a",
+      "#287a42"
+    ],
+    "sky": [
+      "#05030f",
+      "#0a0a2a",
+      "#141a40",
+      "#1e2a5a",
+      "#2a3a70",
+      "#3a4a80"
+    ],
+    "fog": "#2a3a70",
+    "strip": "mount",
+    "mt1": "#2a3a5a",
+    "mt2": "#1a2a4a",
+    "hill": "#1a2a3a",
+    "sun": null,
+    "deco": [
+      "round",
+      "round",
+      "bush",
+      "umpire"
+    ],
+    "lm": [
+      "stands",
+      "stands",
+      "stands",
+      "stands",
+      "bigball",
+      "net",
+      "net",
+      "umpire"
+    ],
+    "post": "windscreen",
+    "grip": 10,
+    "offMax": 62,
+    "stars": true
+  },
+  "song": "turbo",
+  "mul": 0.92,
+  "size": 3072,
+  "spline": [
+    {
+      "x": 581,
+      "y": 1296,
+      "h": 5,
+      "w": 41
+    },
+    {
+      "x": 401,
+      "y": 1031,
+      "h": 16,
+      "w": 41
+    },
+    {
+      "x": 660,
+      "y": 925,
+      "h": 20,
+      "w": 41
+    },
+    {
+      "x": 781,
+      "y": 630,
+      "h": 15,
+      "w": 41
+    },
+    {
+      "x": 1068,
+      "y": 605,
+      "h": 5,
+      "w": 41
+    },
+    {
+      "x": 1278,
+      "y": 849,
+      "h": -6,
+      "w": 41
+    },
+    {
+      "x": 1540,
+      "y": 911,
+      "h": -11,
+      "w": 41
+    },
+    {
+      "x": 1795,
+      "y": 713,
+      "h": -9,
+      "w": 41
+    },
+    {
+      "x": 2065,
+      "y": 536,
+      "h": -1,
+      "w": 41
+    },
+    {
+      "x": 2368,
+      "y": 427,
+      "h": 10,
+      "w": 41
+    },
+    {
+      "x": 2667,
+      "y": 472,
+      "h": 18,
+      "w": 41
+    },
+    {
+      "x": 2501,
+      "y": 731,
+      "h": 19,
+      "w": 41
+    },
+    {
+      "x": 2319,
+      "y": 988,
+      "h": 12,
+      "w": 41
+    },
+    {
+      "x": 2500,
+      "y": 1252,
+      "h": 1,
+      "w": 41
+    },
+    {
+      "x": 2442,
+      "y": 1517,
+      "h": -8,
+      "w": 41
+    },
+    {
+      "x": 2271,
+      "y": 1743,
+      "h": -12,
+      "w": 41
+    },
+    {
+      "x": 2420,
+      "y": 2027,
+      "h": -7,
+      "w": 41
+    },
+    {
+      "x": 2304,
+      "y": 2303,
+      "h": 3,
+      "w": 41
+    },
+    {
+      "x": 1990,
+      "y": 2350,
+      "h": 13,
+      "w": 41
+    },
+    {
+      "x": 1684,
+      "y": 2343,
+      "h": 19,
+      "w": 41
+    },
+    {
+      "x": 1447,
+      "y": 2561,
+      "h": 18,
+      "w": 41
+    },
+    {
+      "x": 1152,
+      "y": 2648,
+      "h": 9,
+      "w": 41
+    },
+    {
+      "x": 1097,
+      "y": 2347,
+      "h": -2,
+      "w": 41
+    },
+    {
+      "x": 1157,
+      "y": 2030,
+      "h": -10,
+      "w": 41
+    },
+    {
+      "x": 1066,
+      "y": 1757,
+      "h": -11,
+      "w": 41
+    },
+    {
+      "x": 822,
+      "y": 1546,
+      "h": -5,
+      "w": 41
+    },
+    {
+      "x": 598,
+      "y": 1314,
+      "h": 5,
+      "w": 41
+    }
+  ],
+  "sections": [
+    {
+      "from": 0,
+      "to": 0.083,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.083,
+      "to": 0.098,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.098,
+      "to": 0.134,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.134,
+      "to": 0.153,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.153,
+      "to": 0.224,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.224,
+      "to": 0.397,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.397,
+      "to": 0.448,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.448,
+      "to": 0.468,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.468,
+      "to": 0.511,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.511,
+      "to": 0.531,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.531,
+      "to": 0.555,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.555,
+      "to": 0.574,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.574,
+      "to": 0.606,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.606,
+      "to": 0.661,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.661,
+      "to": 0.728,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.728,
+      "to": 0.779,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.779,
+      "to": 0.794,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.794,
+      "to": 0.822,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.822,
+      "to": 0.909,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    }
+  ],
+  "walls": [
+    {
+      "from": 0.97,
+      "to": 0.05,
+      "side": "ambos"
+    }
+  ],
+  "surfaces": [],
+  "branches": [
+    {
+      "from": 0.29301868239921336,
+      "to": 0.4473942969518191,
+      "via": [
+        {
+          "x": 2127,
+          "y": 777,
+          "h": 6
+        }
+      ],
+      "w": 22
+    }
+  ],
+  "itemRows": [
+    0.08,
+    0.35,
+    0.6,
+    0.85
+  ],
+  "pads": [
+    {
+      "at": 0.15,
+      "lat": -16
+    },
+    {
+      "at": 0.5,
+      "lat": 16
+    },
+    {
+      "at": 0.85,
+      "lat": -16
+    }
+  ],
+  "ramps": [
+    {
+      "at": 0.3
+    },
+    {
+      "at": 0.7
+    }
+  ],
+  "flights": [],
+  "hazards": [
+    {
+      "kind": "pelota",
+      "at": 0.011799410029498525,
+      "period": 5,
+      "warn": 1.2,
+      "lat": [
+        12,
+        12
+      ]
+    },
+    {
+      "kind": "compuerta",
+      "at": 0.3702064896755162,
+      "period": 0,
+      "warn": 0,
+      "laps": [
+        2
+      ],
+      "lat": [
+        -53,
+        53
+      ]
+    }
+  ],
+  "terrain": {
+    "seed": 122,
+    "amp": 20,
+    "base": 0
+  },
+  "metrics": {
+    "minHalfWidth": 39,
+    "lapSeconds": [
+      50,
+      62
+    ]
+  }
+}

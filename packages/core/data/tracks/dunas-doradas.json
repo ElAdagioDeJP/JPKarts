@@ -1,0 +1,405 @@
+{
+  "id": "dunas-doradas",
+  "name": "Dunas Doradas",
+  "cup": "estrella",
+  "theme": "dunes",
+  "themeOverrides": {
+    "ground": [
+      "#e8c07a",
+      "#dcb06a",
+      "#f0cc88"
+    ],
+    "edge": "#c2703d",
+    "curbA": "#ffffff",
+    "curbB": "#ff8a1f",
+    "road": "#7a5f55",
+    "road2": "#6f554c",
+    "line": "#ffe9b8",
+    "out": [
+      "#dcb068",
+      "#d3a560"
+    ],
+    "sky": [
+      "#d8506b",
+      "#e8606b",
+      "#ff7f66",
+      "#ff9c6b",
+      "#ffbd7f",
+      "#ffd9a0"
+    ],
+    "fog": "#ffd9a0",
+    "strip": "mesa",
+    "mt1": "#e08a66",
+    "mt2": "#c86a50",
+    "hill": "#c26a45",
+    "sun": "#fff0c0",
+    "deco": [
+      "cactus",
+      "cactus",
+      "rock",
+      "palm"
+    ],
+    "lm": [
+      "pyramid",
+      "pyramid",
+      "camel",
+      "camel",
+      "camel"
+    ],
+    "post": "stake",
+    "grip": 10,
+    "offMax": 60
+  },
+  "song": "fuego",
+  "mul": 0.9,
+  "size": 3072,
+  "spline": [
+    {
+      "x": 2726,
+      "y": 1379,
+      "h": 9,
+      "w": 45
+    },
+    {
+      "x": 2713,
+      "y": 1700,
+      "h": 23,
+      "w": 45
+    },
+    {
+      "x": 2569,
+      "y": 1964,
+      "h": 20,
+      "w": 45
+    },
+    {
+      "x": 2262,
+      "y": 2062,
+      "h": 22,
+      "w": 45
+    },
+    {
+      "x": 2157,
+      "y": 2344,
+      "h": 4,
+      "w": 45
+    },
+    {
+      "x": 1997,
+      "y": 2616,
+      "h": -25,
+      "w": 45
+    },
+    {
+      "x": 1694,
+      "y": 2714,
+      "h": -25,
+      "w": 45
+    },
+    {
+      "x": 1374,
+      "y": 2675,
+      "h": -4,
+      "w": 45
+    },
+    {
+      "x": 1052,
+      "y": 2656,
+      "h": 6,
+      "w": 45
+    },
+    {
+      "x": 786,
+      "y": 2505,
+      "h": 11,
+      "w": 45
+    },
+    {
+      "x": 792,
+      "y": 2188,
+      "h": 29,
+      "w": 45
+    },
+    {
+      "x": 826,
+      "y": 1885,
+      "h": 34,
+      "w": 45
+    },
+    {
+      "x": 540,
+      "y": 1737,
+      "h": 8,
+      "w": 45
+    },
+    {
+      "x": 338,
+      "y": 1497,
+      "h": -16,
+      "w": 45
+    },
+    {
+      "x": 427,
+      "y": 1197,
+      "h": -15,
+      "w": 45
+    },
+    {
+      "x": 593,
+      "y": 921,
+      "h": -12,
+      "w": 45
+    },
+    {
+      "x": 735,
+      "y": 633,
+      "h": -14,
+      "w": 45
+    },
+    {
+      "x": 1026,
+      "y": 548,
+      "h": 3,
+      "w": 45
+    },
+    {
+      "x": 1279,
+      "y": 743,
+      "h": 32,
+      "w": 45
+    },
+    {
+      "x": 1513,
+      "y": 959,
+      "h": 33,
+      "w": 45
+    },
+    {
+      "x": 1710,
+      "y": 723,
+      "h": 12,
+      "w": 45
+    },
+    {
+      "x": 1994,
+      "y": 634,
+      "h": 2,
+      "w": 45
+    },
+    {
+      "x": 2221,
+      "y": 405,
+      "h": -3,
+      "w": 45
+    },
+    {
+      "x": 2511,
+      "y": 434,
+      "h": -20,
+      "w": 45
+    },
+    {
+      "x": 2661,
+      "y": 717,
+      "h": -26,
+      "w": 45
+    },
+    {
+      "x": 2731,
+      "y": 1032,
+      "h": -1,
+      "w": 45
+    },
+    {
+      "x": 2729,
+      "y": 1354,
+      "h": 9,
+      "w": 45
+    }
+  ],
+  "sections": [
+    {
+      "from": 0,
+      "to": 0.039,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.039,
+      "to": 0.075,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.075,
+      "to": 0.13,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.13,
+      "to": 0.161,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.161,
+      "to": 0.197,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.197,
+      "to": 0.311,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.311,
+      "to": 0.358,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.358,
+      "to": 0.405,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.405,
+      "to": 0.425,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.425,
+      "to": 0.472,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.472,
+      "to": 0.519,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.519,
+      "to": 0.606,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.606,
+      "to": 0.661,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.661,
+      "to": 0.743,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.743,
+      "to": 0.81,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.81,
+      "to": 0.838,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.838,
+      "to": 0.861,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.861,
+      "to": 0.885,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    }
+  ],
+  "walls": [
+    {
+      "from": 0.97,
+      "to": 0.05,
+      "side": "ambos"
+    }
+  ],
+  "surfaces": [
+    {
+      "from": 0.03933136676499508,
+      "to": 0.07472959685349066,
+      "kind": "arena",
+      "lat": [
+        20,
+        60
+      ]
+    },
+    {
+      "from": 0.16125860373647985,
+      "to": 0.19665683382497542,
+      "kind": "arena",
+      "lat": [
+        20,
+        60
+      ]
+    },
+    {
+      "from": 0.3107177974434612,
+      "to": 0.3579154375614553,
+      "kind": "arena",
+      "lat": [
+        20,
+        60
+      ]
+    }
+  ],
+  "branches": [],
+  "itemRows": [
+    0.08,
+    0.35,
+    0.6,
+    0.85
+  ],
+  "pads": [
+    {
+      "at": 0.55,
+      "lat": -16
+    }
+  ],
+  "ramps": [
+    {
+      "at": 0.3
+    },
+    {
+      "at": 0.78
+    }
+  ],
+  "flights": [],
+  "hazards": [],
+  "weather": {
+    "kind": "arena",
+    "fromLap": 2
+  },
+  "terrain": {
+    "seed": 67,
+    "amp": 45,
+    "base": 0
+  },
+  "metrics": {
+    "minHalfWidth": 43,
+    "lapSeconds": [
+      50,
+      60
+    ]
+  }
+}
