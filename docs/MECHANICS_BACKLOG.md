@@ -92,7 +92,7 @@
 
 | # | Mecánica | Tipo | Prio | Depende de | Esf. | Riesgo | Fase | GDD |
 |---|---|---|---|---|---|---|---|---|
-| 49 | Render WebGL2 (raymarch en shader + sprites en batch + post) | Render | Must | 4 | L | — | 5 | ART §5 |
+| 49 | Render Three.js WebGPU v2 (decorado instanciado + post-proceso TSL) | Render | Must | 4 | L | — | 5 | ART §5 |
 | 50 | Partículas por eventos (polvo, chispas, agua, nieve, lava) | Feel | Must | 4, 49 | M | — | 5 | ART §6 |
 | 51 | Cámara v2 (lookahead, salto, turbo, trauma shake) | Feel | Must | 4 | S | — | 5 | ART §7 |
 | 52 | HUD v2 (minimapa con rivales, `incoming`, posición grande) + pila de pantallas | UI | Must | 4, 9 | M | — | 5 | ART §9 |

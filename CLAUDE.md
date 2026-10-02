@@ -15,7 +15,7 @@ packages/
   core/     # simulación pura y determinista. SIN DOM, canvas, audio ni tiempo real.
     src/{sim,effects,entities,items,modes,tracks,ai,net}/
     data/{tunables,characters,tracks}/   # JSON
-  client/   # render (WebGL2 + fallback Canvas 2D), HUD, menús, audio, input, game feel.
+  client/   # render Three.js WebGPURenderer (respaldo WebGL2 automático), HUD, menús, audio, input, game feel.
   server/   # servidor autoritativo WebSocket: inputs → core → snapshots.
 apps/
   desktop/  # Electron: client + server embebido (LAN).
@@ -45,7 +45,7 @@ apps/
 14. **Skills.** Al empezar una fase, carga las skills `gamedev` de su línea "Skills" en el PLAN. No hay engine: se usan conceptos, no APIs.
 
 ## Stack
-TypeScript estricto, Bun (workspaces, `bun test`), Vite (client), WebGL2 (render principal) con Canvas 2D como fallback, `ws` (server), Electron + electron-builder (`.exe`).
+TypeScript estricto, Bun (workspaces, `bun test`), Vite (client), **Three.js con `WebGPURenderer` (obligatorio)**, cuyo respaldo WebGL2 es automático (se fuerza con `?webgl`); efectos con TSL/nodos; `ws` (server), Electron + electron-builder (`.exe`).
 
 ## Comandos (se van completando)
 - `bun install`
