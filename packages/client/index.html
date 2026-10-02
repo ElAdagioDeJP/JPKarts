@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>JP Kart — Gran Premio Pixel</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%231b1740'/%3E%3Ccircle cx='8' cy='8' r='5' fill='%23d8f03a'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="stage" tabindex="0" aria-label="Juego JP Kart. Usa el teclado o un mando para jugar.">
+      <canvas id="world"></canvas>
+      <canvas id="ui"></canvas>
+    </div>
+    <div class="help" aria-label="Controles">
+      <span><kbd>↑</kbd>Acelerar</span>
+      <span><kbd>↓</kbd>Frenar</span>
+      <span><kbd>← →</kbd>Girar</span>
+      <span><kbd>Shift</kbd>Derrapar</span>
+      <span><kbd>Espacio</kbd>Usar objeto</span>
+      <span><kbd>P</kbd>Pausa</span>
+      <span><kbd>M</kbd>Sonido</span>
+      <span><kbd>F2</kbd>Rendimiento</span>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

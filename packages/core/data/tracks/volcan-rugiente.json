@@ -1,0 +1,415 @@
+{
+  "id": "volcan-rugiente",
+  "name": "Volcán Rugiente",
+  "cup": "fuego",
+  "theme": "rock",
+  "themeOverrides": {
+    "ground": [
+      "#3a2a2e",
+      "#33252a",
+      "#44323a"
+    ],
+    "edge": "#6a3a2a",
+    "curbA": "#ffe45e",
+    "curbB": "#1a1026",
+    "road": "#4a4450",
+    "road2": "#423c48",
+    "line": "#ff8a1f",
+    "out": [
+      "#ff5a1f",
+      "#e8401a"
+    ],
+    "sky": [
+      "#1a0810",
+      "#2a0f1a",
+      "#4a1420",
+      "#7a2424",
+      "#b0442a",
+      "#e0703a"
+    ],
+    "fog": "#b0442a",
+    "strip": "volcano",
+    "mt1": "#3a1f24",
+    "hill": "#2a1a1e",
+    "sun": null,
+    "deco": [
+      "darkrock",
+      "deadtree",
+      "darkrock",
+      "obsidian"
+    ],
+    "lm": [
+      "skull",
+      "skull",
+      "geyser",
+      "geyser",
+      "geyser",
+      "obsidian"
+    ],
+    "post": "bollard",
+    "grip": 10,
+    "offMax": 58
+  },
+  "song": "fuego",
+  "mul": 1.08,
+  "size": 3072,
+  "spline": [
+    {
+      "x": 992,
+      "y": 1467,
+      "h": 69,
+      "w": 37
+    },
+    {
+      "x": 1168,
+      "y": 1215,
+      "h": 110,
+      "w": 37
+    },
+    {
+      "x": 1100,
+      "y": 871,
+      "h": 95,
+      "w": 37
+    },
+    {
+      "x": 1114,
+      "y": 522,
+      "h": 66,
+      "w": 37
+    },
+    {
+      "x": 1339,
+      "y": 277,
+      "h": 50,
+      "w": 37
+    },
+    {
+      "x": 1675,
+      "y": 339,
+      "h": 55,
+      "w": 37
+    },
+    {
+      "x": 2013,
+      "y": 356,
+      "h": 57,
+      "w": 37
+    },
+    {
+      "x": 2345,
+      "y": 244,
+      "h": 41,
+      "w": 37
+    },
+    {
+      "x": 2673,
+      "y": 327,
+      "h": 19,
+      "w": 37
+    },
+    {
+      "x": 2688,
+      "y": 658,
+      "h": 17,
+      "w": 37
+    },
+    {
+      "x": 2534,
+      "y": 973,
+      "h": 44,
+      "w": 37
+    },
+    {
+      "x": 2571,
+      "y": 1287,
+      "h": 77,
+      "w": 37
+    },
+    {
+      "x": 2694,
+      "y": 1600,
+      "h": 89,
+      "w": 37
+    },
+    {
+      "x": 2456,
+      "y": 1849,
+      "h": 80,
+      "w": 37
+    },
+    {
+      "x": 2584,
+      "y": 2166,
+      "h": 72,
+      "w": 37
+    },
+    {
+      "x": 2610,
+      "y": 2481,
+      "h": 82,
+      "w": 37
+    },
+    {
+      "x": 2270,
+      "y": 2542,
+      "h": 94,
+      "w": 37
+    },
+    {
+      "x": 1930,
+      "y": 2462,
+      "h": 84,
+      "w": 37
+    },
+    {
+      "x": 1617,
+      "y": 2318,
+      "h": 51,
+      "w": 37
+    },
+    {
+      "x": 1371,
+      "y": 2563,
+      "h": 21,
+      "w": 37
+    },
+    {
+      "x": 1105,
+      "y": 2790,
+      "h": 20,
+      "w": 37
+    },
+    {
+      "x": 773,
+      "y": 2779,
+      "h": 39,
+      "w": 37
+    },
+    {
+      "x": 602,
+      "y": 2480,
+      "h": 53,
+      "w": 37
+    },
+    {
+      "x": 422,
+      "y": 2183,
+      "h": 49,
+      "w": 37
+    },
+    {
+      "x": 390,
+      "y": 1862,
+      "h": 44,
+      "w": 37
+    },
+    {
+      "x": 654,
+      "y": 1636,
+      "h": 60,
+      "w": 37
+    },
+    {
+      "x": 968,
+      "y": 1478,
+      "h": 68,
+      "w": 37
+    }
+  ],
+  "sections": [
+    {
+      "from": 0,
+      "to": 0.031,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.031,
+      "to": 0.114,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.114,
+      "to": 0.165,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.165,
+      "to": 0.201,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.201,
+      "to": 0.22,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.22,
+      "to": 0.275,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.275,
+      "to": 0.33,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.33,
+      "to": 0.413,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.413,
+      "to": 0.433,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.433,
+      "to": 0.488,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.488,
+      "to": 0.511,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.511,
+      "to": 0.555,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.555,
+      "to": 0.586,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.586,
+      "to": 0.7,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.7,
+      "to": 0.763,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.763,
+      "to": 0.822,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.822,
+      "to": 0.857,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.857,
+      "to": 0.885,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.885,
+      "to": 0.924,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    }
+  ],
+  "walls": [
+    {
+      "from": 0.97,
+      "to": 0.05,
+      "side": "ambos"
+    }
+  ],
+  "surfaces": [],
+  "branches": [],
+  "itemRows": [
+    0.08,
+    0.35,
+    0.6,
+    0.85
+  ],
+  "pads": [
+    {
+      "at": 0.3,
+      "lat": -16
+    },
+    {
+      "at": 0.72,
+      "lat": 16
+    }
+  ],
+  "ramps": [
+    {
+      "at": 0.45
+    }
+  ],
+  "flights": [],
+  "hazards": [
+    {
+      "kind": "geiser",
+      "at": 0.0727630285152409,
+      "period": 5,
+      "warn": 1.3,
+      "lat": [
+        16,
+        16
+      ]
+    },
+    {
+      "kind": "geiser",
+      "at": 0.24778761061946902,
+      "period": 6,
+      "warn": 1.3,
+      "lat": [
+        -16,
+        -16
+      ],
+      "offset": 2
+    }
+  ],
+  "water": {
+    "kind": "lava",
+    "base": 0.5,
+    "laps": {
+      "2": 2.5,
+      "3": 4.5
+    },
+    "rate": 0.6,
+    "fallDepth": 1.5,
+    "puddleDepth": 99,
+    "shore": [],
+    "seaDepth": 0
+  },
+  "terrain": {
+    "seed": 159,
+    "amp": 60,
+    "base": -25.2
+  },
+  "metrics": {
+    "minHalfWidth": 35,
+    "lapSeconds": [
+      50,
+      65
+    ]
+  }
+}

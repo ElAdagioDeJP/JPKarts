@@ -1,0 +1,467 @@
+{
+  "id": "crater-ardiente",
+  "name": "Cráter Ardiente",
+  "cup": "fuego",
+  "theme": "rock",
+  "themeOverrides": {
+    "ground": [
+      "#3a2a2e",
+      "#33252a",
+      "#44323a"
+    ],
+    "edge": "#6a3a2a",
+    "curbA": "#ffe45e",
+    "curbB": "#1a1026",
+    "road": "#4a4450",
+    "road2": "#423c48",
+    "line": "#ff8a1f",
+    "out": [
+      "#ff5a1f",
+      "#e8401a"
+    ],
+    "sky": [
+      "#100408",
+      "#200810",
+      "#401018",
+      "#702020",
+      "#a03a20",
+      "#d86a2a"
+    ],
+    "fog": "#b0442a",
+    "strip": "volcano",
+    "mt1": "#3a1f24",
+    "hill": "#2a1a1e",
+    "sun": null,
+    "deco": [
+      "darkrock",
+      "deadtree",
+      "darkrock",
+      "obsidian"
+    ],
+    "lm": [
+      "skull",
+      "skull",
+      "geyser",
+      "geyser",
+      "geyser",
+      "obsidian"
+    ],
+    "post": "bollard",
+    "grip": 10,
+    "offMax": 58
+  },
+  "song": "fuego",
+  "mul": 1.14,
+  "size": 3072,
+  "spline": [
+    {
+      "x": 819,
+      "y": 1260,
+      "h": 56,
+      "w": 37
+    },
+    {
+      "x": 917,
+      "y": 988,
+      "h": 88,
+      "w": 37
+    },
+    {
+      "x": 683,
+      "y": 727,
+      "h": 65,
+      "w": 37
+    },
+    {
+      "x": 617,
+      "y": 398,
+      "h": 54,
+      "w": 37
+    },
+    {
+      "x": 903,
+      "y": 313,
+      "h": 57,
+      "w": 37
+    },
+    {
+      "x": 1182,
+      "y": 522,
+      "h": 48,
+      "w": 37
+    },
+    {
+      "x": 1512,
+      "y": 430,
+      "h": 22,
+      "w": 37
+    },
+    {
+      "x": 1840,
+      "y": 431,
+      "h": 16,
+      "w": 37
+    },
+    {
+      "x": 2070,
+      "y": 695,
+      "h": 46,
+      "w": 37
+    },
+    {
+      "x": 2408,
+      "y": 727,
+      "h": 79,
+      "w": 37
+    },
+    {
+      "x": 2680,
+      "y": 912,
+      "h": 79,
+      "w": 37
+    },
+    {
+      "x": 2746,
+      "y": 1249,
+      "h": 60,
+      "w": 37
+    },
+    {
+      "x": 2529,
+      "y": 1516,
+      "h": 55,
+      "w": 37
+    },
+    {
+      "x": 2305,
+      "y": 1757,
+      "h": 57,
+      "w": 37
+    },
+    {
+      "x": 2518,
+      "y": 2031,
+      "h": 41,
+      "w": 37
+    },
+    {
+      "x": 2643,
+      "y": 2330,
+      "h": 16,
+      "w": 37
+    },
+    {
+      "x": 2410,
+      "y": 2541,
+      "h": 22,
+      "w": 37
+    },
+    {
+      "x": 2066,
+      "y": 2475,
+      "h": 58,
+      "w": 37
+    },
+    {
+      "x": 1753,
+      "y": 2595,
+      "h": 83,
+      "w": 37
+    },
+    {
+      "x": 1465,
+      "y": 2791,
+      "h": 73,
+      "w": 37
+    },
+    {
+      "x": 1168,
+      "y": 2643,
+      "h": 56,
+      "w": 37
+    },
+    {
+      "x": 976,
+      "y": 2350,
+      "h": 56,
+      "w": 37
+    },
+    {
+      "x": 870,
+      "y": 2030,
+      "h": 55,
+      "w": 37
+    },
+    {
+      "x": 523,
+      "y": 1987,
+      "h": 32,
+      "w": 37
+    },
+    {
+      "x": 317,
+      "y": 1736,
+      "h": 14,
+      "w": 37
+    },
+    {
+      "x": 495,
+      "y": 1449,
+      "h": 31,
+      "w": 37
+    },
+    {
+      "x": 795,
+      "y": 1273,
+      "h": 56,
+      "w": 37
+    }
+  ],
+  "sections": [
+    {
+      "from": 0,
+      "to": 0.012,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.012,
+      "to": 0.035,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.035,
+      "to": 0.075,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.075,
+      "to": 0.118,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.118,
+      "to": 0.138,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.138,
+      "to": 0.153,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.153,
+      "to": 0.205,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.205,
+      "to": 0.236,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.236,
+      "to": 0.256,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.256,
+      "to": 0.271,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.271,
+      "to": 0.299,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.299,
+      "to": 0.323,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.323,
+      "to": 0.342,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.342,
+      "to": 0.374,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.374,
+      "to": 0.401,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.401,
+      "to": 0.437,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.437,
+      "to": 0.503,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.503,
+      "to": 0.61,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.61,
+      "to": 0.649,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.649,
+      "to": 0.673,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.673,
+      "to": 0.716,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.716,
+      "to": 0.735,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.735,
+      "to": 0.751,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.751,
+      "to": 0.85,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.85,
+      "to": 0.873,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.873,
+      "to": 0.944,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    }
+  ],
+  "walls": [
+    {
+      "from": 0.97,
+      "to": 0.05,
+      "side": "ambos"
+    }
+  ],
+  "surfaces": [],
+  "branches": [
+    {
+      "from": 0.048180924287118974,
+      "to": 0.1848574237954769,
+      "via": [
+        {
+          "x": 1035,
+          "y": 739,
+          "h": 67
+        }
+      ],
+      "w": 22,
+      "risk": "agua"
+    }
+  ],
+  "itemRows": [
+    0.08,
+    0.35,
+    0.6,
+    0.85
+  ],
+  "pads": [
+    {
+      "at": 0.5,
+      "lat": -16
+    }
+  ],
+  "ramps": [],
+  "flights": [
+    0.039,
+    0.415,
+    0.635,
+    0.761
+  ],
+  "hazards": [
+    {
+      "kind": "meteoro",
+      "at": 0.16519174041297935,
+      "period": 4,
+      "warn": 1.5,
+      "lat": [
+        -30,
+        30
+      ],
+      "radius": 22
+    },
+    {
+      "kind": "meteoro",
+      "at": 0.4582104228121927,
+      "period": 5,
+      "warn": 1.5,
+      "lat": [
+        -30,
+        30
+      ],
+      "radius": 22,
+      "offset": 2
+    }
+  ],
+  "water": {
+    "kind": "lava",
+    "base": 0.5,
+    "laps": {},
+    "rate": 0.6,
+    "fallDepth": 1.5,
+    "puddleDepth": 99,
+    "shore": [],
+    "seaDepth": 0
+  },
+  "terrain": {
+    "seed": 161,
+    "amp": 70,
+    "base": -29.4
+  },
+  "metrics": {
+    "minHalfWidth": 35,
+    "lapSeconds": [
+      50,
+      65
+    ]
+  }
+}

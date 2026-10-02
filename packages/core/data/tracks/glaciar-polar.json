@@ -1,0 +1,420 @@
+{
+  "id": "glaciar-polar",
+  "name": "Glaciar Polar",
+  "cup": "estrella",
+  "theme": "snow",
+  "themeOverrides": {
+    "ground": [
+      "#eef4ff",
+      "#e2ebfb",
+      "#f8fbff"
+    ],
+    "edge": "#9fc4e8",
+    "curbA": "#ffffff",
+    "curbB": "#3f7fe8",
+    "road": "#a8d8f0",
+    "road2": "#c8ecff",
+    "line": "#ffffff",
+    "out": [
+      "#e2ebfb",
+      "#d6e2f6"
+    ],
+    "sky": [
+      "#141f55",
+      "#1d2b6b",
+      "#34479a",
+      "#5b72c4",
+      "#8aa3e0",
+      "#c0d4f5"
+    ],
+    "fog": "#c0d4f5",
+    "strip": "ice",
+    "mt1": "#b8c8ee",
+    "mt2": "#98acd8",
+    "hill": "#8fa6d8",
+    "snow": "#ffffff",
+    "sun": "#e8f4ff",
+    "aurora": true,
+    "deco": [
+      "snowtree",
+      "snowtree",
+      "snowman",
+      "crystal"
+    ],
+    "lm": [
+      "igloo",
+      "igloo",
+      "crystal",
+      "crystal",
+      "penguin",
+      "penguin",
+      "penguin"
+    ],
+    "post": "iceblock",
+    "grip": 2.8,
+    "offMax": 66,
+    "ice": true
+  },
+  "song": "noche",
+  "mul": 0.85,
+  "size": 3072,
+  "spline": [
+    {
+      "x": 1896,
+      "y": 2103,
+      "h": 8,
+      "w": 45
+    },
+    {
+      "x": 1591,
+      "y": 2177,
+      "h": 34,
+      "w": 45
+    },
+    {
+      "x": 1435,
+      "y": 2491,
+      "h": 27,
+      "w": 45
+    },
+    {
+      "x": 1173,
+      "y": 2719,
+      "h": 28,
+      "w": 45
+    },
+    {
+      "x": 845,
+      "y": 2688,
+      "h": 39,
+      "w": 45
+    },
+    {
+      "x": 720,
+      "y": 2366,
+      "h": 33,
+      "w": 45
+    },
+    {
+      "x": 505,
+      "y": 2147,
+      "h": 3,
+      "w": 45
+    },
+    {
+      "x": 228,
+      "y": 1979,
+      "h": -23,
+      "w": 45
+    },
+    {
+      "x": 311,
+      "y": 1646,
+      "h": -23,
+      "w": 45
+    },
+    {
+      "x": 494,
+      "y": 1346,
+      "h": -17,
+      "w": 45
+    },
+    {
+      "x": 553,
+      "y": 1002,
+      "h": -26,
+      "w": 45
+    },
+    {
+      "x": 635,
+      "y": 661,
+      "h": -32,
+      "w": 45
+    },
+    {
+      "x": 848,
+      "y": 393,
+      "h": -12,
+      "w": 45
+    },
+    {
+      "x": 1135,
+      "y": 536,
+      "h": 20,
+      "w": 45
+    },
+    {
+      "x": 1372,
+      "y": 747,
+      "h": 34,
+      "w": 45
+    },
+    {
+      "x": 1641,
+      "y": 521,
+      "h": 27,
+      "w": 45
+    },
+    {
+      "x": 1941,
+      "y": 344,
+      "h": 29,
+      "w": 45
+    },
+    {
+      "x": 2255,
+      "y": 412,
+      "h": 39,
+      "w": 45
+    },
+    {
+      "x": 2265,
+      "y": 755,
+      "h": 34,
+      "w": 45
+    },
+    {
+      "x": 2290,
+      "y": 1060,
+      "h": 4,
+      "w": 45
+    },
+    {
+      "x": 2633,
+      "y": 1135,
+      "h": -22,
+      "w": 45
+    },
+    {
+      "x": 2822,
+      "y": 1344,
+      "h": -23,
+      "w": 45
+    },
+    {
+      "x": 2557,
+      "y": 1572,
+      "h": -17,
+      "w": 45
+    },
+    {
+      "x": 2716,
+      "y": 1860,
+      "h": -25,
+      "w": 45
+    },
+    {
+      "x": 2616,
+      "y": 2137,
+      "h": -32,
+      "w": 45
+    },
+    {
+      "x": 2269,
+      "y": 2164,
+      "h": -13,
+      "w": 45
+    },
+    {
+      "x": 1922,
+      "y": 2108,
+      "h": 8,
+      "w": 45
+    }
+  ],
+  "sections": [
+    {
+      "from": 0,
+      "to": 0.016,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.016,
+      "to": 0.035,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.035,
+      "to": 0.11,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.11,
+      "to": 0.165,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.165,
+      "to": 0.22,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.22,
+      "to": 0.236,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.236,
+      "to": 0.264,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.264,
+      "to": 0.283,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.283,
+      "to": 0.35,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.35,
+      "to": 0.441,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.441,
+      "to": 0.456,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.456,
+      "to": 0.472,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.472,
+      "to": 0.488,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.488,
+      "to": 0.539,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.539,
+      "to": 0.614,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.614,
+      "to": 0.645,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.645,
+      "to": 0.669,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.669,
+      "to": 0.732,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.732,
+      "to": 0.81,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.81,
+      "to": 0.857,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.857,
+      "to": 0.889,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.889,
+      "to": 0.909,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.909,
+      "to": 0.924,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    }
+  ],
+  "walls": [
+    {
+      "from": 0.97,
+      "to": 0.05,
+      "side": "ambos"
+    }
+  ],
+  "surfaces": [],
+  "branches": [],
+  "itemRows": [
+    0.08,
+    0.35,
+    0.6,
+    0.85
+  ],
+  "pads": [
+    {
+      "at": 0.15,
+      "lat": -16
+    },
+    {
+      "at": 0.85,
+      "lat": 16
+    }
+  ],
+  "ramps": [
+    {
+      "at": 0.62
+    }
+  ],
+  "flights": [],
+  "hazards": [
+    {
+      "kind": "pinguino",
+      "at": 0.0727630285152409,
+      "period": 10,
+      "warn": 1.5,
+      "lat": [
+        -80,
+        80
+      ]
+    }
+  ],
+  "terrain": {
+    "seed": 90,
+    "amp": 75,
+    "base": 0
+  },
+  "metrics": {
+    "minHalfWidth": 43,
+    "lapSeconds": [
+      50,
+      60
+    ]
+  }
+}

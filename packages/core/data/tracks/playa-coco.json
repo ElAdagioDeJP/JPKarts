@@ -1,0 +1,392 @@
+{
+  "id": "playa-coco",
+  "name": "Playa Coco",
+  "cup": "hoja",
+  "theme": "sand",
+  "song": "brisa",
+  "mul": 1,
+  "size": 3072,
+  "spline": [
+    {
+      "x": 858,
+      "y": 2277,
+      "h": 6,
+      "w": 46
+    },
+    {
+      "x": 1334,
+      "y": 2288,
+      "h": 6,
+      "w": 46
+    },
+    {
+      "x": 1809,
+      "y": 2311,
+      "h": 5,
+      "w": 44
+    },
+    {
+      "x": 2179,
+      "y": 2298,
+      "h": 5,
+      "w": 42
+    },
+    {
+      "x": 2369,
+      "y": 2150,
+      "h": 8,
+      "w": 40
+    },
+    {
+      "x": 2359,
+      "y": 1770,
+      "h": 14,
+      "w": 38
+    },
+    {
+      "x": 2634,
+      "y": 1611,
+      "h": 16,
+      "w": 38
+    },
+    {
+      "x": 2845,
+      "y": 1907,
+      "h": 12,
+      "w": 40
+    },
+    {
+      "x": 2972,
+      "y": 1569,
+      "h": 14,
+      "w": 42
+    },
+    {
+      "x": 2866,
+      "y": 1241,
+      "h": 18,
+      "w": 42
+    },
+    {
+      "x": 2707,
+      "y": 977,
+      "h": 24,
+      "w": 40
+    },
+    {
+      "x": 2761,
+      "y": 713,
+      "h": 22,
+      "w": 40
+    },
+    {
+      "x": 2602,
+      "y": 470,
+      "h": 18,
+      "w": 38
+    },
+    {
+      "x": 2232,
+      "y": 512,
+      "h": 16,
+      "w": 36
+    },
+    {
+      "x": 1968,
+      "y": 417,
+      "h": 15,
+      "w": 36
+    },
+    {
+      "x": 1704,
+      "y": 533,
+      "h": 14,
+      "w": 36
+    },
+    {
+      "x": 1281,
+      "y": 417,
+      "h": 13,
+      "w": 40
+    },
+    {
+      "x": 594,
+      "y": 512,
+      "h": 10,
+      "w": 36
+    },
+    {
+      "x": 499,
+      "y": 766,
+      "h": 10,
+      "w": 38
+    },
+    {
+      "x": 668,
+      "y": 1061,
+      "h": 12,
+      "w": 40
+    },
+    {
+      "x": 521,
+      "y": 1400,
+      "h": 12,
+      "w": 40
+    },
+    {
+      "x": 647,
+      "y": 1716,
+      "h": 10,
+      "w": 42
+    },
+    {
+      "x": 499,
+      "y": 1981,
+      "h": 8,
+      "w": 42
+    },
+    {
+      "x": 563,
+      "y": 2224,
+      "h": 7,
+      "w": 44
+    }
+  ],
+  "sections": [
+    {
+      "from": 0.0,
+      "to": 0.111,
+      "type": "recta",
+      "intent": "Paseo marítimo: salida, primera fila de cajas y rebufo"
+    },
+    {
+      "from": 0.111,
+      "to": 0.183,
+      "type": "climax",
+      "intent": "Costa: olas que cruzan y marea que inunda el carril del mar en las vueltas 2 y 3"
+    },
+    {
+      "from": 0.158,
+      "to": 0.3,
+      "type": "atajo",
+      "intent": "Muelle sobre el mar: ahorra ~1,2 s, sin muros; caer = agua"
+    },
+    {
+      "from": 0.183,
+      "to": 0.29,
+      "type": "chicane",
+      "intent": "Cabo (ruta segura): enlazar curvas sin frenar"
+    },
+    {
+      "from": 0.29,
+      "to": 0.33,
+      "type": "horquilla",
+      "intent": "Horquilla del faro: drift nivel 2 para salir con turbo"
+    },
+    {
+      "from": 0.33,
+      "to": 0.415,
+      "type": "curva-rapida",
+      "intent": "Costa este: línea limpia a fondo"
+    },
+    {
+      "from": 0.415,
+      "to": 0.45,
+      "type": "salto",
+      "intent": "Duna: truco en el aire = turbo al aterrizar"
+    },
+    {
+      "from": 0.45,
+      "to": 0.5,
+      "type": "descanso",
+      "intent": "Respiro tras el salto, segunda fila de cajas"
+    },
+    {
+      "from": 0.5,
+      "to": 0.61,
+      "type": "chicane",
+      "intent": "Palmeral: chicane técnica entre muros"
+    },
+    {
+      "from": 0.61,
+      "to": 0.74,
+      "type": "recta",
+      "intent": "Recta norte: aceleradores alternos, adelantar y bloquear"
+    },
+    {
+      "from": 0.74,
+      "to": 0.82,
+      "type": "horquilla",
+      "intent": "Horquilla noroeste: drift largo, nivel 3 posible"
+    },
+    {
+      "from": 0.82,
+      "to": 0.93,
+      "type": "chicane",
+      "intent": "Eses del oeste: el interior tiene barro, la línea corta castiga"
+    },
+    {
+      "from": 0.93,
+      "to": 1.0,
+      "type": "curva-rapida",
+      "intent": "Bajada a la playa: preparar la salida a la recta de meta"
+    }
+  ],
+  "walls": [
+    {
+      "from": 0.965,
+      "to": 0.105,
+      "side": "ambos"
+    },
+    {
+      "from": 0.515,
+      "to": 0.6,
+      "side": "ambos"
+    },
+    {
+      "from": 0.3,
+      "to": 0.322,
+      "side": "der"
+    }
+  ],
+  "surfaces": [
+    {
+      "from": 0.111,
+      "to": 0.183,
+      "kind": "arena",
+      "lat": [
+        26,
+        90
+      ]
+    },
+    {
+      "from": 0.86,
+      "to": 0.895,
+      "kind": "barro",
+      "lat": [
+        -60,
+        -12
+      ]
+    },
+    {
+      "from": 0.415,
+      "to": 0.44,
+      "kind": "arena",
+      "lat": [
+        -70,
+        -30
+      ]
+    }
+  ],
+  "branches": [
+    {
+      "from": 0.158,
+      "to": 0.3,
+      "via": [
+        {
+          "x": 2528,
+          "y": 2446,
+          "h": 7
+        }
+      ],
+      "w": 20,
+      "risk": "agua"
+    }
+  ],
+  "itemRows": [
+    0.06,
+    0.38,
+    0.62,
+    0.86
+  ],
+  "pads": [
+    {
+      "at": 0.405,
+      "lat": 0
+    },
+    {
+      "at": 0.655,
+      "lat": -14
+    },
+    {
+      "at": 0.7,
+      "lat": 14
+    }
+  ],
+  "ramps": [
+    {
+      "at": 0.428,
+      "big": true
+    }
+  ],
+  "hazards": [
+    {
+      "kind": "ola",
+      "at": 0.135,
+      "period": 7,
+      "warn": 1.2,
+      "offset": 0,
+      "lat": [
+        80,
+        -60
+      ]
+    }
+  ],
+  "water": {
+    "base": 0.5,
+    "laps": {
+      "2": 3,
+      "3": 5.5
+    },
+    "rate": 0.8,
+    "fallDepth": 2.5,
+    "puddleDepth": 0,
+    "shore": [
+      [
+        -92,
+        2383
+      ],
+      [
+        752,
+        2372
+      ],
+      [
+        1598,
+        2387
+      ],
+      [
+        2126,
+        2378
+      ],
+      [
+        2338,
+        2415
+      ],
+      [
+        2761,
+        2351
+      ],
+      [
+        2972,
+        2192
+      ],
+      [
+        3152,
+        2140
+      ]
+    ],
+    "seaDepth": 14
+  },
+  "terrain": {
+    "seed": 12,
+    "amp": 22,
+    "base": 8
+  },
+  "metrics": {
+    "minHalfWidth": 36,
+    "lapSeconds": [
+      50,
+      60
+    ]
+  }
+}

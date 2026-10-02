@@ -1,0 +1,22 @@
+{
+  "arena": {
+    "max": 0.75,
+    "grip": 0.8,
+    "drift": 0.8
+  },
+  "barro": {
+    "max": 0.6,
+    "grip": 0.9,
+    "drift": 0.5
+  },
+  "charco": {
+    "max": 0.85,
+    "grip": 0.7,
+    "drift": 1.0
+  },
+  "hielo": {
+    "max": 1.0,
+    "grip": 0.35,
+    "drift": 0.8
+  }
+}
