@@ -55,4 +55,6 @@ TypeScript estricto, Bun (workspaces, `bun test`), Vite (client), **Three.js con
 - `bun run validate:tracks`: validador de pistas
 - `bun run server`: servidor headless
 - `bun run desktop`: Electron en desarrollo
-- `bun run dist:win`: genera el `.exe`
+- `bun run dist:win`: genera el `.exe` portable en `apps/desktop/release/`
+- `node tools/shot.mjs`, `tools/lan-check.mjs`, `tools/desktop-check.mjs`: pruebas en navegador y en Electron con capturas
+- `bun packages/core/tools/ai-balance.ts`: balance de la IA · `bun packages/core/tools/track-info.ts <json>`: métricas de una pista

@@ -69,5 +69,14 @@ export function loadSettings(store: Storage = localStore): Settings {
 export function saveSettings(s: Settings, store: Storage = localStore) {
   const prev = store.read(KEY);
   if (prev) store.write(KEY + '.bak', prev);
-  store.write(KEY, JSON.stringify({ ...s, version: SETTINGS_VERSION }));
+  const json = JSON.stringify({ ...s, version: SETTINGS_VERSION });
+  store.write(KEY, json);
+  // desktop app: also a file in userData (atomic write with backup, see apps/desktop)
+  (globalThis as { jpkartDesktop?: { write(k: string, v: string): Promise<boolean> } }).jpkartDesktop?.write('settings', json);
+}
+
+/** Desktop app: settings file in userData wins over localStorage. */
+export async function loadDesktopSettings(): Promise<Settings | null> {
+  const d = (globalThis as { jpkartDesktop?: { read(k: string): Promise<string | null> } }).jpkartDesktop;
+  return d ? parseSettings(await d.read('settings')) : null;
 }

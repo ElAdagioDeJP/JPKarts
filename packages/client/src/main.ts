@@ -1,5 +1,6 @@
 import { Audio } from './audio/audio';
 import { installHotTunables } from './dev/hotTunables';
+import { loadDesktopSettings } from './settings';
 import { Game } from './game';
 import { Input } from './input/input';
 import { WorldRenderer } from './render/world3d';
@@ -16,6 +17,9 @@ async function boot() {
   const input = new Input();
   input.attach(window, stage);
   const game = new Game(renderer, new Ui(uiCv), input, new Audio());
+  if ((window as { jpkartDesktop?: unknown }).jpkartDesktop) document.body.classList.add('fullscreen');
+  const ds = await loadDesktopSettings();
+  if (ds) { game.settings = ds; game.applySettings(); }
   (window as any).__jpkart = game;
   installHotTunables((msg) => { console.info(msg); game.toast(msg); });
   const toUi = (e: PointerEvent): [number, number] => { const r = uiCv.getBoundingClientRect(); return [((e.clientX - r.left) / r.width) * 426, ((e.clientY - r.top) / r.height) * 240]; };

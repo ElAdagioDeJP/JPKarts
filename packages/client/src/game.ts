@@ -10,7 +10,7 @@ import { DebugOverlay } from './dev/debugOverlay';
 import { ACTION_NAMES, REMAPPABLE } from './input/input';
 import { PAD_NAMES } from './input/gamepad';
 import { loadSettings, saveSettings, DEFAULT_SETTINGS, type Settings } from './settings';
-import { NetSession } from './net/session';
+import { NetSession, desktop } from './net/session';
 import { CameraRig, type CamTarget } from './feel/camera';
 import { DRIFT_COL as DCOL, DRIFT_COL_CB, Fx3d } from './feel/fx3d';
 import { BALLS, BIGBALL, FACES, ICONS, rotFrames } from './art/sprites';
@@ -47,6 +47,8 @@ export class Game {
   settings: Settings = loadSettings();
   net: NetSession | null = null;
   lanField = 0;
+  lanFound: { name: string; address: string; port: number; players: number }[] = [];
+  lanHosting: string[] | null = null;
   lanName = 'Jugador';
   lanAddr = typeof location !== 'undefined' && location.hostname && location.hostname !== '' ? location.hostname : 'localhost';
   optSel = 0;
@@ -552,10 +554,27 @@ export class Game {
   }
 
   // ---------------- LAN ----------------
+  /** LAN menu fields: 0 name, 1 address, then (desktop app) 2 create game, 3 search, 4.. found games. */
+  private lanFieldCount() { return desktop() ? 4 + this.lanFound.length : 2; }
   private lanInput(code: string, back: boolean, U: boolean, D: boolean) {
     if (back) { this.input.textMode = false; this.state = 'menu'; return; }
-    if (U || D || code === 'Tab') { this.lanField = (this.lanField + 1) % 2; return; }
-    if (code === 'Enter' || code === 'NumpadEnter') { this.input.textMode = false; this.connectLan(); }
+    const n = this.lanFieldCount();
+    if (U) { this.lanField = (this.lanField + n - 1) % n; }
+    if (D || code === 'Tab') { this.lanField = (this.lanField + 1) % n; }
+    this.input.textMode = this.lanField < 2;
+    if (code !== 'Enter' && code !== 'NumpadEnter' && code !== 'Pad0') return;
+    const d = desktop();
+    if (this.lanField < 2) { this.input.textMode = false; this.connectLan(); return; }
+    if (!d) return;
+    if (this.lanField === 2) {
+      void d.host(this.lanName).then((h) => { this.lanHosting = h.addresses; this.toast('Partida creada. Tus amigos se conectan a ' + (h.addresses[0] ?? 'tu IP') + ':' + h.port); this.connectLan('localhost'); });
+    } else if (this.lanField === 3) {
+      this.toast('Buscando partidas en la red...');
+      void d.discover().then((list) => { this.lanFound = list; this.toast(list.length ? list.length + ' partida(s) encontrada(s)' : 'No se encontró ninguna partida'); });
+    } else {
+      const g = this.lanFound[this.lanField - 4];
+      if (g) this.connectLan(g.address + ':' + g.port);
+    }
   }
   private typeInto() {
     for (const ch of this.input.typed.splice(0)) {
@@ -572,6 +591,7 @@ export class Game {
     this.state = 'lobby';
   }
   private leaveNet() {
+    if (this.lanHosting) { void desktop()?.stopHost(); this.lanHosting = null; }
     this.net?.close();
     this.net = null;
     this.world = null;
@@ -643,8 +663,17 @@ export class Game {
       ui.panel(ox, y + 10, 300, 18, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
       ui.txt(v + (on ? caret : ''), ox + 6, y + 15, '#fff7e0');
     });
-    ui.txtS('El anfitrión ejecuta "bun run server" o crea la partida desde la app de escritorio.', W / 2, 160, '#fff7e0');
-    ui.txtS('Puerto ' + 7777 + ' · Escribe y pulsa Intro para conectar · ↑↓ cambia de campo · Esc vuelve', W / 2, 176, '#9c95d6');
+    const d = desktop();
+    if (d) {
+      const rows = ['Crear partida (en este PC)', 'Buscar partidas en la red', ...this.lanFound.map((g) => `Unirse a ${g.name} · ${g.address} · ${g.players} jugador(es)`)];
+      rows.forEach((r, i) => {
+        const y = 142 + i * 15, on = this.lanField === i + 2;
+        ui.panel(ox, y, 300, 12, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
+        ui.txtS(r, ox + 6, y + 3, on ? '#ffe45e' : '#fff7e0', 'left');
+      });
+      ui.txtS('Si Windows pregunta por el firewall, permite el acceso en redes privadas.', W / 2, 214, '#9c95d6');
+    } else ui.txtS('El anfitrión ejecuta "bun run server" o crea la partida desde la app de escritorio.', W / 2, 160, '#fff7e0');
+    ui.txtS('Puerto ' + 7777 + ' · Intro para conectar · ↑↓ cambia de campo · Esc vuelve', W / 2, 226, '#9c95d6');
   }
   private drawLobby(t: number) {
     const ui = this.ui, net = this.net, ox = (W - 340) / 2;

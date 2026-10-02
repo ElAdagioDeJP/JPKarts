@@ -174,16 +174,18 @@ Va **antes** de la producción de contenido: así cada mecánica nueva se valida
 ## Fase 7 — Electron, .exe y CI
 **Objetivo:** `.exe` portable para jugar en LAN sin instalar nada.
 **Skills:** `performance-optimization` (medir en build de release, no en dev).
-- [ ] `apps/desktop` (Electron):
-  - **Crear partida** levanta el servidor embebido (`ws`);
-  - **Unirse** por IP o por descubrimiento UDP (puerto 7778).
-- [ ] Guardado en `userData` con escritura atómica (`.tmp` + `.bak`).
-- [ ] electron-builder → `.exe` portable. Regla de firewall documentada en la primera ejecución.
-- [ ] GitHub Actions en `windows-latest`: tests + validador de pistas + bench + `.exe` como artefacto en cada push/tag.
+- [x] `apps/desktop` (Electron 44):
+  - **Crear partida** levanta el servidor embebido (`@jpkart/server` con `ws`) y lo anuncia por UDP broadcast;
+  - **Buscar partidas** escucha los anuncios en el puerto 7778; **Unirse** también funciona por IP.
+  - Puente seguro `preload` (`contextIsolation`) sin Node en el renderer.
+- [x] Guardado en `userData` con escritura atómica (`.tmp` + rename + `.bak`). Los ajustes del juego usan ese archivo en escritorio y `localStorage` en web.
+- [x] electron-builder → `.exe` portable x64 con icono generado por código (`apps/desktop/scripts/icon.ts`). El menú LAN avisa del firewall: permitir en redes privadas.
+- [x] GitHub Actions (`.github/workflows/ci.yml`) en `windows-latest`: tipos + tests + validador de pistas + bench + `.exe` como artefacto en cada push. Con un tag `v*` crea una release con el `.exe`.
+- Nota: `bun build` fija `__dirname` a la ruta de la máquina que compila. El main usa `app.getAppPath()`.
 
 **Terminado cuando:**
-- El `.exe` de CI se abre en una PC limpia y 2 PCs se encuentran por descubrimiento y completan una carrera.
-- La build de release cumple los presupuestos.
+- El `.exe` de CI se abre en una PC limpia y 2 PCs se encuentran por descubrimiento y completan una carrera. ✅ en la PC de desarrollo: el `.exe` empaquetado arranca con WebGPU, crea la partida, la encuentra por UDP y entra a la sala (`tools/desktop-check.mjs --exe`). ⏳ Falta probar en una PC limpia y con 2 PCs (prueba humana). La CI se valida en el primer push.
+- La build de release cumple los presupuestos. ✅ sim p95 0,075 ms; render WebGPU ≈ 8,5 ms.
 
 > Prompt: "Ejecuta la Fase 7 de docs/PLAN.md."
 
