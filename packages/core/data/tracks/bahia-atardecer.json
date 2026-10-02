@@ -1,0 +1,382 @@
+{
+  "id": "bahia-atardecer",
+  "name": "Bahía Atardecer",
+  "cup": "estrella",
+  "theme": "sand",
+  "themeOverrides": {
+    "ground": [
+      "#f2d58a",
+      "#ecce80",
+      "#f8e0a0"
+    ],
+    "edge": "#fff2c8",
+    "curbA": "#ffffff",
+    "curbB": "#2ec4b6",
+    "road": "#8a7f86",
+    "road2": "#807580",
+    "line": "#ffffff",
+    "out": [
+      "#2e9ee0",
+      "#2a8fd0"
+    ],
+    "sky": [
+      "#3a2a7a",
+      "#8a4a9a",
+      "#e8607a",
+      "#ff9a6a",
+      "#ffc88a",
+      "#ffe8b0"
+    ],
+    "fog": "#ffc8a0",
+    "strip": "sea",
+    "mt1": "#b85a7a",
+    "mt2": "#8a3a6a",
+    "hill": "#4fae5a",
+    "sun": "#fff0c0",
+    "deco": [
+      "palm",
+      "palm",
+      "rock",
+      "umbrella"
+    ],
+    "lm": [
+      "lighthouse",
+      "umbrella",
+      "umbrella",
+      "surf",
+      "surf",
+      "bigball"
+    ],
+    "post": "buoy",
+    "grip": 10,
+    "offMax": 70
+  },
+  "song": "brisa",
+  "mul": 0.94,
+  "size": 3072,
+  "spline": [
+    {
+      "x": 476,
+      "y": 1643,
+      "h": 27,
+      "w": 45
+    },
+    {
+      "x": 200,
+      "y": 1499,
+      "h": 37,
+      "w": 45
+    },
+    {
+      "x": 327,
+      "y": 1173,
+      "h": 38,
+      "w": 45
+    },
+    {
+      "x": 457,
+      "y": 847,
+      "h": 34,
+      "w": 45
+    },
+    {
+      "x": 682,
+      "y": 586,
+      "h": 25,
+      "w": 45
+    },
+    {
+      "x": 1002,
+      "y": 443,
+      "h": 17,
+      "w": 45
+    },
+    {
+      "x": 1350,
+      "y": 474,
+      "h": 14,
+      "w": 45
+    },
+    {
+      "x": 1700,
+      "y": 485,
+      "h": 16,
+      "w": 45
+    },
+    {
+      "x": 2035,
+      "y": 386,
+      "h": 24,
+      "w": 45
+    },
+    {
+      "x": 2372,
+      "y": 312,
+      "h": 32,
+      "w": 45
+    },
+    {
+      "x": 2600,
+      "y": 552,
+      "h": 38,
+      "w": 45
+    },
+    {
+      "x": 2470,
+      "y": 861,
+      "h": 38,
+      "w": 45
+    },
+    {
+      "x": 2629,
+      "y": 1155,
+      "h": 32,
+      "w": 45
+    },
+    {
+      "x": 2807,
+      "y": 1457,
+      "h": 23,
+      "w": 45
+    },
+    {
+      "x": 2851,
+      "y": 1793,
+      "h": 16,
+      "w": 45
+    },
+    {
+      "x": 2539,
+      "y": 1909,
+      "h": 14,
+      "w": 45
+    },
+    {
+      "x": 2190,
+      "y": 1869,
+      "h": 18,
+      "w": 45
+    },
+    {
+      "x": 1908,
+      "y": 1987,
+      "h": 26,
+      "w": 45
+    },
+    {
+      "x": 1844,
+      "y": 2326,
+      "h": 35,
+      "w": 45
+    },
+    {
+      "x": 1592,
+      "y": 2565,
+      "h": 38,
+      "w": 45
+    },
+    {
+      "x": 1298,
+      "y": 2755,
+      "h": 36,
+      "w": 45
+    },
+    {
+      "x": 993,
+      "y": 2636,
+      "h": 29,
+      "w": 45
+    },
+    {
+      "x": 914,
+      "y": 2304,
+      "h": 20,
+      "w": 45
+    },
+    {
+      "x": 1136,
+      "y": 2051,
+      "h": 14,
+      "w": 45
+    },
+    {
+      "x": 1186,
+      "y": 1791,
+      "h": 14,
+      "w": 45
+    },
+    {
+      "x": 850,
+      "y": 1691,
+      "h": 20,
+      "w": 45
+    },
+    {
+      "x": 502,
+      "y": 1646,
+      "h": 27,
+      "w": 45
+    }
+  ],
+  "sections": [
+    {
+      "from": 0,
+      "to": 0.043,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.043,
+      "to": 0.13,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.13,
+      "to": 0.149,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.149,
+      "to": 0.197,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.197,
+      "to": 0.326,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.326,
+      "to": 0.433,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.433,
+      "to": 0.511,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.511,
+      "to": 0.543,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.543,
+      "to": 0.559,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.559,
+      "to": 0.629,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.629,
+      "to": 0.653,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.653,
+      "to": 0.676,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.676,
+      "to": 0.7,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.7,
+      "to": 0.755,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.755,
+      "to": 0.881,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.881,
+      "to": 0.916,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    }
+  ],
+  "walls": [
+    {
+      "from": 0.97,
+      "to": 0.05,
+      "side": "ambos"
+    }
+  ],
+  "surfaces": [],
+  "branches": [],
+  "itemRows": [
+    0.08,
+    0.35,
+    0.6,
+    0.85
+  ],
+  "pads": [
+    {
+      "at": 0.4,
+      "lat": -16
+    }
+  ],
+  "ramps": [],
+  "flights": [
+    0.048,
+    0.205,
+    0.437,
+    0.559
+  ],
+  "hazards": [
+    {
+      "kind": "ola",
+      "at": 0.007866273352999017,
+      "period": 8,
+      "warn": 1.2,
+      "lat": [
+        90,
+        -70
+      ]
+    }
+  ],
+  "dayNight": true,
+  "water": {
+    "kind": "agua",
+    "base": 0.5,
+    "laps": {},
+    "rate": 0.6,
+    "fallDepth": 1.5,
+    "puddleDepth": 99,
+    "shore": [],
+    "seaDepth": 0
+  },
+  "terrain": {
+    "seed": 84,
+    "amp": 34,
+    "base": -14.28
+  },
+  "metrics": {
+    "minHalfWidth": 43,
+    "lapSeconds": [
+      50,
+      60
+    ]
+  }
+}

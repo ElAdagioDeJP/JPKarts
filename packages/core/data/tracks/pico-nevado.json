@@ -1,0 +1,395 @@
+{
+  "id": "pico-nevado",
+  "name": "Pico Nevado",
+  "cup": "rayo",
+  "theme": "snow",
+  "themeOverrides": {
+    "ground": [
+      "#eef4ff",
+      "#e2ebfb",
+      "#f8fbff"
+    ],
+    "edge": "#9fc4e8",
+    "curbA": "#ffffff",
+    "curbB": "#3f7fe8",
+    "road": "#a8d8f0",
+    "road2": "#c8ecff",
+    "line": "#ffffff",
+    "out": [
+      "#e2ebfb",
+      "#d6e2f6"
+    ],
+    "sky": [
+      "#3a70d0",
+      "#4a86e0",
+      "#6aa0f0",
+      "#8cbcff",
+      "#b8d8ff",
+      "#e0f0ff"
+    ],
+    "fog": "#d8ecff",
+    "strip": "ice",
+    "mt1": "#b8c8ee",
+    "mt2": "#98acd8",
+    "hill": "#8fa6d8",
+    "snow": "#ffffff",
+    "sun": "#ffffff",
+    "aurora": false,
+    "deco": [
+      "snowtree",
+      "snowtree",
+      "snowman",
+      "crystal"
+    ],
+    "lm": [
+      "igloo",
+      "igloo",
+      "crystal",
+      "crystal",
+      "penguin",
+      "penguin",
+      "penguin"
+    ],
+    "post": "iceblock",
+    "grip": 2.8,
+    "offMax": 66,
+    "ice": true
+  },
+  "song": "noche",
+  "mul": 1.02,
+  "size": 3072,
+  "spline": [
+    {
+      "x": 2454,
+      "y": 1172,
+      "h": 14,
+      "w": 41
+    },
+    {
+      "x": 2306,
+      "y": 1478,
+      "h": 48,
+      "w": 41
+    },
+    {
+      "x": 2179,
+      "y": 1802,
+      "h": 35,
+      "w": 41
+    },
+    {
+      "x": 1936,
+      "y": 2053,
+      "h": 25,
+      "w": 41
+    },
+    {
+      "x": 1728,
+      "y": 2325,
+      "h": 26,
+      "w": 41
+    },
+    {
+      "x": 1700,
+      "y": 2674,
+      "h": 24,
+      "w": 41
+    },
+    {
+      "x": 1440,
+      "y": 2821,
+      "h": 7,
+      "w": 41
+    },
+    {
+      "x": 1127,
+      "y": 2667,
+      "h": -32,
+      "w": 41
+    },
+    {
+      "x": 904,
+      "y": 2401,
+      "h": -51,
+      "w": 41
+    },
+    {
+      "x": 804,
+      "y": 2067,
+      "h": -41,
+      "w": 41
+    },
+    {
+      "x": 472,
+      "y": 1971,
+      "h": -15,
+      "w": 41
+    },
+    {
+      "x": 334,
+      "y": 1729,
+      "h": 2,
+      "w": 41
+    },
+    {
+      "x": 555,
+      "y": 1458,
+      "h": 6,
+      "w": 41
+    },
+    {
+      "x": 631,
+      "y": 1148,
+      "h": 16,
+      "w": 41
+    },
+    {
+      "x": 400,
+      "y": 884,
+      "h": 31,
+      "w": 41
+    },
+    {
+      "x": 214,
+      "y": 590,
+      "h": 54,
+      "w": 41
+    },
+    {
+      "x": 444,
+      "y": 410,
+      "h": 56,
+      "w": 41
+    },
+    {
+      "x": 793,
+      "y": 448,
+      "h": 30,
+      "w": 41
+    },
+    {
+      "x": 1037,
+      "y": 258,
+      "h": -4,
+      "w": 41
+    },
+    {
+      "x": 1380,
+      "y": 288,
+      "h": -21,
+      "w": 41
+    },
+    {
+      "x": 1703,
+      "y": 424,
+      "h": -20,
+      "w": 41
+    },
+    {
+      "x": 2037,
+      "y": 420,
+      "h": -19,
+      "w": 41
+    },
+    {
+      "x": 2353,
+      "y": 269,
+      "h": -30,
+      "w": 41
+    },
+    {
+      "x": 2693,
+      "y": 307,
+      "h": -39,
+      "w": 41
+    },
+    {
+      "x": 2863,
+      "y": 593,
+      "h": -26,
+      "w": 41
+    },
+    {
+      "x": 2720,
+      "y": 907,
+      "h": 9,
+      "w": 41
+    },
+    {
+      "x": 2472,
+      "y": 1155,
+      "h": 13,
+      "w": 41
+    }
+  ],
+  "sections": [
+    {
+      "from": 0,
+      "to": 0.008,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.008,
+      "to": 0.024,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.024,
+      "to": 0.126,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.126,
+      "to": 0.149,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.149,
+      "to": 0.197,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.197,
+      "to": 0.224,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.224,
+      "to": 0.354,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.354,
+      "to": 0.393,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.393,
+      "to": 0.421,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.421,
+      "to": 0.5,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.5,
+      "to": 0.574,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.574,
+      "to": 0.606,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.606,
+      "to": 0.676,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.676,
+      "to": 0.7,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.7,
+      "to": 0.771,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.771,
+      "to": 0.794,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.794,
+      "to": 0.846,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.846,
+      "to": 0.932,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    }
+  ],
+  "walls": [
+    {
+      "from": 0.97,
+      "to": 0.05,
+      "side": "ambos"
+    }
+  ],
+  "surfaces": [],
+  "branches": [],
+  "itemRows": [
+    0.08,
+    0.35,
+    0.6,
+    0.85
+  ],
+  "pads": [
+    {
+      "at": 0.35,
+      "lat": -16
+    }
+  ],
+  "ramps": [],
+  "flights": [
+    0.057,
+    0.231,
+    0.5,
+    0.706
+  ],
+  "hazards": [
+    {
+      "kind": "bolanieve",
+      "at": 0.07472959685349066,
+      "period": 8,
+      "warn": 1.5,
+      "lat": [
+        -12,
+        -12
+      ]
+    }
+  ],
+  "narrow": {
+    "from": 0.14945919370698132,
+    "to": 0.19665683382497542,
+    "laps": {
+      "2": 0.8,
+      "3": 0.62
+    }
+  },
+  "terrain": {
+    "seed": 114,
+    "amp": 90,
+    "base": 0
+  },
+  "metrics": {
+    "minHalfWidth": 39,
+    "lapSeconds": [
+      50,
+      62
+    ]
+  }
+}

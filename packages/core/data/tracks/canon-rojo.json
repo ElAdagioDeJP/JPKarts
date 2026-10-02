@@ -1,0 +1,420 @@
+{
+  "id": "canon-rojo",
+  "name": "Cañón Rojo",
+  "cup": "fuego",
+  "theme": "dunes",
+  "themeOverrides": {
+    "ground": [
+      "#c8643a",
+      "#b85a34",
+      "#d87044"
+    ],
+    "edge": "#8a3a20",
+    "curbA": "#ffffff",
+    "curbB": "#ff8a1f",
+    "road": "#6a4a44",
+    "road2": "#604038",
+    "line": "#ffe9b8",
+    "out": [
+      "#dcb068",
+      "#d3a560"
+    ],
+    "sky": [
+      "#8a3a4a",
+      "#b84a4a",
+      "#e0704a",
+      "#f0905a",
+      "#ffb070",
+      "#ffd090"
+    ],
+    "fog": "#f0a070",
+    "strip": "mesa",
+    "mt1": "#b84a30",
+    "mt2": "#8a3020",
+    "hill": "#9a3a24",
+    "sun": "#fff0c0",
+    "deco": [
+      "rock",
+      "cactus",
+      "rock"
+    ],
+    "lm": [
+      "pyramid",
+      "camel",
+      "skull"
+    ],
+    "post": "stake",
+    "grip": 10,
+    "offMax": 60
+  },
+  "song": "fuego",
+  "mul": 1,
+  "size": 3072,
+  "spline": [
+    {
+      "x": 1351,
+      "y": 2753,
+      "h": 7,
+      "w": 37
+    },
+    {
+      "x": 1019,
+      "y": 2793,
+      "h": 32,
+      "w": 37
+    },
+    {
+      "x": 1020,
+      "y": 2463,
+      "h": 23,
+      "w": 37
+    },
+    {
+      "x": 962,
+      "y": 2144,
+      "h": 25,
+      "w": 37
+    },
+    {
+      "x": 658,
+      "y": 1969,
+      "h": 21,
+      "w": 37
+    },
+    {
+      "x": 581,
+      "y": 1656,
+      "h": -13,
+      "w": 37
+    },
+    {
+      "x": 713,
+      "y": 1332,
+      "h": -38,
+      "w": 37
+    },
+    {
+      "x": 732,
+      "y": 1014,
+      "h": -21,
+      "w": 37
+    },
+    {
+      "x": 499,
+      "y": 752,
+      "h": 4,
+      "w": 37
+    },
+    {
+      "x": 529,
+      "y": 442,
+      "h": 8,
+      "w": 37
+    },
+    {
+      "x": 835,
+      "y": 276,
+      "h": 21,
+      "w": 37
+    },
+    {
+      "x": 1174,
+      "y": 305,
+      "h": 43,
+      "w": 37
+    },
+    {
+      "x": 1410,
+      "y": 562,
+      "h": 31,
+      "w": 37
+    },
+    {
+      "x": 1738,
+      "y": 486,
+      "h": -8,
+      "w": 37
+    },
+    {
+      "x": 2064,
+      "y": 358,
+      "h": -24,
+      "w": 37
+    },
+    {
+      "x": 2318,
+      "y": 518,
+      "h": -16,
+      "w": 37
+    },
+    {
+      "x": 2187,
+      "y": 838,
+      "h": -17,
+      "w": 37
+    },
+    {
+      "x": 2279,
+      "y": 1109,
+      "h": -14,
+      "w": 37
+    },
+    {
+      "x": 2409,
+      "y": 1426,
+      "h": 19,
+      "w": 37
+    },
+    {
+      "x": 2409,
+      "y": 1776,
+      "h": 46,
+      "w": 37
+    },
+    {
+      "x": 2534,
+      "y": 2103,
+      "h": 30,
+      "w": 37
+    },
+    {
+      "x": 2629,
+      "y": 2439,
+      "h": 5,
+      "w": 37
+    },
+    {
+      "x": 2478,
+      "y": 2704,
+      "h": 1,
+      "w": 37
+    },
+    {
+      "x": 2206,
+      "y": 2489,
+      "h": -12,
+      "w": 37
+    },
+    {
+      "x": 1915,
+      "y": 2307,
+      "h": -34,
+      "w": 37
+    },
+    {
+      "x": 1668,
+      "y": 2549,
+      "h": -25,
+      "w": 37
+    },
+    {
+      "x": 1376,
+      "y": 2741,
+      "h": 7,
+      "w": 37
+    }
+  ],
+  "sections": [
+    {
+      "from": 0,
+      "to": 0.028,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.028,
+      "to": 0.055,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.055,
+      "to": 0.114,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.114,
+      "to": 0.181,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.181,
+      "to": 0.264,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.264,
+      "to": 0.326,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.326,
+      "to": 0.342,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.342,
+      "to": 0.393,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.393,
+      "to": 0.429,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.429,
+      "to": 0.452,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.452,
+      "to": 0.472,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.472,
+      "to": 0.547,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.547,
+      "to": 0.57,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.57,
+      "to": 0.586,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.586,
+      "to": 0.645,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.645,
+      "to": 0.669,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.669,
+      "to": 0.732,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.732,
+      "to": 0.806,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.806,
+      "to": 0.822,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.822,
+      "to": 0.853,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.853,
+      "to": 0.928,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    }
+  ],
+  "walls": [
+    {
+      "from": 0.97,
+      "to": 0.05,
+      "side": "ambos"
+    }
+  ],
+  "surfaces": [],
+  "branches": [
+    {
+      "from": 0.7738446411012783,
+      "to": 0.8898721730580138,
+      "via": [
+        {
+          "x": 2325,
+          "y": 2258,
+          "h": 7
+        }
+      ],
+      "w": 22
+    }
+  ],
+  "itemRows": [
+    0.08,
+    0.35,
+    0.6,
+    0.85
+  ],
+  "pads": [
+    {
+      "at": 0.5,
+      "lat": -16
+    }
+  ],
+  "ramps": [],
+  "flights": [
+    0.177,
+    0.474,
+    0.738,
+    0.848
+  ],
+  "hazards": [
+    {
+      "kind": "tren",
+      "at": 0.0688298918387414,
+      "period": 12,
+      "warn": 1.8,
+      "lat": [
+        -110,
+        110
+      ]
+    },
+    {
+      "kind": "roca",
+      "at": 0.21042281219272368,
+      "period": 8,
+      "warn": 1.5,
+      "lat": [
+        -8,
+        -8
+      ]
+    }
+  ],
+  "terrain": {
+    "seed": 148,
+    "amp": 70,
+    "base": 0
+  },
+  "metrics": {
+    "minHalfWidth": 35,
+    "lapSeconds": [
+      50,
+      65
+    ]
+  }
+}

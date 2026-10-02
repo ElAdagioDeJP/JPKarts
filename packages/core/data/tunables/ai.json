@@ -1,0 +1,122 @@
+{
+  "tacticsHz": 5,
+  "hysteresis": 0.1,
+  "line": {
+    "iterations": 240,
+    "margin": 10,
+    "relax": 0.45,
+    "grip": 5200,
+    "decel": 220,
+    "vmin": 60,
+    "vmax": 400,
+    "lookBase": 6,
+    "lookDiv": 16,
+    "brakeLook": 14
+  },
+  "drift": {
+    "curveIn": 0.55,
+    "curveOut": 0.18,
+    "minSpeed": 85
+  },
+  "overtake": {
+    "range": 45,
+    "offset": 26,
+    "speedGap": 3
+  },
+  "block": {
+    "range": 60,
+    "maxOffset": 22
+  },
+  "avoid": {
+    "range": 130,
+    "offset": 28
+  },
+  "slip": {
+    "range": 90
+  },
+  "shortcut": {
+    "decide": 30
+  },
+  "difficulty": [
+    {
+      "name": "Fácil",
+      "lineNoise": 18,
+      "reaction": 0.45,
+      "mistakes": 1.5,
+      "shortcut": 0.1,
+      "maxDrift": 1,
+      "itemThreshold": 0.75,
+      "rubber": 0.06,
+      "speed": [
+        0.86,
+        0.92
+      ],
+      "rocket": 0.1
+    },
+    {
+      "name": "Normal",
+      "lineNoise": 9,
+      "reaction": 0.28,
+      "mistakes": 0.6,
+      "shortcut": 0.4,
+      "maxDrift": 2,
+      "itemThreshold": 0.55,
+      "rubber": 0.05,
+      "speed": [
+        0.93,
+        0.98
+      ],
+      "rocket": 0.4
+    },
+    {
+      "name": "Difícil",
+      "lineNoise": 3,
+      "reaction": 0.15,
+      "mistakes": 0.15,
+      "shortcut": 0.8,
+      "maxDrift": 3,
+      "itemThreshold": 0.4,
+      "rubber": 0.03,
+      "speed": [
+        0.99,
+        1.03
+      ],
+      "rocket": 0.8
+    }
+  ],
+  "rubberBand": {
+    "near": 0.1,
+    "far": 0.3,
+    "offLastLapFrac": 0.15
+  },
+  "personality": {
+    "agresivo": {
+      "attack": 1.3,
+      "block": 1.3,
+      "risk": 1.3,
+      "defend": 0.8,
+      "slip": 1.0
+    },
+    "defensivo": {
+      "attack": 0.8,
+      "block": 0.9,
+      "risk": 0.6,
+      "defend": 1.4,
+      "slip": 0.9
+    },
+    "oportunista": {
+      "attack": 1.1,
+      "block": 0.8,
+      "risk": 1.1,
+      "defend": 1.0,
+      "slip": 1.4
+    },
+    "equilibrado": {
+      "attack": 1.0,
+      "block": 1.0,
+      "risk": 1.0,
+      "defend": 1.0,
+      "slip": 1.0
+    }
+  }
+}

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+release/
+apps/desktop/build/
+.crossengine/
+shots/
+*.log
+.DS_Store
+.vite/
+packages/core/tools/tmp/

@@ -1,0 +1,416 @@
+{
+  "id": "valle-molino",
+  "name": "Valle Molino",
+  "cup": "estrella",
+  "theme": "grass",
+  "themeOverrides": {
+    "ground": [
+      "#5cbc4c",
+      "#4fae44",
+      "#68c858"
+    ],
+    "edge": "#e8d28a",
+    "curbA": "#ffffff",
+    "curbB": "#e8455a",
+    "road": "#6d6a7a",
+    "road2": "#63607a",
+    "line": "#f4f1ff",
+    "out": [
+      "#4a9e3f",
+      "#43923a"
+    ],
+    "sky": [
+      "#2a3a8a",
+      "#6a4aa0",
+      "#c86a8a",
+      "#ff9a6a",
+      "#ffc080",
+      "#ffe0a0"
+    ],
+    "fog": "#ffc890",
+    "strip": "mount",
+    "mt1": "#9a7ab8",
+    "mt2": "#7a5aa0",
+    "hill": "#3f8f4a",
+    "snow": "#ffffff",
+    "sun": "#fff0c0",
+    "deco": [
+      "tree",
+      "tree",
+      "round",
+      "bush",
+      "bush"
+    ],
+    "lm": [
+      "windmill",
+      "windmill",
+      "windmill",
+      "barn",
+      "cow",
+      "cow"
+    ],
+    "post": "fence",
+    "grip": 10,
+    "offMax": 62
+  },
+  "song": "sol",
+  "mul": 0.95,
+  "size": 3072,
+  "spline": [
+    {
+      "x": 1687,
+      "y": 2487,
+      "h": 9,
+      "w": 45
+    },
+    {
+      "x": 1441,
+      "y": 2734,
+      "h": 36,
+      "w": 45
+    },
+    {
+      "x": 1127,
+      "y": 2710,
+      "h": 28,
+      "w": 45
+    },
+    {
+      "x": 830,
+      "y": 2749,
+      "h": 19,
+      "w": 45
+    },
+    {
+      "x": 499,
+      "y": 2840,
+      "h": 19,
+      "w": 45
+    },
+    {
+      "x": 432,
+      "y": 2547,
+      "h": 22,
+      "w": 45
+    },
+    {
+      "x": 466,
+      "y": 2225,
+      "h": 11,
+      "w": 45
+    },
+    {
+      "x": 280,
+      "y": 1928,
+      "h": -13,
+      "w": 45
+    },
+    {
+      "x": 343,
+      "y": 1625,
+      "h": -33,
+      "w": 45
+    },
+    {
+      "x": 692,
+      "y": 1612,
+      "h": -32,
+      "w": 45
+    },
+    {
+      "x": 933,
+      "y": 1456,
+      "h": -15,
+      "w": 45
+    },
+    {
+      "x": 773,
+      "y": 1144,
+      "h": 1,
+      "w": 45
+    },
+    {
+      "x": 827,
+      "y": 856,
+      "h": 4,
+      "w": 45
+    },
+    {
+      "x": 1173,
+      "y": 799,
+      "h": 4,
+      "w": 45
+    },
+    {
+      "x": 1391,
+      "y": 542,
+      "h": 15,
+      "w": 45
+    },
+    {
+      "x": 1590,
+      "y": 260,
+      "h": 34,
+      "w": 45
+    },
+    {
+      "x": 1896,
+      "y": 341,
+      "h": 44,
+      "w": 45
+    },
+    {
+      "x": 2132,
+      "y": 575,
+      "h": 33,
+      "w": 45
+    },
+    {
+      "x": 2457,
+      "y": 450,
+      "h": 6,
+      "w": 45
+    },
+    {
+      "x": 2775,
+      "y": 563,
+      "h": -11,
+      "w": 45
+    },
+    {
+      "x": 2772,
+      "y": 891,
+      "h": -13,
+      "w": 45
+    },
+    {
+      "x": 2707,
+      "y": 1213,
+      "h": -9,
+      "w": 45
+    },
+    {
+      "x": 2690,
+      "y": 1530,
+      "h": -15,
+      "w": 45
+    },
+    {
+      "x": 2376,
+      "y": 1685,
+      "h": -26,
+      "w": 45
+    },
+    {
+      "x": 2087,
+      "y": 1878,
+      "h": -24,
+      "w": 45
+    },
+    {
+      "x": 1896,
+      "y": 2172,
+      "h": -3,
+      "w": 45
+    },
+    {
+      "x": 1704,
+      "y": 2465,
+      "h": 9,
+      "w": 45
+    }
+  ],
+  "sections": [
+    {
+      "from": 0,
+      "to": 0.035,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.035,
+      "to": 0.094,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.094,
+      "to": 0.134,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.134,
+      "to": 0.149,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.149,
+      "to": 0.185,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.185,
+      "to": 0.224,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.224,
+      "to": 0.271,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.271,
+      "to": 0.287,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.287,
+      "to": 0.315,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.315,
+      "to": 0.385,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.385,
+      "to": 0.437,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.437,
+      "to": 0.46,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.46,
+      "to": 0.492,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.492,
+      "to": 0.519,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.519,
+      "to": 0.559,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.559,
+      "to": 0.59,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.59,
+      "to": 0.606,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.606,
+      "to": 0.657,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.657,
+      "to": 0.68,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.68,
+      "to": 0.759,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.759,
+      "to": 0.846,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    }
+  ],
+  "walls": [
+    {
+      "from": 0.97,
+      "to": 0.05,
+      "side": "ambos"
+    }
+  ],
+  "surfaces": [],
+  "branches": [],
+  "itemRows": [
+    0.08,
+    0.35,
+    0.6,
+    0.85
+  ],
+  "pads": [
+    {
+      "at": 0.3,
+      "lat": -16
+    }
+  ],
+  "ramps": [],
+  "flights": [
+    0.221,
+    0.472,
+    0.655,
+    0.891
+  ],
+  "hazards": [
+    {
+      "kind": "aspa",
+      "at": 0.24778761061946902,
+      "period": 3.2,
+      "warn": 0,
+      "lat": [
+        0,
+        0
+      ],
+      "radius": 52
+    },
+    {
+      "kind": "aspa",
+      "at": 0.40707964601769914,
+      "period": 4.1,
+      "warn": 0,
+      "lat": [
+        0,
+        0
+      ],
+      "radius": 52,
+      "offset": 1.2
+    }
+  ],
+  "terrain": {
+    "seed": 49,
+    "amp": 55,
+    "base": 0
+  },
+  "metrics": {
+    "minHalfWidth": 43,
+    "lapSeconds": [
+      50,
+      60
+    ]
+  }
+}

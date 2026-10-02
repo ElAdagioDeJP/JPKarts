@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Instalar dependencias
+        run: bun install --frozen-lockfile
+
+      - name: Tipos (core sin DOM, client, server)
+        run: |
+          ./node_modules/.bin/tsc -p packages/core
+          ./node_modules/.bin/tsc -p packages/client --noEmit
+          ./node_modules/.bin/tsc -p packages/server --noEmit
+        shell: bash
+
+      - name: Tests (determinismo, replays, mecánicas, red)
+        shell: bash
+        run: |
+          set -o pipefail
+          bun test 2>&1 | tee test.log || { grep -E "\(fail\)|error:|Expected|Received" test.log | head -30 | sed 's/^/::error title=Tests::/'; exit 1; }
+
+      - name: Validador de pistas
+        run: bun run validate:tracks
+
+      - name: Benchmark de simulación (presupuesto 2 ms/tick)
+        run: bun run bench
+
+      - name: Construir el .exe portable
+        run: bun run dist:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Subir el .exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: JP-Kart-windows
+          path: apps/desktop/release/*.exe
+          if-no-files-found: error
+
+      - name: Publicar release (tags v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: apps/desktop/release/*.exe
+
+  docker-online:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Construir la imagen del servidor online
+        run: docker build -t jpkart-online .
+
+      - name: Arrancar y comprobar (health, crear sala, unirse, código erróneo)
+        run: |
+          docker run -d --name kart -p 7777:7777 jpkart-online
+          for i in $(seq 1 20); do curl -fs http://localhost:7777/health && break; sleep 1; done
+          bun install --frozen-lockfile --ignore-scripts
+          bun tools/online-check.mjs ws://localhost:7777 | tee online.json
+          grep -q '"join":{"room"' online.json
+          docker logs kart

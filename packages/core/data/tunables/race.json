@@ -1,0 +1,190 @@
+{
+  "countdown": 3.999,
+  "finishDelay": 3,
+  "bump": {
+    "size": 12,
+    "zTolerance": 10,
+    "cooldown": 0.5,
+    "weightPush": 0.1,
+    "lightSlow": 0.92,
+    "gomaPush": 5,
+    "gomaSlow": 0.85,
+    "gomaBounce": -0.4
+  },
+  "hit": {
+    "hop": 0.25,
+    "ouch": 0.8
+  },
+  "rubberBand": {
+    "far": 0.3,
+    "near": 0.1
+  },
+  "ai": {
+    "lookBase": 8,
+    "lookDiv": 18,
+    "lane": 22,
+    "laneStart": 18,
+    "laneMin": 1.5,
+    "laneMax": 4,
+    "curveLook": 28,
+    "curveMax": 1.1,
+    "limit": 112,
+    "limitIce": 95,
+    "steerGain": 2.6,
+    "wideAngle": 1.4,
+    "wideThrottle": 0.3
+  },
+  "grid": {
+    "first": 8,
+    "row": 7,
+    "stagger": 3,
+    "lateral": 15
+  },
+  "hazards": {
+    "ola": {
+      "duration": 1.6,
+      "radius": 14,
+      "level": 0,
+      "push": 18
+    },
+    "tren": {
+      "duration": 1.4,
+      "radius": 22,
+      "level": 2,
+      "spin": 1.5,
+      "push": 40
+    },
+    "vaca": {
+      "duration": 5.0,
+      "radius": 10,
+      "level": 0,
+      "push": 10
+    },
+    "auto": {
+      "duration": 2.2,
+      "radius": 13,
+      "level": 1,
+      "spin": 1.0,
+      "push": 16
+    },
+    "pinguino": {
+      "duration": 4.0,
+      "radius": 8,
+      "level": 0,
+      "push": 6
+    },
+    "aspa": {
+      "radius": 7,
+      "level": 1,
+      "spin": 1.0,
+      "push": 12
+    },
+    "geiser": {
+      "duration": 1.2,
+      "radius": 16,
+      "level": 0,
+      "launch": 150
+    },
+    "laser": {
+      "duration": 1.4,
+      "radius": 10,
+      "level": 1,
+      "spin": 0.9
+    },
+    "meteoro": {
+      "duration": 0.5,
+      "radius": 22,
+      "level": 1,
+      "spin": 1.2,
+      "push": 10
+    },
+    "roca": {
+      "speed": 110,
+      "radius": 10,
+      "level": 1,
+      "spin": 1.1
+    },
+    "pelota": {
+      "speed": 140,
+      "radius": 9,
+      "level": 0
+    },
+    "bolanieve": {
+      "speed": 120,
+      "radius": 12,
+      "level": 1,
+      "spin": 1.0
+    },
+    "seta": {
+      "radius": 12,
+      "level": -1,
+      "launch": 140,
+      "push": 10
+    },
+    "compuerta": {
+      "radius": 0,
+      "level": -1
+    }
+  },
+  "water": {
+    "defaultRate": 0.8
+  },
+  "weather": {
+    "lluvia": {
+      "grip": 0.8
+    },
+    "arena": {
+      "grip": 0.9
+    },
+    "niebla": {
+      "grip": 1.0
+    },
+    "noche": {
+      "grip": 1.0
+    }
+  },
+  "coins": {
+    "speed": 0.012,
+    "max": 10,
+    "firstBoost": 0.2,
+    "lose": 3,
+    "dropLife": 4,
+    "dropSpread": 18,
+    "radius": 10,
+    "respawn": 5,
+    "line": 4,
+    "spacing": 16,
+    "timeTrialStart": 10
+  },
+  "classes": {
+    "100": {
+      "speed": 1.0,
+      "accel": 1.0
+    },
+    "150": {
+      "speed": 1.15,
+      "accel": 1.12
+    }
+  },
+  "timeTrial": {
+    "coins": 10,
+    "item": "turbo3"
+  },
+  "elimination": {
+    "warnGap": 10
+  },
+  "battle": {
+    "balloons": 3,
+    "maxBalloons": 5,
+    "time": 180,
+    "chase": 380,
+    "stealBoost": 0.05
+  },
+  "capture": {
+    "goal": 60,
+    "time": 180,
+    "radius": 14,
+    "regrab": 1.0,
+    "carrierMul": 0.88
+  }
+}

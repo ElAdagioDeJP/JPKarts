@@ -1,0 +1,26 @@
+{
+  "name": "jp-kart",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "bun run --cwd packages/client dev",
+    "build": "bun run --cwd packages/client build",
+    "test": "bun test",
+    "typecheck": "tsc -p packages/core && tsc -p packages/client --noEmit",
+    "bench": "bun packages/core/bench/bench.ts",
+    "validate:tracks": "bun packages/core/tools/validate-tracks.ts",
+    "server": "bun packages/server/src/cli.ts",
+    "desktop": "bun run --cwd apps/desktop dev",
+    "dist:win": "bun run --cwd apps/desktop dist:win",
+    "server:online": "bun packages/server/src/online.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "playwright": "1.59",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,396 @@
+{
+  "id": "tenis-jp",
+  "name": "Club de Tenis JP",
+  "cup": "hoja",
+  "theme": "clay",
+  "themeOverrides": {
+    "ground": [
+      "#d8703a",
+      "#cc6632",
+      "#e07c44"
+    ],
+    "edge": "#fff7e0",
+    "curbA": "#ffffff",
+    "curbB": "#2ec46b",
+    "road": "#3a6fb5",
+    "road2": "#3466aa",
+    "line": "#ffffff",
+    "out": [
+      "#2e8a4a",
+      "#287a42"
+    ],
+    "sky": [
+      "#3a80e8",
+      "#4a92f4",
+      "#62a8ff",
+      "#86c0ff",
+      "#aad6ff",
+      "#d0ecff"
+    ],
+    "fog": "#d0ecff",
+    "strip": "mount",
+    "mt1": "#7a92d8",
+    "mt2": "#5a76c0",
+    "hill": "#3a8a4a",
+    "sun": "#fff7b0",
+    "deco": [
+      "round",
+      "round",
+      "bush",
+      "umpire"
+    ],
+    "lm": [
+      "stands",
+      "stands",
+      "stands",
+      "bigball",
+      "bigball",
+      "net",
+      "net",
+      "umpire"
+    ],
+    "post": "windscreen",
+    "grip": 10,
+    "offMax": 62
+  },
+  "song": "sol",
+  "mul": 1.06,
+  "size": 3072,
+  "spline": [
+    {
+      "x": 2676,
+      "y": 2086,
+      "h": 7,
+      "w": 50
+    },
+    {
+      "x": 2856,
+      "y": 2386,
+      "h": 18,
+      "w": 50
+    },
+    {
+      "x": 2691,
+      "y": 2588,
+      "h": 12,
+      "w": 50
+    },
+    {
+      "x": 2371,
+      "y": 2447,
+      "h": 11,
+      "w": 50
+    },
+    {
+      "x": 2062,
+      "y": 2281,
+      "h": 15,
+      "w": 50
+    },
+    {
+      "x": 1839,
+      "y": 2435,
+      "h": 13,
+      "w": 50
+    },
+    {
+      "x": 1691,
+      "y": 2750,
+      "h": -1,
+      "w": 50
+    },
+    {
+      "x": 1392,
+      "y": 2828,
+      "h": -11,
+      "w": 50
+    },
+    {
+      "x": 1064,
+      "y": 2815,
+      "h": -8,
+      "w": 50
+    },
+    {
+      "x": 719,
+      "y": 2839,
+      "h": -2,
+      "w": 50
+    },
+    {
+      "x": 410,
+      "y": 2678,
+      "h": -5,
+      "w": 50
+    },
+    {
+      "x": 203,
+      "y": 2402,
+      "h": -8,
+      "w": 50
+    },
+    {
+      "x": 367,
+      "y": 2128,
+      "h": 1,
+      "w": 50
+    },
+    {
+      "x": 682,
+      "y": 1975,
+      "h": 15,
+      "w": 50
+    },
+    {
+      "x": 622,
+      "y": 1673,
+      "h": 19,
+      "w": 50
+    },
+    {
+      "x": 594,
+      "y": 1329,
+      "h": 12,
+      "w": 50
+    },
+    {
+      "x": 855,
+      "y": 1121,
+      "h": 10,
+      "w": 50
+    },
+    {
+      "x": 1153,
+      "y": 945,
+      "h": 15,
+      "w": 50
+    },
+    {
+      "x": 1336,
+      "y": 646,
+      "h": 13,
+      "w": 50
+    },
+    {
+      "x": 1496,
+      "y": 335,
+      "h": 0,
+      "w": 50
+    },
+    {
+      "x": 1789,
+      "y": 236,
+      "h": -10,
+      "w": 50
+    },
+    {
+      "x": 1970,
+      "y": 527,
+      "h": -8,
+      "w": 50
+    },
+    {
+      "x": 2008,
+      "y": 875,
+      "h": -2,
+      "w": 50
+    },
+    {
+      "x": 2265,
+      "y": 1105,
+      "h": -4,
+      "w": 50
+    },
+    {
+      "x": 2424,
+      "y": 1413,
+      "h": -8,
+      "w": 50
+    },
+    {
+      "x": 2502,
+      "y": 1755,
+      "h": 0,
+      "w": 50
+    },
+    {
+      "x": 2661,
+      "y": 2064,
+      "h": 7,
+      "w": 50
+    }
+  ],
+  "sections": [
+    {
+      "from": 0,
+      "to": 0.043,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.043,
+      "to": 0.079,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.079,
+      "to": 0.177,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.177,
+      "to": 0.244,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.244,
+      "to": 0.291,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.291,
+      "to": 0.405,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.405,
+      "to": 0.437,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.437,
+      "to": 0.452,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.452,
+      "to": 0.515,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.515,
+      "to": 0.562,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.562,
+      "to": 0.598,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.598,
+      "to": 0.637,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.637,
+      "to": 0.728,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.728,
+      "to": 0.743,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.743,
+      "to": 0.759,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.759,
+      "to": 0.783,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.783,
+      "to": 0.853,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    }
+  ],
+  "walls": [
+    {
+      "from": 0.97,
+      "to": 0.05,
+      "side": "ambos"
+    }
+  ],
+  "surfaces": [],
+  "branches": [],
+  "itemRows": [
+    0.08,
+    0.35,
+    0.6,
+    0.85
+  ],
+  "pads": [
+    {
+      "at": 0.2,
+      "lat": -16
+    },
+    {
+      "at": 0.6,
+      "lat": 16
+    }
+  ],
+  "ramps": [
+    {
+      "at": 0.4
+    },
+    {
+      "at": 0.75
+    }
+  ],
+  "flights": [],
+  "hazards": [
+    {
+      "kind": "pelota",
+      "at": 0.015732546705998034,
+      "period": 6,
+      "warn": 1.2,
+      "lat": [
+        0,
+        0
+      ]
+    },
+    {
+      "kind": "pelota",
+      "at": 0.20452310717797442,
+      "period": 7,
+      "warn": 1.2,
+      "offset": 3,
+      "lat": [
+        -18,
+        -18
+      ]
+    }
+  ],
+  "terrain": {
+    "seed": 19,
+    "amp": 22,
+    "base": 0
+  },
+  "metrics": {
+    "minHalfWidth": 48,
+    "lapSeconds": [
+      50,
+      60
+    ]
+  }
+}

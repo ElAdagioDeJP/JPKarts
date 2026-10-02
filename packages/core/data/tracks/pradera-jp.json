@@ -1,0 +1,438 @@
+{
+  "id": "pradera-jp",
+  "name": "Pradera JP",
+  "cup": "hoja",
+  "theme": "grass",
+  "themeOverrides": {
+    "ground": [
+      "#5cbc4c",
+      "#4fae44",
+      "#68c858"
+    ],
+    "edge": "#e8d28a",
+    "curbA": "#ffffff",
+    "curbB": "#e8455a",
+    "road": "#6d6a7a",
+    "road2": "#63607a",
+    "line": "#f4f1ff",
+    "out": [
+      "#4a9e3f",
+      "#43923a"
+    ],
+    "sky": [
+      "#3a70e0",
+      "#4a86f0",
+      "#6aa2ff",
+      "#8cbcff",
+      "#afd4ff",
+      "#d4ecff"
+    ],
+    "fog": "#cce6ff",
+    "strip": "mount",
+    "mt1": "#8b9ae0",
+    "mt2": "#6a7ec8",
+    "hill": "#3f8f4a",
+    "snow": "#ffffff",
+    "sun": "#fff7b0",
+    "deco": [
+      "tree",
+      "tree",
+      "round",
+      "bush",
+      "bush"
+    ],
+    "lm": [
+      "windmill",
+      "windmill",
+      "barn",
+      "cow",
+      "cow",
+      "cow"
+    ],
+    "post": "fence",
+    "grip": 10,
+    "offMax": 62
+  },
+  "song": "sol",
+  "mul": 1,
+  "size": 3072,
+  "spline": [
+    {
+      "x": 1792,
+      "y": 2303,
+      "h": 6,
+      "w": 50
+    },
+    {
+      "x": 1707,
+      "y": 2643,
+      "h": 17,
+      "w": 50
+    },
+    {
+      "x": 1464,
+      "y": 2682,
+      "h": 10,
+      "w": 50
+    },
+    {
+      "x": 1449,
+      "y": 2337,
+      "h": 17,
+      "w": 50
+    },
+    {
+      "x": 1305,
+      "y": 2103,
+      "h": 17,
+      "w": 50
+    },
+    {
+      "x": 955,
+      "y": 2074,
+      "h": -5,
+      "w": 50
+    },
+    {
+      "x": 652,
+      "y": 1932,
+      "h": -19,
+      "w": 50
+    },
+    {
+      "x": 625,
+      "y": 1608,
+      "h": -7,
+      "w": 50
+    },
+    {
+      "x": 886,
+      "y": 1375,
+      "h": 4,
+      "w": 50
+    },
+    {
+      "x": 975,
+      "y": 1049,
+      "h": 2,
+      "w": 50
+    },
+    {
+      "x": 679,
+      "y": 881,
+      "h": 10,
+      "w": 50
+    },
+    {
+      "x": 413,
+      "y": 667,
+      "h": 27,
+      "w": 50
+    },
+    {
+      "x": 497,
+      "y": 372,
+      "h": 20,
+      "w": 50
+    },
+    {
+      "x": 839,
+      "y": 299,
+      "h": -4,
+      "w": 50
+    },
+    {
+      "x": 1165,
+      "y": 389,
+      "h": -9,
+      "w": 50
+    },
+    {
+      "x": 1338,
+      "y": 694,
+      "h": -2,
+      "w": 50
+    },
+    {
+      "x": 1574,
+      "y": 953,
+      "h": -7,
+      "w": 50
+    },
+    {
+      "x": 1853,
+      "y": 1153,
+      "h": -10,
+      "w": 50
+    },
+    {
+      "x": 2115,
+      "y": 972,
+      "h": 12,
+      "w": 50
+    },
+    {
+      "x": 2344,
+      "y": 773,
+      "h": 27,
+      "w": 50
+    },
+    {
+      "x": 2607,
+      "y": 997,
+      "h": 15,
+      "w": 50
+    },
+    {
+      "x": 2669,
+      "y": 1326,
+      "h": 4,
+      "w": 50
+    },
+    {
+      "x": 2343,
+      "y": 1368,
+      "h": 6,
+      "w": 50
+    },
+    {
+      "x": 2002,
+      "y": 1348,
+      "h": -1,
+      "w": 50
+    },
+    {
+      "x": 1774,
+      "y": 1583,
+      "h": -19,
+      "w": 50
+    },
+    {
+      "x": 1823,
+      "y": 1927,
+      "h": -12,
+      "w": 50
+    },
+    {
+      "x": 1797,
+      "y": 2277,
+      "h": 6,
+      "w": 50
+    }
+  ],
+  "sections": [
+    {
+      "from": 0,
+      "to": 0.071,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.071,
+      "to": 0.09,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.09,
+      "to": 0.146,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.146,
+      "to": 0.197,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.197,
+      "to": 0.224,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.224,
+      "to": 0.275,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.275,
+      "to": 0.299,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.299,
+      "to": 0.358,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.358,
+      "to": 0.393,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.393,
+      "to": 0.46,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.46,
+      "to": 0.511,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.511,
+      "to": 0.543,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.543,
+      "to": 0.629,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.629,
+      "to": 0.68,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.68,
+      "to": 0.704,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.704,
+      "to": 0.724,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.724,
+      "to": 0.739,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.739,
+      "to": 0.779,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.779,
+      "to": 0.794,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.794,
+      "to": 0.826,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.826,
+      "to": 0.881,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.881,
+      "to": 0.901,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.901,
+      "to": 0.92,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    }
+  ],
+  "walls": [
+    {
+      "from": 0.97,
+      "to": 0.05,
+      "side": "ambos"
+    }
+  ],
+  "surfaces": [],
+  "branches": [
+    {
+      "from": 0.6912487708947886,
+      "to": 0.8456243854473943,
+      "via": [
+        {
+          "x": 2185,
+          "y": 1182,
+          "h": 10
+        }
+      ],
+      "w": 22
+    }
+  ],
+  "itemRows": [
+    0.08,
+    0.35,
+    0.6,
+    0.85
+  ],
+  "pads": [
+    {
+      "at": 0.12,
+      "lat": -16
+    },
+    {
+      "at": 0.45,
+      "lat": 16
+    },
+    {
+      "at": 0.8,
+      "lat": -16
+    }
+  ],
+  "ramps": [
+    {
+      "at": 0.3
+    },
+    {
+      "at": 0.62
+    }
+  ],
+  "flights": [],
+  "hazards": [
+    {
+      "kind": "vaca",
+      "at": 0.10619469026548672,
+      "period": 11,
+      "warn": 1.5,
+      "lat": [
+        90,
+        -90
+      ]
+    }
+  ],
+  "terrain": {
+    "seed": 11,
+    "amp": 40,
+    "base": 0
+  },
+  "metrics": {
+    "minHalfWidth": 48,
+    "lapSeconds": [
+      50,
+      60
+    ]
+  }
+}
