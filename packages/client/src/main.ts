@@ -18,6 +18,10 @@ async function boot() {
   const game = new Game(renderer, new Ui(uiCv), input, new Audio());
   (window as any).__jpkart = game;
   installHotTunables((msg) => { console.info(msg); game.toast(msg); });
+  const toUi = (e: PointerEvent): [number, number] => { const r = uiCv.getBoundingClientRect(); return [((e.clientX - r.left) / r.width) * 426, ((e.clientY - r.top) / r.height) * 240]; };
+  stage.addEventListener('pointerdown', (e) => game.pointer('down', ...toUi(e)));
+  stage.addEventListener('pointermove', (e) => game.pointer('move', ...toUi(e)));
+  stage.addEventListener('pointerup', (e) => game.pointer('up', ...toUi(e)));
   setTimeout(() => stage.focus(), 50);
   const loop = (now: number) => {
     game.frame(now);

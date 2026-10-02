@@ -138,7 +138,7 @@ export interface RaceConfig {
   /** game mode id (defineMode); default 'race' */
   mode?: string;
   /** grid order: character index + controller for each slot */
-  grid: { ch: number; ctrl: Ctrl }[];
+  grid: { ch: number; ctrl: Ctrl; aiDiff?: number }[];
 }
 
 export interface World {

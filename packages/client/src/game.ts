@@ -1,15 +1,17 @@
 // Client orchestrator: screens, fixed-step simulation, camera, event → feedback, HUD.
 import {
-  CHARS, CUPS, DIFFS, LAPS, POINTS, ReplayRecorder, Rng, SIM_DT, STAT_SHORT, TRACK_DEFS, TrackCache,
+  ALL_TRACKS, CHARS, CUPS, DIFFS, LAPS, ReplayRecorder, Rng, SIM_DT, STAT_SHORT, TrackCache, prepAuthored,
   buildGrid, clamp, createWorld, fmtTime, fxOf, hAt, hasFx, hashWorld, modeOf, itemDef, itemList, lerp, step, takeEvents, wrapA,
   type GameEvent, type Input as SimInput, type Kart, type Replay, type StatKey, type Track, type World,
 } from '@jpkart/core';
 import { OUT } from './art/pixel';
 import { ENTITY_VIEW, hudLines, kartLabel } from './feel/effectView';
+import { DebugOverlay } from './dev/debugOverlay';
 import { BALLS, BIGBALL, FACES, ICONS, rotFrames } from './art/sprites';
 import { Audio } from './audio/audio';
 import { Input } from './input/input';
 import { buildMinimap } from './render/trackArt';
+import { T } from '@jpkart/core';
 import { H0, RW, WorldRenderer, type KartView, type ThingView } from './render/world3d';
 import { H, Ui, W } from './ui/draw';
 
@@ -17,7 +19,7 @@ type State = 'title' | 'menu' | 'select' | 'cup' | 'track' | 'loading' | 'race' 
 const MENUS: State[] = ['title', 'menu', 'select', 'cup', 'track'];
 const CAM_H = 15, CAM_BACK = 34, ZMAX = 1000;
 const UIK = W / RW; // internal world px → UI px
-const OUCH = ['¡Ay!', '¡Uf!', '¡Auch!', '¡Ay, ay!'];
+const DRIFT_COL = ['#fff7e0', '#3df0ff', '#ff8a1f', '#b84aff'];
 
 interface Pose { x: number; y: number; z: number; a: number }
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; c: string; s: number; line?: boolean }
@@ -29,7 +31,13 @@ export class Game {
   mode: 'free' | 'cup' = 'free';
   paused = false; pendingRace = 0; loadF = 0;
   cup: CupState | null = null;
-  tracks = new TrackCache(TRACK_DEFS);
+  tracks = new TrackCache(ALL_TRACKS, prepAuthored);
+  /** track select grid: the cups' tracks, 4 per row */
+  grid = CUPS.flatMap((c) => c.tracks);
+  /** index (into ALL_TRACKS) of the track being raced */
+  curTrack = 0;
+  incoming: { item: string; t: number } | null = null;
+  dbg = new DebugOverlay();
   tr: Track;
   world: World | null = null;
   recorder: ReplayRecorder | null = null;
@@ -59,6 +67,15 @@ export class Game {
   /** Small dev message in the corner (hot reload, errors). */
   toast(t: string) { this.toastMsg = { t, life: 3 }; }
 
+  /** Editor: mouse events in UI coordinates (F3). Rebuilds the authored track after a drag. */
+  pointer(kind: 'down' | 'move' | 'up', ux: number, uy: number) {
+    if (this.dbg.pointer(kind, ux, uy, this.tr) && this.tr.authored) {
+      const i = ALL_TRACKS.findIndex((t) => t.id === this.tr.def.id);
+      const fresh = this.tracks.rebuildAuthored(i);
+      if (fresh) { this.tr = fresh; this.renderer.setTrack(fresh); this.toast('Pista reconstruida (' + fresh.N + ' muestras)'); }
+    }
+  }
+
   /** Debug/test hooks: current replay and state hash. */
   debugReplay() { return { replay: this.recorder?.replay ?? this.lastReplay, hash: this.world ? hashWorld(this.world) : '' }; }
 
@@ -72,6 +89,9 @@ export class Game {
     const L = I.is(code, 'izquierda'), R = I.is(code, 'derecha'), U = I.is(code, 'arriba'), D = I.is(code, 'abajo');
     if (I.is(code, 'sonido')) A.muted = !A.muted;
     if (code === 'F2') this.showPerf = !this.showPerf;
+    if (code === 'F3') this.dbg.track = !this.dbg.track;
+    if (code === 'F4') this.dbg.ai = !this.dbg.ai;
+    if (code === 'KeyS' && this.dbg.track && this.dbg.dirty && this.tr.authored) void this.dbg.save(this.tr.authored).then((m) => this.toast(m));
     switch (this.state) {
       case 'title': if (ok) { this.state = 'menu'; A.blip(); } break;
       case 'menu':
@@ -103,7 +123,7 @@ export class Game {
         if (L) { this.trackSel = (this.trackSel + 15) % 16; A.blip(); }
         if (D) { this.trackSel = (this.trackSel + 4) % 16; A.blip(); }
         if (U) { this.trackSel = (this.trackSel + 12) % 16; A.blip(); }
-        if (ok) { this.startRace(this.trackSel); A.beep(880, 0.12); }
+        if (ok) { this.startRace(this.grid[this.trackSel]!); A.beep(880, 0.12); }
         if (back) this.state = 'select';
         break;
       case 'race':
@@ -116,7 +136,7 @@ export class Game {
         if (ok) { if (this.mode === 'cup') { this.commitPoints(); this.state = 'standings'; } else { this.state = 'podium'; A.jingle(); } }
         if (back && this.mode === 'free') this.toMenu();
         break;
-      case 'podium': if (ok) this.startRace(this.trackSel); if (back) this.toMenu(); break;
+      case 'podium': if (ok) this.startRace(this.curTrack); if (back) this.toMenu(); break;
       case 'standings':
         if (ok && this.cup) {
           if (this.cup.race < this.cup.def.tracks.length - 1) { this.cup.race++; this.cup.committed = false; this.startRace(this.cup.def.tracks[this.cup.race]!); }
@@ -130,7 +150,7 @@ export class Game {
 
   // ---------------- race ----------------
   startRace(ti: number) {
-    this.trackSel = ti;
+    this.curTrack = ti;
     if (!this.tracks.get(ti).built) { this.pendingRace = ti; this.loadF = 0; this.state = 'loading'; return; }
     this.tr = this.tracks.get(ti);
     this.renderer.setTrack(this.tr);
@@ -148,7 +168,7 @@ export class Game {
     this.prev = this.world.karts.map((k) => ({ x: k.x, y: k.y, z: k.z, a: k.a }));
     const p = this.local!;
     this.cam.a = p.a; this.cam.x = p.x - Math.cos(p.a) * CAM_BACK; this.cam.y = p.y - Math.sin(p.a) * CAM_BACK; this.cam.z = p.z + CAM_H; this.cam.hz = H0;
-    this.acc = 0; this.banner = null; this.flashT = 0; this.parts = []; this.paused = false;
+    this.acc = 0; this.banner = null; this.flashT = 0; this.parts = []; this.paused = false; this.incoming = null;
     this.state = 'race';
   }
   private commitPoints() {
@@ -222,6 +242,17 @@ export class Game {
       case 'lap': if (me(e.kart)) { this.banner = { t: e.final ? '¡Última vuelta!' : 'Vuelta ' + e.lap, life: 1.8 }; A.beep(e.final ? 990 : 700, 0.2); } break;
       case 'finish': if (me(e.kart)) { this.banner = { t: '¡Meta!', life: 2.2, big: true }; A.musicWant(null); A.jingle(); } break;
       case 'flash': this.flashC = e.color; this.flashT = 0.35; break;
+      case 'driftLevel': if (me(e.kart)) A.beep(e.level === 3 ? 760 : e.level === 2 ? 620 : 500, 0.07, 'square', 0.04, 120); break;
+      case 'trick': if (me(e.kart)) { this.banner = { t: '¡Truco!', life: 0.7 }; A.beep(980, 0.12, 'square', 0.05, 400); } break;
+      case 'slipstream': if (me(e.kart)) { this.banner = { t: '¡Rebufo!', life: 0.6 }; A.beep(360, 0.3, 'sawtooth', 0.04, 500); } break;
+      case 'wallBump': if (me(e.kart)) A.beep(e.hard ? 90 : 140, 0.08, 'square', 0.05); break;
+      case 'burnout': if (me(e.kart)) { this.banner = { t: '¡Quemaste rueda!', life: 1 }; A.beep(110, 0.5, 'sawtooth', 0.05, -40); } break;
+      case 'rocketStart': if (me(e.kart)) { this.banner = { t: '¡Turbo de salida!', life: 0.9 }; A.beep(300, 0.35, 'sawtooth', 0.05, 600); } break;
+      case 'incoming': if (me(e.kart)) { this.incoming = { item: e.item, t: Math.max(1, e.eta) }; A.beep(1400, 0.08, 'square', 0.05); A.beep(1400, 0.08, 'square', 0.05); } break;
+      case 'hazardWarn': if (this.local && this.nearSample(e.at, 0.12)) { this.banner = { t: '¡Ola!', life: 1 }; A.beep(220, 0.6, 'triangle', 0.05, 200); } break;
+      case 'tide': this.banner = { t: '¡Sube la marea!', life: 1.6 }; A.beep(180, 0.9, 'sine', 0.06, -60); break;
+      case 'reflect': A.beep(1600, 0.15, 'sine', 0.05, -900); break;
+      case 'explode': { const p0 = this.local; if (p0 && Math.hypot(p0.x - e.x, p0.y - e.y) < 260) { A.beep(70, 0.4, 'sawtooth', 0.08, -30); this.flashC = '#ff8a1f'; this.flashT = 0.2; } break; }
       case 'raceEnd': if (this.state === 'race') this.state = 'results'; if (this.recorder) { this.lastReplay = this.recorder.replay; this.recorder = null; } break;
     }
   }
@@ -244,6 +275,13 @@ export class Game {
       case 'cuantico': if (ok) A.beep(1200, 0.25, 'sine', 0.05, -800); break;
       case 'teleport': if (ok) A.beep(1500, 0.3, 'sine', 0.05, -1200); break;
     }
+  }
+
+  /** Is the local kart within `frac` of a lap before track position `at` (0..1)? */
+  private nearSample(at: number, frac: number) {
+    const p = this.local!, N = this.tr.N, i = Math.floor(at * N);
+    const d = (i - p.idx + N) % N;
+    return d < frac * N;
   }
 
   // ---------------- camera ----------------
@@ -272,11 +310,11 @@ export class Game {
     if (this.state === 'loading') {
       ui.ctx.fillStyle = '#1b1740'; ui.ctx.fillRect(0, 0, W, H);
       ui.txt('Cargando pista...', W / 2, H / 2 - 14, '#ffe45e', 8, 'center');
-      ui.txtS(TRACK_DEFS[this.pendingRace]!.name, W / 2, H / 2 + 4);
+      ui.txtS(this.tracks.get(this.pendingRace).def.name, W / 2, H / 2 + 4);
       ui.img(BALLS[((t * 8) | 0) % 4]!.cv, W / 2 - 8, H / 2 + 18, 16, 16);
       if (++this.loadF >= 3) { this.tracks.ensureBuilt(this.pendingRace, [this.tr]); this.startRace(this.pendingRace); }
     } else if (MENUS.includes(this.state)) {
-      const want = this.state === 'track' ? this.tracks.get(this.trackSel) : this.state === 'cup' ? this.tracks.get(CUPS[this.cupSel]!.tracks[0]!) : this.tracks.get(((t / 10) | 0) % 16);
+      const want = this.state === 'track' ? this.tracks.get(this.grid[this.trackSel]!) : this.state === 'cup' ? this.tracks.get(CUPS[this.cupSel]!.tracks[0]!) : this.tracks.get(this.grid[((t / 10) | 0) % this.grid.length]!);
       if (want.built && want !== this.tr) { this.tr = want; this.renderer.setTrack(want); const i = Math.floor(this.attract) % want.N; this.cam.a = want.ang[i]!; this.cam.z = want.hc[i]! + CAM_H; }
       const tr = this.tr;
       this.attract = (((this.attract + dt * 30) % tr.N) + tr.N) % tr.N;
@@ -299,7 +337,7 @@ export class Game {
         if (w.phase === 'countdown') {
           const n = Math.ceil(w.cd);
           ui.txt(n > 0 ? String(n) : '', W / 2, H / 2 - 40, '#ffe45e', 40, 'center');
-          ui.txt(TRACK_DEFS[this.trackSel]!.name, W / 2, 34, '#fff7e0', 8, 'center');
+          ui.txt(this.tr.def.name, W / 2, 34, '#fff7e0', 8, 'center');
           ui.txtS('Truco: acelera justo en el 1 para salir con turbo', W / 2, H - 30);
         } else this.drawHUD(this.paused ? 0 : dt);
         A.engineSet(!this.paused, p.speed + (p.boost > 0 ? 40 : 0));
@@ -313,8 +351,9 @@ export class Game {
     if (MENUS.includes(this.state)) A.musicWant('menu');
     else if (this.state === 'loading' || (this.state === 'race' && this.world?.phase === 'countdown')) A.musicWant(null);
     else if (this.state === 'race' && this.local?.finished) A.musicWant(null);
-    else if (this.state === 'race') { const d = TRACK_DEFS[this.trackSel]!, lastLap = this.local!.prog >= (LAPS - 1) * this.tr.N; A.musicWant(d.song, d.mul * (lastLap ? 1.1 : 1), this.paused ? 0 : 1); }
+    else if (this.state === 'race') { const d = this.tr.def, lastLap = this.local!.prog >= (LAPS - 1) * this.tr.N; A.musicWant(d.song, d.mul * (lastLap ? 1.1 : 1), this.paused ? 0 : 1); }
     else A.musicWant('menu', 1, 0.7);
+    this.dbg.draw(ui, this.tr, this.world);
     if (this.toastMsg) { this.toastMsg.life -= dt; ui.txtS(this.toastMsg.t, 4, 4, '#9cff9c', 'left'); if (this.toastMsg.life <= 0) this.toastMsg = null; }
     if (this.showPerf) {
       ui.txtS(`${this.fps.toFixed(0)} fps · ${this.renderer.backend} · sim ${this.simMs.toFixed(2)} ms · render ${this.renderMs.toFixed(2)} ms`, 4, H - 8, '#9cff9c', 'left');
@@ -326,14 +365,14 @@ export class Game {
     for (const k of karts) {
       const ps = this.pose(k);
       const vis = k.respawn <= 0 || ((t * 10) | 0) % 2 === 1;
-      views.push({ id: k.id, ch: k.ch, x: ps.x, y: ps.y, z: k.respawn > 0 ? ps.z - 6 : ps.z, a: ps.a, lean: k.drift ? k.drift : k.sv, hop: k.hop, spin: k.spin, big: hasFx(k, 'jug'), bubble: hasFx(k, 'bubble'), visible: vis, ground: hAt(this.tr, ps.x, ps.y), air: k.air });
+      views.push({ id: k.id, ch: k.ch, x: ps.x, y: ps.y, z: k.respawn > 0 ? ps.z - 6 : ps.z, a: ps.a, lean: k.drift ? k.drift : k.sv, hop: k.hop, spin: k.spin, big: hasFx(k, 'jug'), bubble: hasFx(k, 'bubble'), reflect: hasFx(k, 'reflect'), visible: vis, ground: hAt(this.tr, ps.x, ps.y), air: k.air });
     }
     if (w) {
-      for (const e of w.ents) { const kind = ENTITY_VIEW[e.kind]; if (kind) things.push({ kind, x: e.x, y: e.y, z: e.z, f: e.t }); }
+      for (const e of w.ents) { const kind = ENTITY_VIEW[e.kind]; if (kind) things.push({ kind, x: e.x, y: e.y, z: e.z, f: e.kind === 'mine' ? e.age : e.t }); }
     }
     const boxes = w ? w.boxes.map((b) => b.active) : this.tr.boxes.map(() => true);
     const t0 = performance.now();
-    this.renderer.render(this.cam, views, things, boxes, t);
+    this.renderer.render(this.cam, views, things, boxes, t, w?.water ?? this.tr.water?.base ?? 0);
     this.renderMs = performance.now() - t0;
     if (w && this.state === 'race') this.drawLabels(karts);
   }
@@ -362,7 +401,7 @@ export class Game {
     const lx = x0 + w * 0.15, rx = x0 + w * 0.85, r = (a: number, b: number) => a + Math.random() * (b - a);
     void h;
     if (p.drift && p.speed > 60) {
-      const col = p.dc > 1.5 ? '#ff8a1f' : p.dc > 0.75 ? '#5ab8ff' : '#fff7e0';
+      const col = DRIFT_COL[p.dLvl]!;
       for (let i = 0; i < 3; i++) this.parts.push({ x: (i % 2 ? rx : lx) + r(-2, 2), y: by + r(-1, 1), vx: r(-30, 30) - p.drift * 20, vy: r(-40, -10), life: 0.25, c: col, s: r(1, 2.5) });
     }
     if (p.boost > 0) for (let i = 0; i < 3; i++) this.parts.push({ x: x0 + w / 2 + r(-5, 5), y: by, vx: r(-10, 10), vy: r(10, 40), life: 0.2, c: ['#ffe45e', '#ff8a1f', '#fff7e0'][(Math.random() * 3) | 0]!, s: r(1.5, 3) });
@@ -428,8 +467,20 @@ export class Game {
       ui.txtS(String(i + 1), 26, y + 5, id === this.localId ? '#ffe45e' : '#fff7e0', 'left');
     });
     if (p.drift) {
-      const c = p.dc > 1.5 ? '#ff8a1f' : p.dc > 0.75 ? '#5ab8ff' : '#fff7e0', ww = Math.min(60, (p.dc / 1.5) * 60);
+      const L3 = T.driving.drift.level3, c = DRIFT_COL[p.dLvl]!, ww = Math.min(60, (p.dc / L3) * 60);
       ui.panel(W / 2 - 31, H - 14, 62, 6, '#1b1740'); ctx.fillStyle = c; ctx.fillRect(W / 2 - 30, H - 13, ww, 4);
+    }
+    if (this.incoming) {
+      this.incoming.t -= dt;
+      if (this.incoming.t <= 0) this.incoming = null;
+      else if (((w.raceT * 8) | 0) % 2 === 0) {
+        const ix = W / 2, iy = H - 46;
+        ctx.fillStyle = OUT; ctx.beginPath(); ctx.moveTo(ix - 14, iy + 14); ctx.lineTo(ix + 14, iy + 14); ctx.lineTo(ix, iy + 26); ctx.fill();
+        ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.moveTo(ix - 11, iy + 15); ctx.lineTo(ix + 11, iy + 15); ctx.lineTo(ix, iy + 24); ctx.fill();
+        const ic = ICONS[this.incoming.item];
+        if (ic) ui.img(ic.cv, ix - 8, iy - 4, 16, 16);
+        ui.txtS('¡Detrás!', ix, iy - 12, '#ff4d6d');
+      }
     }
     if (p.backT > 0.8 && !p.finished && ((w.raceT * 3) | 0) % 2 === 0) ui.txt('¡Sentido contrario!', W / 2, H / 2 - 30, '#ff4d6d', 8, 'center');
     if (this.banner) {
@@ -512,7 +563,7 @@ export class Game {
       ui.panel(x, y, 144, 84, on ? '#3a3478' : '#241f55', on ? c.col : '#6d66b0');
       ui.trophy(x + 18, y + 10 + (on ? Math.round(Math.sin(t * 6)) : 0), c.col);
       ui.txt(c.name.replace('Copa ', ''), x + 38, y + 8, on ? c.col : '#fff7e0');
-      c.tracks.forEach((ti, j) => ui.txtS(TRACK_DEFS[ti]!.name + (TRACK_DEFS[ti]!.flight ? ' *' : ''), x + 38, y + 26 + j * 13, '#fff7e0', 'left'));
+      c.tracks.forEach((ti, j) => { const d = this.tracks.get(ti).def; ui.txtS(d.name + (d.flight ? ' *' : ''), x + 38, y + 26 + j * 13, '#fff7e0', 'left'); });
     });
     ui.txtS('* pista con vuelo    Puntos: 15 12 10 8 6 4 2 1', W / 2, 220, '#9c95d6');
   }
@@ -521,14 +572,15 @@ export class Game {
     ui.bg();
     ui.txt('Elige circuito', W / 2, 6, '#ffe45e', 16, 'center');
     CUPS.forEach((c, r) => ui.txtS(c.name.replace('Copa ', ''), ox + 38, 28 + r * 44 + 16, c.col));
-    this.tracks.list.forEach((trk, i) => {
+    this.grid.forEach((ti, i) => {
+      const trk = this.tracks.get(ti);
       const r = i >> 2, x = ox + 66 + (i % 4) * 62, y = 26 + r * 44, on = i === this.trackSel;
       ui.panel(x, y, 56, 38, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : CUPS[r]!.col);
       ctx.fillStyle = trk.th.ground[0]; ctx.fillRect(x + 14, y + 5, 28, 28);
       ui.img(this.mini(trk).cv, x + 14, y + 5, 28, 28);
       if (trk.def.flight) ui.txtS('*', x + 50, y + 2, '#8fe0ff');
     });
-    const d = TRACK_DEFS[this.trackSel]!;
+    const d = this.tracks.get(this.grid[this.trackSel]!).def;
     ui.txt(d.name, W / 2, 204, '#ffe45e', 8, 'center');
     const tags = [d.flight ? 'Rampas de vuelo' : null, d.th.ice ? 'Hielo' : null, d.liquid ? d.liquid.msg.replace(/[¡!]/g, '').replace('Al ', 'Cuidado: ').replace('A la ', 'Cuidado: ') : null, d.ramps.length ? 'Saltos' : null].filter(Boolean);
     ui.txtS(tags.join('  /  ') || 'Clásica', W / 2, 216, '#fff7e0');
@@ -548,7 +600,7 @@ export class Game {
   private drawResults() {
     const ui = this.ui, w = this.world!, ox = (W - 320) / 2;
     ui.bg(0.8);
-    ui.txt(TRACK_DEFS[this.trackSel]!.name, W / 2, 8, '#ffe45e', 8, 'center');
+    ui.txt(this.tr.def.name, W / 2, 8, '#ffe45e', 8, 'center');
     ui.txt('Resultados', W / 2, 20, '#fff7e0', 16, 'center');
     this.rowList(w.finalOrder.map((id) => w.karts[id]!.ch), (_ch, i, y) => {
       const k = w.karts[w.finalOrder[i]!]!;
@@ -568,7 +620,7 @@ export class Game {
     this.rowList(this.standingsList(), (ch, _i, y) => { ui.txt('+' + (c.gain[ch] || 0), ox + 230, y + 4, '#2ec46b', 8, 'right'); ui.txt(String(c.pts[ch]), ox + 284, y + 4, '#ffe45e', 8, 'right'); });
     const last = c.race >= c.def.tracks.length - 1;
     ui.txtS('Carrera ' + (c.race + 1) + ' de ' + c.def.tracks.length, W / 2, 202);
-    ui.txtS(last ? 'Enter: ver podio' : 'Enter: siguiente carrera, ' + TRACK_DEFS[c.def.tracks[c.race + 1]!]!.name, W / 2, 218, '#9c95d6');
+    ui.txtS(last ? 'Enter: ver podio' : 'Enter: siguiente carrera, ' + this.tracks.get(c.def.tracks[c.race + 1]!).def.name, W / 2, 218, '#9c95d6');
   }
   private drawPodium(list: number[], title: string, col: string, sub: ((ch: number) => string) | null, t: number) {
     const ui = this.ui, ctx = ui.ctx;
@@ -592,7 +644,7 @@ export class Game {
   private drawPodiumFree(t: number) {
     const w = this.world!, ui = this.ui;
     const L = w.finalOrder.map((id) => w.karts[id]!.ch);
-    this.drawPodium(L, 'Podio', TRACK_DEFS[this.trackSel]!.th.curbB || '#ffe45e', (ch) => { const k = w.karts.find((q) => q.ch === ch)!; return k.finished ? fmtTime(k.time) : ''; }, t);
+    this.drawPodium(L, 'Podio', this.tr.th.curbB || '#ffe45e', (ch) => { const k = w.karts.find((q) => q.ch === ch)!; return k.finished ? fmtTime(k.time) : ''; }, t);
     const pos = w.finalOrder.indexOf(this.localId) + 1;
     ui.txt(pos === 1 ? '¡Ganaste!' : pos <= 3 ? '¡Al podio!' : 'Quedaste ' + pos + 'º', W / 2, 196, '#ff8a1f', 8, 'center');
     ui.txtS('Enter: otra carrera    Esc: menú', W / 2, 216, '#9c95d6');

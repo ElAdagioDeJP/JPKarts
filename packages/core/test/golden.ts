@@ -2,7 +2,9 @@
 // Regenerate ONLY when a behavior change is intended:  bun packages/core/test/golden.ts --write
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { LAPS, Rng, TRACK_DEFS, buildGrid, buildTrack, createWorld, dsin, itemList, prepTrack, step, takeEvents, type Input, type World } from '../src';
+import { ALL_TRACKS, LAPS, Rng, TrackCache, buildGrid, createWorld, dsin, itemList, prepAuthored, step, takeEvents, type GameEvent, type Input, type World } from '../src';
+
+const CACHE = new TrackCache(ALL_TRACKS, prepAuthored);
 
 /** Hash of what the player can observe: kinematics, items and world things. Independent of internal field layout. */
 export function behaviorHash(w: World): string {
@@ -33,11 +35,13 @@ export const SCENARIOS: { track: number; seed: number; diff: number; force?: boo
   // humans receive every item in turn (covers rare items: PEM, black hole, quantum swap, teleport)
   { track: 2, seed: 55, diff: 1, force: true },
   { track: 6, seed: 66, diff: 2, force: true },
+  // authored track (Playa Coco v2): walls, surfaces, tide, waves, shortcut
+  { track: 16, seed: 77, diff: 2, force: true },
 ];
 const ITEM_IDS = itemList().map((i) => i.id);
 
-export function runScenario(sc: (typeof SCENARIOS)[number], ticks = 60 * 90): string[] {
-  const track = buildTrack(prepTrack(TRACK_DEFS[sc.track]!));
+export function runScenario(sc: (typeof SCENARIOS)[number], ticks = 60 * 90, onEvent?: (e: GameEvent) => void): string[] {
+  const track = CACHE.ensureBuilt(sc.track);
   const grid = buildGrid(new Rng(sc.seed), [{ ch: 4, ctrl: 'local' }, { ch: 0, ctrl: 'remote' }], { humanSlot: 2 });
   const w = createWorld({ trackIndex: sc.track, diff: sc.diff, seed: sc.seed, laps: LAPS, grid }, track);
   const a = grid.findIndex((g) => g.ch === 4), b = grid.findIndex((g) => g.ch === 0);
@@ -51,7 +55,7 @@ export function runScenario(sc: (typeof SCENARIOS)[number], ticks = 60 * 90): st
       if (!k.item) k.item = ITEM_IDS[(i / 45) % ITEM_IDS.length]!;
     }
     step(w, inputs);
-    takeEvents(w);
+    for (const e of takeEvents(w)) onEvent?.(e);
     if (w.tick % 300 === 0) out.push(behaviorHash(w));
   }
   return out;

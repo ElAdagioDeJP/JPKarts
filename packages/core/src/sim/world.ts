@@ -16,11 +16,11 @@ import { modeOf } from './modes';
 import type { Ctrl, Fx, Input, Kart, RaceConfig, World } from './types';
 import { quantizeInput } from './types';
 
-function makeKart(w: World, id: number, ch: number, ctrl: Ctrl, g: number): Kart {
+function makeKart(w: World, id: number, ch: number, ctrl: Ctrl, g: number, aiDiff?: number): Kart {
   const tr = w.track, G = T.race.grid;
   const row = g >> 1, back = G.first + row * G.row + (g & 1) * G.stagger, i = (((-back) % tr.N) + tr.N) % tr.N, a = tr.ang[i]!, lat = g & 1 ? G.lateral : -G.lateral;
   const x = tr.x[i]! - dsin(a) * lat, y = tr.y[i]! + dcos(a) * lat;
-  const ai = ctrl === 'ai' ? newAiState(w) : null;
+  const ai = ctrl === 'ai' ? newAiState(w, aiDiff) : null;
   return {
     id, ch, ctrl, x, y, z: hAt(tr, x, y), vz: 0, air: false, glide: false, a, va: a, speed: 0, idx: i, prog: -back,
     drift: 0, dc: 0, boost: 0, spin: 0, hop: 0, item: null, roll: 0, finished: false, time: null,
@@ -51,7 +51,7 @@ export function createWorld(cfg: RaceConfig, track: Track): World {
     pairCD: [], raceT: 0, phase: 'countdown', cd: T.race.countdown, cdLast: 4, finishDelay: 0, ranked: [], finalOrder: [], events: [],
     water: track.water?.base ?? 0, highTierCD: 0, tideTarget: track.water?.base ?? 0,
   };
-  w.karts = cfg.grid.map((g, i) => makeKart(w, i, g.ch, g.ctrl, i));
+  w.karts = cfg.grid.map((g, i) => makeKart(w, i, g.ch, g.ctrl, i, g.aiDiff));
   w.pairCD = new Array(w.karts.length * w.karts.length).fill(0);
   w.ranked = w.karts.map((k) => k.id);
   return w;
