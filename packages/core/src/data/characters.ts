@@ -1,0 +1,63 @@
+export type StatKey = 'vel' | 'ace' | 'sue' | 'man' | 'pes' | 'vue';
+export type Stats = Record<StatKey, number>;
+
+export interface CharacterDef {
+  name: string;
+  short: string;
+  helmet: string;
+  kart: string;
+  skin: string;
+  acc: 'mohawk' | 'none' | 'headphones' | 'tuft' | 'antenna' | 'glasses' | 'spikes';
+  accCol: string;
+  mouth: string;
+  beard?: boolean;
+  voice: number;
+  st: Stats;
+  personality: 'agresivo' | 'defensivo' | 'oportunista' | 'equilibrado';
+}
+
+export interface Character extends CharacterDef {
+  spd: number;
+  acl: number;
+  hnd: number;
+  luck: number;
+  w: number;
+  fly: number;
+  desc: string;
+  weightClass: 'ligero' | 'medio' | 'pesado';
+}
+
+export const STAT_NAMES: Record<StatKey, string> = { vel: 'Velocidad', ace: 'Aceleración', sue: 'Suerte', man: 'Manejo', pes: 'Peso', vue: 'Vuelo' };
+export const STAT_SHORT: Record<StatKey, string> = { vel: 'Veloc.', ace: 'Acel.', sue: 'Suerte', man: 'Manejo', pes: 'Peso', vue: 'Vuelo' };
+
+const DEFS: CharacterDef[] = [
+  { name: 'Marco', short: 'Marco', helmet: '#e8455a', kart: '#ffe45e', skin: '#f0c090', acc: 'mohawk', accCol: '#2a1a12', mouth: '#b8404f', voice: 150, st: { vel: 4, ace: 6, sue: 5, man: 10, pes: 3, vue: 5 }, personality: 'agresivo' },
+  { name: 'Guaycaipuro', short: 'Guayca', helmet: '#2e8a4a', kart: '#c86a2a', skin: '#9a6040', acc: 'none', beard: true, accCol: '#2a1a12', mouth: '#e89090', voice: 105, st: { vel: 5, ace: 5, sue: 8, man: 7, pes: 6, vue: 7 }, personality: 'oportunista' },
+  { name: 'Luis', short: 'Luis', helmet: '#6a3fd6', kart: '#f4f1ff', skin: '#d8a070', acc: 'headphones', accCol: '#ffe45e', mouth: '#9a3040', voice: 125, st: { vel: 7, ace: 6, sue: 4, man: 5, pes: 8.5, vue: 5 }, personality: 'equilibrado' },
+  { name: 'Jesús', short: 'Jesús', helmet: '#f4f1ff', kart: '#2ec4b6', skin: '#c89060', acc: 'tuft', beard: true, accCol: '#3a2a1a', mouth: '#e89090', voice: 135, st: { vel: 4, ace: 7, sue: 2, man: 9, pes: 7, vue: 6 }, personality: 'defensivo' },
+  { name: 'Miguel', short: 'Miguel', helmet: '#22222e', kart: '#ff3df0', skin: '#e0a878', acc: 'antenna', accCol: '#ff3df0', mouth: '#b8404f', voice: 160, st: { vel: 8, ace: 9, sue: 1, man: 5, pes: 7.5, vue: 2 }, personality: 'agresivo' },
+  { name: 'JP', short: 'JP', helmet: '#2f6bff', kart: '#ff8a1f', skin: '#e0a878', acc: 'glasses', accCol: '#ffe45e', mouth: '#b8404f', voice: 145, st: { vel: 3, ace: 10, sue: 6, man: 6, pes: 8.5, vue: 9 }, personality: 'equilibrado' },
+  { name: 'Mario', short: 'Mario', helmet: '#9aa0b4', kart: '#8fe03a', skin: '#e8b890', acc: 'headphones', accCol: '#2ec4b6', mouth: '#b8404f', voice: 115, st: { vel: 5, ace: 6, sue: 5, man: 9, pes: 8, vue: 7 }, personality: 'defensivo' },
+  { name: 'Andrés', short: 'Andrés', helmet: '#3df0ff', kart: '#6a3fd6', skin: '#f0c8a0', acc: 'spikes', accCol: '#ffe45e', mouth: '#b8404f', voice: 170, st: { vel: 6, ace: 7, sue: 6, man: 8, pes: 4, vue: 7 }, personality: 'oportunista' },
+];
+
+export function autoDesc(s: Stats): string {
+  const e = (Object.entries(s) as [StatKey, number][]).filter(([k]) => k !== 'pes');
+  e.sort((a, b) => b[1] - a[1]);
+  return 'Fuerte en ' + STAT_NAMES[e[0]![0]].toLowerCase() + ', flojo en ' + STAT_NAMES[e[e.length - 1]![0]].toLowerCase() + '.';
+}
+
+export const CHARS: Character[] = DEFS.map((c) => {
+  const s = c.st;
+  return {
+    ...c,
+    spd: 0.85 + s.vel * 0.03,
+    acl: 0.75 + s.ace * 0.05,
+    hnd: 0.8 + s.man * 0.04,
+    luck: s.sue,
+    w: s.pes,
+    fly: s.vue,
+    desc: autoDesc(s),
+    weightClass: s.pes < 5 ? 'ligero' : s.pes >= 8 ? 'pesado' : 'medio',
+  };
+});

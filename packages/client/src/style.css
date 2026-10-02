@@ -1,0 +1,44 @@
+@import '@fontsource/press-start-2p/400.css';
+
+:root {
+  --bg: #1b1740;
+  --panel: #241f55;
+  --ink: #fff7e0;
+  --key: #2f2a6b;
+  --keyedge: #0f0c2a;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Press Start 2P', ui-monospace, monospace;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  overflow: hidden;
+}
+#stage {
+  position: relative;
+  width: min(98vw, calc((100dvh - 60px) * 16 / 9));
+  aspect-ratio: 16 / 9;
+  background: #000;
+  outline: none;
+  border: 4px solid var(--keyedge);
+  box-shadow: 0 0 0 4px var(--panel);
+}
+#stage:focus-visible { box-shadow: 0 0 0 4px #ffe45e; }
+#stage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+.help { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 14px; font-size: 8px; line-height: 1.6; max-width: 98vw; }
+.help span { white-space: nowrap; }
+kbd { font-family: inherit; font-size: 7px; display: inline-block; padding: 3px 5px; margin-right: 5px; background: var(--key); color: var(--ink); border: 2px solid var(--keyedge); border-bottom-width: 4px; }
+body.fullscreen .help { display: none; }
