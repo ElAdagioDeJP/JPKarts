@@ -69,6 +69,21 @@ defineEffect({
 });
 /** Fake oil stain on a human's screen (visual only). */
 defineEffect({ type: 'smudge', tags: ['visual'] });
+/** Reflector shield: the next projectile goes back to whoever threw it. */
+defineEffect({
+  type: 'reflect', tags: ['shield'],
+  onProjectile(w, k, e) {
+    removeFx(k, 'reflect');
+    const thrower = e.owner;
+    e.owner = k.id;
+    if (e.kind === 'shot') { e.vx = -e.vx; e.vy = -e.vy; e.life = Math.max(e.life, 1.5); }
+    else { e.target = thrower; e.vx = -(e.vx || 1); }
+    emit(w, { type: 'reflect', kart: k.id });
+    return true;
+  },
+});
+/** Spring jump in progress (Muelle): only a marker for presentation. */
+defineEffect({ type: 'spring', tags: ['movement'] });
 /** Bubble shield: absorbs one light hit, pops off-road. */
 defineEffect({
   type: 'bubble', tags: ['shield'], permanent: true,

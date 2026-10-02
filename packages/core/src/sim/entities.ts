@@ -3,9 +3,9 @@ import { ROAD } from '../constants';
 import { dhypot, dpow, dsin, dcos } from '../dmath';
 import { lerp } from '../math';
 import { T } from '../tunables';
-import { dgAt, hAt } from '../track/track';
-import { addFx } from './effects';
-import { emit, hit, isHuman } from './helpers';
+import { dgAt, hAt, wgAt } from '../track/track';
+import { addFx, eachFx } from './effects';
+import { canBeHit, emit, hit, isHuman } from './helpers';
 import type { Ent, Kart, World } from './types';
 
 export interface EntityDef {
@@ -56,6 +56,13 @@ export function zoneAt(w: World, k: Kart): EntityDef | undefined {
   return undefined;
 }
 
+/** Let the kart's effects deflect a projectile (reflector). True = deflected, do not hit. */
+function deflected(w: World, k: Kart, e: Ent): boolean {
+  let done = false;
+  eachFx(k, (d) => { if (!done && d.onProjectile) done = d.onProjectile(w, k, e); });
+  return done;
+}
+
 /** Black hole: clear entities within `radius` of (x, y). */
 export function clearEntitiesNear(w: World, x: number, y: number, radius: number, owner: number) {
   w.ents = w.ents.filter((e) => {
@@ -101,10 +108,13 @@ defineEntity({
     s.x += s.vx * dt;
     s.y += s.vy * dt;
     s.z = hAt(w.track, s.x, s.y) + C.lift;
-    if (dgAt(w.track, s.x, s.y) > ROAD + C.offRoad) return false;
+    if (dgAt(w.track, s.x, s.y) - wgAt(w.track, s.x, s.y) > C.offRoad) return false;
     for (const k of w.karts) {
       if (k.id === s.owner) continue;
-      if (dhypot(k.x - s.x, k.y - s.y) < C.radius) { hit(w, k, C.hit, 1); s.life = 0; break; }
+      if (dhypot(k.x - s.x, k.y - s.y) < C.radius) {
+        if (deflected(w, k, s)) break;
+        hit(w, k, C.hit, 1); s.life = 0; break;
+      }
     }
     return s.life > 0;
   },
@@ -116,7 +126,7 @@ defineEntity({
     const D = T.items.dron, tr = w.track, N = tr.N;
     r.life -= dt;
     r.t += dt;
-    r.s += D.speed * dt;
+    r.s += D.speed * dt * (r.vx < 0 ? -1 : 1);
     const i0 = Math.floor(r.s), f = r.s - i0, a = ((i0 % N) + N) % N, b = (a + 1) % N;
     const tgt = r.target >= 0 ? w.karts[r.target] : undefined;
     if (tgt && !tgt.finished) {
@@ -129,9 +139,52 @@ defineEntity({
     r.z = hAt(tr, r.x, r.y) + D.lift;
     for (const k of w.karts) {
       if (k.id === r.owner) continue;
-      if (dhypot(k.x - r.x, k.y - r.y) < D.radius) { hit(w, k, D.hit, 1); r.life = 0; break; }
+      if (dhypot(k.x - r.x, k.y - r.y) < D.radius) {
+        if (deflected(w, k, r)) break;
+        hit(w, k, D.hit, 1); r.life = 0; break;
+      }
     }
     return r.life > 0;
+  },
+});
+/** Proximity mine: arms after a moment, then explodes when anyone gets close. */
+defineEntity({
+  kind: 'mine', blackHole: 'all',
+  update(w, m, dt) {
+    const M = T.items.mina;
+    m.age += dt;
+    if (m.age > M.life) return false;
+    if (m.age < M.arm) return true;
+    let boom = false;
+    for (const k of w.karts) if (!k.air && k.respawn <= 0 && dhypot(k.x - m.x, k.y - m.y) < M.radius * 0.5) boom = true;
+    if (!boom) return true;
+    for (const k of w.karts) if (!k.air && dhypot(k.x - m.x, k.y - m.y) < M.radius) hit(w, k, M.hit, 1);
+    emit(w, { type: 'explode', x: m.x, y: m.y });
+    return false;
+  },
+});
+/** Wave (track hazard): sweeps across the road; a light hit and a push towards land. */
+defineEntity({
+  kind: 'ola', blackHole: 'none',
+  update(w, o, dt) {
+    const H = T.race.hazards.ola, tr = w.track, i = o.s;
+    o.t += dt;
+    const f = Math.min(1, o.t / o.life);
+    o.lat = lerp(o.vx, o.vy, f);
+    const a = tr.ang[i]!;
+    o.x = tr.x[i]! - dsin(a) * o.lat;
+    o.y = tr.y[i]! + dcos(a) * o.lat;
+    o.z = hAt(tr, o.x, o.y);
+    const dir = Math.sign(o.vy - o.vx);
+    for (const k of w.karts) {
+      if (k.air || !canBeHit(k)) continue;
+      if (dhypot(k.x - o.x, k.y - o.y) < H.radius + 10) {
+        hit(w, k, 0, 0);
+        k.x += -dsin(a) * dir * H.push;
+        k.y += dcos(a) * dir * H.push;
+      }
+    }
+    return o.t < o.life;
   },
 });
 /** Black hole animation (the clearing happens on use). */

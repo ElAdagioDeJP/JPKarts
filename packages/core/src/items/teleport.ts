@@ -1,4 +1,4 @@
-// teleport: see docs/GDD.md §3.2
+// teleport: see docs/GDD.md §3
 import { hAt } from '../track/track';
 import { emit } from '../sim/helpers';
 import { T } from '../tunables';
@@ -14,4 +14,5 @@ defineItem({
     k.a = k.va = tr.ang[i]!; k.air = false; k.glide = false; k.vz = 0;
     emit(w, { type: 'flash', color: '#ffd23a' });
   },
+  aiScore(w, k) { return k.rank > 1 ? 0.9 : 0.3; },
 });

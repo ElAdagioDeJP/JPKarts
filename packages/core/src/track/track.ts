@@ -1,18 +1,37 @@
 import { BW, HM, ROAD, TRACK_LEN, TS } from '../constants';
+import type { AuthoredTrackDef } from './authoredTypes';
+import { computeRacingLine, type RacingLine } from '../ai/line';
 import type { TrackDef } from '../data/tracks';
 import type { Theme } from '../data/themes';
 import { clamp, lerp, mulberry, vnoise, wrapA } from '../math';
 import { datan2, dcos, dexp, dhypot, dsin } from '../dmath';
 
 export interface Pad { i: number; lat: number; x: number; y: number }
-export interface Branch { i0: number; i1: number; x: number[]; y: number[]; h: number[]; n: number }
+export interface Branch { i0: number; i1: number; x: number[]; y: number[]; h: number[]; n: number; w?: number }
 export interface BoxSpot { x: number; y: number; z: number; c: number }
+export type SurfaceKind = 'barro' | 'charco' | 'hielo' | 'arena';
+/** Surface band along the track: samples [i0, i1) (wrapping), lateral range [lat0, lat1]. */
+export interface SurfaceBand { i0: number; i1: number; lat0: number; lat1: number; kind: SurfaceKind }
+/** Dynamic water (authored tracks): level per lap of the leader. */
+export interface WaterSpec { base: number; laps: Record<number, number>; rate: number; fallDepth: number; puddleDepth: number }
 
 /** A track: centerline samples (6 units apart) + baked heightfield. Pure data, no DOM. */
 export interface Track {
   def: TrackDef;
   th: Theme;
+  /** authored source (null for legacy procedural tracks) */
+  authored: AuthoredTrackDef | null;
+  /** world size in units and heightmap resolution (4 units per cell) */
+  size: number;
+  res: number;
   N: number;
+  /** road half width per sample */
+  wd: Float32Array;
+  /** walls per sample: left (lateral < 0) / right (lateral > 0) */
+  wallL: Uint8Array;
+  wallR: Uint8Array;
+  surfaces: SurfaceBand[];
+  water: WaterSpec | null;
   x: Float32Array;
   y: Float32Array;
   ang: Float32Array;
@@ -22,9 +41,14 @@ export interface Track {
   boxRows: number[];
   branches: Branch[];
   built: boolean;
+  /** AI racing line (computed on build) */
+  line?: RacingLine;
+  /** custom bake (authored tracks); legacy tracks use buildTrack's procedural heightfield */
+  bake?: (t: Track) => void;
   // baked (buildTrack)
   hm: Float32Array; // height
   dg: Float32Array; // distance to centerline
+  wg: Float32Array; // road half width of the nearest sample
   liq: Uint8Array; // liquid cell
   ng: Float32Array; // ground noise (visual)
   boxes: BoxSpot[];
@@ -208,14 +232,16 @@ export function prepTrack(def: TrackDef): Track {
   });
   const empty32 = new Float32Array(0);
   return {
-    def, th: def.th, N, x, y, ang, hc, flights, pads, boxRows, branches: [], built: false,
-    hm: empty32, dg: empty32, liq: new Uint8Array(0), ng: empty32, boxes: [],
+    def, th: def.th, authored: null, size: TS, res: HM, N, wd: new Float32Array(N).fill(ROAD), wallL: new Uint8Array(N), wallR: new Uint8Array(N), surfaces: [], water: null,
+    x, y, ang, hc, flights, pads, boxRows, branches: [], built: false,
+    hm: empty32, dg: empty32, wg: empty32, liq: new Uint8Array(0), ng: empty32, boxes: [],
   };
 }
 
 /** Expensive part: heightfield, distance field, liquids, item boxes. Legacy `buildHeight` (+ boxes from `buildScenery`). */
 export function buildTrack(tr: Track): Track {
   if (tr.built) return tr;
+  if (tr.bake) { tr.bake(tr); tr.line = computeRacingLine(tr); tr.built = true; return tr; }
   const def = tr.def, N = tr.N, B = TS / 64;
   const bk: number[][] = Array.from({ length: B * B }, () => []);
   for (let i = 0; i < N; i++) {
@@ -258,8 +284,17 @@ export function buildTrack(tr: Track): Track {
     }
   tr.hm = hm;
   tr.dg = dg;
+  tr.wg = new Float32Array(HM * HM).fill(ROAD);
   tr.liq = liq;
   tr.ng = ng;
+  placeBoxes(tr);
+  tr.line = computeRacingLine(tr);
+  tr.built = true;
+  return tr;
+}
+
+/** Item boxes: 2 per shortcut + rows of 4 across the road. */
+export function placeBoxes(tr: Track) {
   tr.boxes = [];
   for (const b of tr.branches) {
     const m = b.n >> 1, a = datan2(b.y[b.n - 1]! - b.y[0]!, b.x[b.n - 1]! - b.x[0]!);
@@ -275,12 +310,10 @@ export function buildTrack(tr: Track): Track {
       tr.boxes.push({ x, y, z: hAt(tr, x, y), c: ((l + 27) / 18) | 0 });
     }
   }
-  tr.built = true;
-  return tr;
 }
 
 export function hAt(tr: Track, x: number, y: number): number {
-  const hm = tr.hm;
+  const hm = tr.hm, HM = tr.res;
   let gx = x * 0.25 - 0.5, gy = y * 0.25 - 0.5;
   const M = HM - 1.001;
   gx = gx < 0 ? 0 : gx > M ? M : gx;
@@ -292,21 +325,42 @@ export function hAt(tr: Track, x: number, y: number): number {
 
 export function liqAt(tr: Track, x: number, y: number): boolean {
   if (!tr.def.liquid) return false;
-  const gx = clamp((x / 4) | 0, 0, HM - 1), gy = clamp((y / 4) | 0, 0, HM - 1);
+  const HM = tr.res, gx = clamp((x / 4) | 0, 0, HM - 1), gy = clamp((y / 4) | 0, 0, HM - 1);
   return tr.liq[gy * HM + gx] === 1;
 }
 
 export function dgAt(tr: Track, x: number, y: number): number {
-  const gx = clamp((x / 4) | 0, 0, HM - 1), gy = clamp((y / 4) | 0, 0, HM - 1);
+  const HM = tr.res, gx = clamp((x / 4) | 0, 0, HM - 1), gy = clamp((y / 4) | 0, 0, HM - 1);
   return tr.dg[gy * HM + gx]!;
+}
+
+/** Road half width of the nearest centerline sample. */
+export function wgAt(tr: Track, x: number, y: number): number {
+  const HM = tr.res, gx = clamp((x / 4) | 0, 0, HM - 1), gy = clamp((y / 4) | 0, 0, HM - 1);
+  return tr.wg[gy * HM + gx]!;
+}
+
+/** Signed lateral offset of (x, y) from sample i (> 0 = right of the driving direction). */
+export function lateralAt(tr: Track, i: number, x: number, y: number): number {
+  const a = tr.ang[i]!;
+  return (x - tr.x[i]!) * -dsin(a) + (y - tr.y[i]!) * dcos(a);
+}
+
+/** Surface under (sample i, lateral lat), if any. */
+export function surfaceAt(tr: Track, i: number, lat: number): SurfaceKind | null {
+  for (const s of tr.surfaces) {
+    const inRange = s.i0 <= s.i1 ? i >= s.i0 && i < s.i1 : i >= s.i0 || i < s.i1;
+    if (inRange && lat >= s.lat0 && lat <= s.lat1) return s.kind;
+  }
+  return null;
 }
 
 /** Track cache: centerlines are cheap; heightfields are built on demand and the oldest ones are released. */
 export class TrackCache {
   private all: Track[];
   private builtQ: Track[] = [];
-  constructor(defs: TrackDef[]) {
-    this.all = defs.map(prepTrack);
+  constructor(defs: (TrackDef | AuthoredTrackDef)[], prepAuthored?: (d: AuthoredTrackDef) => Track) {
+    this.all = defs.map((d) => ('spline' in d ? prepAuthored!(d) : prepTrack(d)));
   }
   get(i: number): Track {
     return this.all[i]!;
@@ -325,7 +379,7 @@ export class TrackCache {
       this.builtQ.splice(this.builtQ.indexOf(o), 1);
       o.built = false;
       const e = new Float32Array(0);
-      o.hm = o.dg = o.ng = e;
+      o.hm = o.dg = o.ng = o.wg = e;
       o.liq = new Uint8Array(0);
       o.boxes = [];
     }

@@ -1,9 +1,53 @@
 {
   "countdown": 3.999,
   "finishDelay": 3,
-  "bump": { "size": 12, "zTolerance": 10, "cooldown": 0.5, "weightPush": 0.1, "lightSlow": 0.92, "gomaPush": 5, "gomaSlow": 0.85, "gomaBounce": -0.4 },
-  "hit": { "hop": 0.25, "ouch": 0.8 },
-  "rubberBand": { "far": 0.3, "near": 0.1 },
-  "ai": { "lookBase": 8, "lookDiv": 18, "lane": 22, "laneStart": 18, "laneMin": 1.5, "laneMax": 4, "curveLook": 28, "curveMax": 1.1, "limit": 112, "limitIce": 95, "steerGain": 2.6, "wideAngle": 1.4, "wideThrottle": 0.3 },
-  "grid": { "first": 8, "row": 7, "stagger": 3, "lateral": 15 }
+  "bump": {
+    "size": 12,
+    "zTolerance": 10,
+    "cooldown": 0.5,
+    "weightPush": 0.1,
+    "lightSlow": 0.92,
+    "gomaPush": 5,
+    "gomaSlow": 0.85,
+    "gomaBounce": -0.4
+  },
+  "hit": {
+    "hop": 0.25,
+    "ouch": 0.8
+  },
+  "rubberBand": {
+    "far": 0.3,
+    "near": 0.1
+  },
+  "ai": {
+    "lookBase": 8,
+    "lookDiv": 18,
+    "lane": 22,
+    "laneStart": 18,
+    "laneMin": 1.5,
+    "laneMax": 4,
+    "curveLook": 28,
+    "curveMax": 1.1,
+    "limit": 112,
+    "limitIce": 95,
+    "steerGain": 2.6,
+    "wideAngle": 1.4,
+    "wideThrottle": 0.3
+  },
+  "grid": {
+    "first": 8,
+    "row": 7,
+    "stagger": 3,
+    "lateral": 15
+  },
+  "hazards": {
+    "ola": {
+      "duration": 1.6,
+      "radius": 14,
+      "push": 18
+    }
+  },
+  "water": {
+    "defaultRate": 0.8
+  }
 }

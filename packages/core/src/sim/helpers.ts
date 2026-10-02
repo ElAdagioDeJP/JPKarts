@@ -31,15 +31,25 @@ export function ouch(k: Kart, time: number, text: number) {
   addFx(k, 'ouch', time, -1, text);
 }
 
-/** Returns true when the kart actually got hit. Immunities and shields come from its effects. */
+/** Can this kart be hit right now? (immunity effects, spinning, respawning, post-hit invulnerability) */
+export const canBeHit = (k: Kart) => !(immune(k, 'hit') || k.spin > 0 || k.respawn > 0 || k.invuln > 0);
+
+/**
+ * Hit a kart. `level`: 0 light (short spin, keeps half its speed), 1 normal, ≥2 strong (shields don't stop it).
+ * Returns true when the kart actually got hit. Lightweights recover faster.
+ */
 export function hit(w: World, k: Kart, t: number, level = 1): boolean {
-  if (immune(k, 'hit') || k.spin > 0 || k.respawn > 0) return false;
+  if (!canBeHit(k)) return false;
   for (const f of [...k.fx]) {
     const d = effectDef(f.type);
-    if (d?.absorbHit && d.absorbHit(w, k, f, level)) return false;
+    if (d?.absorbHit && d.absorbHit(w, k, f, Math.max(1, level))) return false;
   }
-  const H = T.race.hit;
-  k.spin = t; k.drift = 0; k.dc = 0; k.boost = 0; k.hop = H.hop;
+  const H = T.race.hit, DH = T.driving.hit, light = level === 0;
+  const cls = CHARS[k.ch]!.weightClass === 'ligero' ? DH.lightClassMul : 1;
+  k.spin = (light ? DH.lightSpin : t) * cls;
+  k.spinK = light ? 1 : T.driving.spinDecay;
+  if (light) k.speed *= DH.lightKeep;
+  k.drift = 0; k.dc = 0; k.dLvl = 0; k.boost = 0; k.hop = H.hop; k.trick = false; k.slip = 0;
   for (const f of [...k.fx]) if (effectDef(f.type)?.cancelOnHit) removeFx(k, f.type);
   ouch(k, H.ouch, w.rng.int(OUCH.length));
   emit(w, { type: 'hit', kart: k.id });

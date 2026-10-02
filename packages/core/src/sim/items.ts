@@ -1,7 +1,5 @@
 // Item registry. Definitions live in core/src/items/<id>.ts (one file per item).
-import { DIFFS } from '../data/tracks';
-import { datan2, dhypot, dpow } from '../dmath';
-import { wrapA } from '../math';
+import { dpow } from '../dmath';
 import { T } from '../tunables';
 import { emit, isHuman } from './helpers';
 import type { Kart, World } from './types';
@@ -22,6 +20,8 @@ export interface ItemDef {
   aiAim?: boolean;
   /** Apply the item. Return false when it had no effect (e.g. nobody ahead). */
   use(w: World, k: Kart): void | false;
+  /** AI desire to use it now, 0..1 (default by role: see ai/ai.ts defaultScore) */
+  aiScore?(w: World, k: Kart): number;
 }
 
 const REG: (ItemDef & { tier: number })[] = [];
@@ -49,8 +49,19 @@ export function itemWeights(luck: number, rank: number, n: number): number[] {
   });
 }
 
+/**
+ * Item distribution v2 (GDD §3.1): no high-tier item while the global cooldown runs, no repeats of
+ * non-common items, the leader never gets strong items. Weights of excluded items become 0.
+ */
 export function rollItem(w: World, k: Kart, luck: number): string {
-  const ws = itemWeights(luck, k.rank, w.karts.length);
+  const DI = T.items.distribution;
+  const ws = itemWeights(luck, k.rank, w.karts.length).map((x, i) => {
+    const it = REG[i]!;
+    if (w.highTierCD > 0 && it.tier >= DI.highTier) return 0;
+    if (k.rank === 0 && it.tier > DI.firstMaxTier) return 0;
+    if (k.lastItem === it.id && it.tier >= DI.noRepeatFromTier) return 0;
+    return x;
+  });
   let tot = 0;
   for (const x of ws) tot += x;
   let r = w.rng.next() * tot;
@@ -64,8 +75,8 @@ export function rollItem(w: World, k: Kart, luck: number): string {
 export function giveItem(w: World, k: Kart, it: string) {
   k.item = it;
   k.hold = 0;
-  const Df = DIFFS[w.cfg.diff]!;
-  k.useAt = w.rng.range(Df.item[0], Df.item[1]);
+  k.lastItem = it;
+  if (itemDef(it).tier >= T.items.distribution.highTier) w.highTierCD = T.items.distribution.highTierCooldown;
   emit(w, { type: 'itemGet', kart: k.id, item: it });
 }
 
@@ -77,25 +88,6 @@ export function useItem(w: World, k: Kart) {
   const target = k.rank > 0 ? w.ranked[k.rank - 1] : undefined;
   const ok = itemDef(it).use(w, k) !== false;
   emit(w, { type: 'itemUse', kart: k.id, item: it, target, ok });
-}
-
-/** Legacy AI item usage (random timer) — replaced by aiScore in Phase 4. */
-export function aiItemUse(w: World, k: Kart, dt: number) {
-  if (!k.item || k.roll > 0 || k.finished || k.spin > 0) return;
-  k.hold += dt;
-  const it = itemDef(k.item), I = T.items;
-  let use = k.hold > k.useAt;
-  if (it.aiNotWhenFirst && k.rank === 0) use = false;
-  if (it.aiQuick) use = k.hold > I.aiQuickUse;
-  if (it.aiAim) {
-    use = k.hold > I.aiShotWait;
-    for (const o of w.karts) {
-      if (o === k) continue;
-      const dx = o.x - k.x, dy = o.y - k.y, d = dhypot(dx, dy);
-      if (d < I.aiShotRange && d > I.aiShotMin && Math.abs(wrapA(datan2(dy, dx) - k.a)) < I.aiShotCone) { use = true; break; }
-    }
-  }
-  if (use) useItem(w, k);
 }
 
 export { isHuman };
