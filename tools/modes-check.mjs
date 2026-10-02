@@ -67,6 +67,22 @@ await page.waitForFunction(() => window.__jpkart.world?.phase === 'race', null, 
 result.elim = await page.evaluate(() => ({ laps: window.__jpkart.world.cfg.laps, mode: window.__jpkart.world.cfg.mode }));
 await page.waitForTimeout(800);
 await shot('06-elimination');
+// Batalla: Globos, then Captura (M on the arena screen)
+for (const [n, toggle] of [['07-battle', false], ['08-capture', true]]) {
+  await key('Escape'); await key('Escape');
+  await page.evaluate(() => { const g = window.__jpkart; g.paused = false; g.world = null; g.state = 'menu'; g.menuSel = 4; });
+  await key('Enter'); await key('Enter');
+  await page.waitForTimeout(300);
+  if (toggle) await key('KeyC');
+  await shot(n + '-arenas');
+  await key('Enter');
+  await page.waitForFunction(() => window.__jpkart.world?.phase === 'race', null, { timeout: 60000 });
+  await page.keyboard.down('ArrowUp');
+  await page.waitForTimeout(6000);
+  await page.keyboard.up('ArrowUp');
+  await shot(n);
+  result[n] = await page.evaluate(() => { const w = window.__jpkart.world; return { mode: w.cfg.mode, laps: w.cfg.laps, balloons: w.karts.map((k) => k.balloons), flag: w.ents.filter((e) => e.kind === 'flag').length }; });
+}
 result.errors = errors;
 fs.writeFileSync(`${out}/result.json`, JSON.stringify(result, null, 2));
 console.log(JSON.stringify(result));

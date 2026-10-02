@@ -3,7 +3,7 @@
 import type { Ent, Kart } from '@jpkart/core';
 import type { Spr } from '../art/pixel';
 import {
-  BIGBALL, BLADE, BOOM, BOOMER, CAR, COIN, D, FAKEBOX, GATE, GEYSER, ICE, ICONS, LASER, LAVA_GEYSER, METEOR, MINE, MUSHROOM, OLA, ROCK_BALL, SHOT, SMOKE,
+  BIGBALL, BLADE, FLAG, balloonSprite, BOOM, BOOMER, CAR, COIN, D, FAKEBOX, GATE, GEYSER, ICE, ICONS, LASER, LAVA_GEYSER, METEOR, MINE, MUSHROOM, OLA, ROCK_BALL, SHOT, SMOKE,
   SNOWBALL, TARS, TRAIN, WARN_RING,
 } from '../art/sprites';
 
@@ -63,6 +63,7 @@ export const THING_ART: Record<string, Art> = {
   pelota: (e, _c, o) => bb(o, BIGBALL, e.x, e.y, e.z - 1, 14, 14),
   bolanieve: (e, _c, o) => bb(o, SNOWBALL, e.x, e.y, e.z - 1, 18, 18),
   seta: (e, _c, o) => bb(o, MUSHROOM, e.x, e.y, e.z - 1, 26, 22),
+  flag: (e, c, o) => bb(o, FLAG, e.x, e.y, e.z + (e.target >= 0 ? 12 : 0) + Math.sin(c.t * 3) * 0.8, 12, 16),
   compuerta: (e, c, o) => { if ((e.target >> c.lap) & 1) bb(o, GATE, e.x, e.y, e.z - 1, e.vy - e.vx, 16); },
 };
 
@@ -72,5 +73,13 @@ export function orbitArt(k: Kart, x: number, y: number, z: number, t: number, ou
   for (let i = 0; i < k.itemN; i++) {
     const a = t * 5 + (i * Math.PI * 2) / 3;
     bb(out, SHOT, x + Math.cos(a) * 10, y + Math.sin(a) * 10, z + 2, 5, 5);
+  }
+}
+
+/** Battle: the balloons left float over the kart. */
+export function balloonArt(k: Kart, col: string, x: number, y: number, z: number, t: number, out: ThingView[]) {
+  for (let i = 0; i < k.balloons; i++) {
+    const a = (i - (k.balloons - 1) / 2) * 5;
+    bb(out, balloonSprite(col), x + Math.cos(t * 2 + i) * 0.8 + a * 0.6, y + a * 0.6, z + 13 + Math.sin(t * 3 + i * 2) * 0.8, 5, 8);
   }
 }

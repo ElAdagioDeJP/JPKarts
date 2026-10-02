@@ -333,3 +333,21 @@ ICONS.rafaga = mk(16, 16, (p) => { for (const y of [4, 8, 12]) P.rect(p, 1 + (y 
 ICONS.cadena = mk(16, 16, (p) => { P.line(p, 9, 0, 4, 7, '#ffe45e', 2); P.line(p, 4, 7, 11, 7, '#ffe45e', 2); P.line(p, 11, 7, 6, 15, '#ffe45e', 2); P.ell(p, 3, 13, 2, 2, sph('#3df0ff')); P.ell(p, 13, 3, 2, 2, sph('#3df0ff')); });
 ICONS.bala = mk(16, 16, (p) => { P.ell(p, 10, 8, 5.5, 4.5, sph('#2a2833')); P.rect(p, 2, 4, 8, 9, cyl('#2a2833')); P.rect(p, 0, 6, 3, 5, '#ff8a1f'); P.ell(p, 11, 6, 1.4, 1.2, '#ffffff'); P.rect(p, 12, 8, 2, 1, '#ff3a3a'); });
 ICONS.coin = COIN[0]!;
+
+// ---- Phase 9: battle ----
+const BALLOON_CACHE = new Map<string, Spr>();
+/** A balloon in the kart's color (battle). */
+export function balloonSprite(col: string): Spr {
+  let b = BALLOON_CACHE.get(col);
+  if (!b) {
+    b = mk(9, 14, (p) => { P.ell(p, 4.5, 4.5, 4, 4.5, sph(col)); P.set(p, 3, 2, '#ffffff'); P.rect(p, 4, 9, 1, 1, shade(col, 0.7)); P.line(p, 4, 10, 5, 13, '#fff7e0', 1); });
+    BALLOON_CACHE.set(col, b);
+  }
+  return b;
+}
+export const FLAG = mk(16, 22, (p) => {
+  P.rect(p, 2, 0, 2, 22, cyl('#d8dce8'));
+  P.rect(p, 4, 1, 11, 8, (i, j) => ((i + j) % 4 < 2 ? '#ffd23a' : '#ffe45e'));
+  miniText(p, 'JP', 6, 3, '#e8455a');
+});
+ICONS.flag = FLAG;

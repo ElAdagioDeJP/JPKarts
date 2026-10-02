@@ -17,7 +17,7 @@ export const unpackInput = (p: PackedInput): Input => ({ t: p[1] / 127, s: p[2] 
 
 export interface LobbyPlayer { id: number; name: string; ch: number; ready: boolean; host: boolean }
 export interface LobbySettings {
-  mode: 'free' | 'cup' | 'elimination';
+  mode: 'free' | 'cup' | 'elimination' | 'battle' | 'capture';
   trackIndex: number; cup: number; diff: number; laps: number;
   /** two teams, no friendly fire */
   teams?: boolean;

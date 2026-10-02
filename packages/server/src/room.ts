@@ -1,6 +1,6 @@
 // Authoritative race room, independent of the transport (WebSocket in main.ts, in-memory in tests).
 import {
-  ALL_TRACKS, CLASSES, CUPS, LAPS, PROTOCOL_VERSION, classCfg, ReplayRecorder, Rng, SNAPSHOT_EVERY, TrackCache, buildGrid, createWorld, diffJson, handshakeTunables, modeOf,
+  ALL_TRACKS, ARENA_INDICES, CLASSES, CUPS, LAPS, PROTOCOL_VERSION, classCfg, ReplayRecorder, Rng, SNAPSHOT_EVERY, TrackCache, buildGrid, createWorld, diffJson, handshakeTunables, modeOf,
   newAiState, prepAuthored, serializeWorld, step, takeEvents, unpackInput,
   type ClientMsg, type Delta, type Input, type LobbyPlayer, type LobbySettings, type PackedInput, type ServerMsg, type World, type WorldState,
 } from '@jpkart/core';
@@ -101,8 +101,10 @@ export class Room {
         if (!p.host || this.phase !== 'lobby') return;
         const s = m.s;
         if (s.trackIndex < 0 || s.trackIndex >= ALL_TRACKS.length || s.cup < 0 || s.cup >= CUPS.length || s.diff < 0 || s.diff > 2) return;
-        if (!['free', 'cup', 'elimination'].includes(s.mode) || (s.cls && !(CLASSES as readonly string[]).includes(s.cls))) return;
-        this.settings = { ...s, laps: LAPS, teams: !!s.teams && s.mode !== 'elimination' };
+        if (!['free', 'cup', 'elimination', 'battle', 'capture'].includes(s.mode) || (s.cls && !(CLASSES as readonly string[]).includes(s.cls))) return;
+        const arena = ARENA_INDICES.includes(s.trackIndex);
+        if ((s.mode === 'battle' || s.mode === 'capture') !== arena) return; // battles only on arenas, races never on them
+        this.settings = { ...s, laps: LAPS, teams: !!s.teams && (s.mode === 'free' || s.mode === 'cup') };
         this.broadcast(this.lobbyMsg());
         break;
       }
@@ -139,8 +141,8 @@ export class Room {
     const humans = [...this.players.values()].map((p) => ({ ch: p.ch, ctrl: 'remote' as const }));
     let grid = S.mode === 'cup' && this.cupRace > 0 ? buildGrid(new Rng(seed), humans, { cupPts: this.cupPts, humanSlot: 0 }) : buildGrid(new Rng(seed), humans, { humanSlot: 8 - humans.length });
     if (S.teams) grid = grid.map((g, i) => ({ ...g, team: i % 2 }));
-    const mode = S.mode === 'cup' ? 'cup' : S.mode === 'elimination' ? 'elimination' : 'race';
-    const laps = mode === 'elimination' ? modeOf({ cfg: { mode } } as World).laps!(grid.length) : S.laps;
+    const mode = S.mode === 'free' ? 'race' : S.mode;
+    const laps = modeOf({ cfg: { mode } } as World).laps?.(grid.length) ?? S.laps;
     const cfg = { trackIndex: ti, diff: S.diff, seed, laps, grid, mode, cc: cc.cc, mirror, teams: !!S.teams };
     this.world = createWorld(cfg, track);
     this.recorder = new ReplayRecorder(cfg);
