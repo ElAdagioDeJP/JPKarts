@@ -221,15 +221,22 @@ Para cada lote:
 ## Fase 9 — Modos, progresión y guardado
 **Objetivo:** variedad y razones para volver.
 **Skills:** `save-systems`, `game-ui-ux`, `input-systems`, `camera-systems` (repetición final), `level-design` (arenas).
-- [ ] Contrarreloj con fantasmas (#56), Eliminación (#57), Equipos (#58).
-- [ ] Batalla Globos + 4 arenas (#59) y Captura (#60). Son *Could*: se hacen solo si el resto está terminado.
-- [ ] Progresión, desbloqueos, 150cc/Espejo, récords y guardado versionado con migraciones (#61).
-- [ ] Repetición final con cámara de highlights (#62).
+- [x] Contrarreloj con fantasmas (#56), Eliminación (#57), Equipos (#58).
+  - Modos en `core/src/modes/`. Contrarreloj: 1 kart, 10 monedas y Turbo Triple, sin monedas ni cajas; el fantasma es el replay del récord (`ReplayPlayer`). Eliminación: N − 1 vueltas. Equipos: modificador de Carrera y Copa, sin fuego amigo porque `hit()` recibe quién causó el golpe.
+- [x] Batalla Globos + 4 arenas (#59) y Captura (#60).
+  - Arenas: anillos anchos con muros (Plaza Pradera, Cráter Cuadrado, Pista de Hielo, Trébol Neón).
+  - La IA persigue rivales o la bandera (`aiTarget`).
+  - Partidas de 8 IA: los Globos terminan entre 1:45 y 3:00; en Captura la bandera cambia de manos entre 49 y 68 veces.
+- [x] Progresión, desbloqueos, 150cc/Espejo, récords y guardado versionado con migraciones (#61).
+  - Formato y reglas en `core/src/meta/`; almacenamiento en `client/src/meta/store.ts`, que usa `localStorage` en web y `userData` en escritorio.
+  - En escritorio el principal y el `.bak` se leen por separado y el cliente valida los dos.
+- [x] Repetición final con cámara de highlights (#62): tecla R en resultados o podio; corta a golpes, adelantamientos en el top 3 y mini-turbos morados.
+- [x] En LAN: Eliminación, Globos, Captura, Equipos y clases (smoke tests de red de cada uno).
 
 **Terminado cuando:**
-- Cada modo tiene test de `endCondition` con replays.
-- Un guardado v1 migra a la versión actual en un test.
-- Un guardado corrupto recupera el `.bak`.
+- Cada modo tiene test de `endCondition` con replays. ✅ `test/modes.test.ts`: Contrarreloj, Eliminación, Globos (4 arenas), Captura y Espejo, todos con replay de hash idéntico.
+- Un guardado v1 migra a la versión actual en un test. ✅ `test/save.test.ts`.
+- Un guardado corrupto recupera el `.bak`. ✅ `test/save.test.ts`. Si ninguno sirve, se usa un progreso nuevo, nunca un fallo.
 
 > Prompt: "Ejecuta la Fase 9 de docs/PLAN.md."
 
