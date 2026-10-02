@@ -44,10 +44,103 @@
     "ola": {
       "duration": 1.6,
       "radius": 14,
+      "level": 0,
       "push": 18
+    },
+    "tren": {
+      "duration": 1.4,
+      "radius": 22,
+      "level": 2,
+      "spin": 1.5,
+      "push": 40
+    },
+    "vaca": {
+      "duration": 5.0,
+      "radius": 10,
+      "level": 0,
+      "push": 10
+    },
+    "auto": {
+      "duration": 2.2,
+      "radius": 13,
+      "level": 1,
+      "spin": 1.0,
+      "push": 16
+    },
+    "pinguino": {
+      "duration": 4.0,
+      "radius": 8,
+      "level": 0,
+      "push": 6
+    },
+    "aspa": {
+      "radius": 7,
+      "level": 1,
+      "spin": 1.0,
+      "push": 12
+    },
+    "geiser": {
+      "duration": 1.2,
+      "radius": 16,
+      "level": 0,
+      "launch": 150
+    },
+    "laser": {
+      "duration": 1.4,
+      "radius": 10,
+      "level": 1,
+      "spin": 0.9
+    },
+    "meteoro": {
+      "duration": 0.5,
+      "radius": 22,
+      "level": 1,
+      "spin": 1.2,
+      "push": 10
+    },
+    "roca": {
+      "speed": 110,
+      "radius": 10,
+      "level": 1,
+      "spin": 1.1
+    },
+    "pelota": {
+      "speed": 140,
+      "radius": 9,
+      "level": 0
+    },
+    "bolanieve": {
+      "speed": 120,
+      "radius": 12,
+      "level": 1,
+      "spin": 1.0
+    },
+    "seta": {
+      "radius": 12,
+      "level": -1,
+      "launch": 140,
+      "push": 10
+    },
+    "compuerta": {
+      "radius": 0,
+      "level": -1
     }
   },
   "water": {
     "defaultRate": 0.8
+  },
+  "weather": {
+    "lluvia": {
+      "grip": 0.8
+    },
+    "arena": {
+      "grip": 0.9
+    },
+    "niebla": {
+      "grip": 1.0
+    },
+    "noche": {
+      "grip": 1.0
+    }
   }
 }

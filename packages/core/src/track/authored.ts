@@ -3,7 +3,7 @@
 import { datan2, dcos, dexp, dhypot, dsin } from '../dmath';
 import { th as themeOf } from '../data/themes';
 import type { TrackDef } from '../data/tracks';
-import { LIQ_WATER } from '../data/themes';
+import { LIQ_LAVA, LIQ_RIVER, LIQ_WATER } from '../data/themes';
 import { clamp, lerp, mulberry, vnoise } from '../math';
 import type { AuthoredTrackDef } from './authoredTypes';
 import { type Branch, type Pad, type SurfaceBand, type Track, hAt, placeBoxes } from './track';
@@ -69,6 +69,8 @@ export function prepAuthored(a: AuthoredTrackDef): Track {
     const c = idxOf(r.at, N), rh = r.big ? 12 : 8;
     for (let d = -10; d <= 4; d++) { const j = (c + d + N) % N; hc[j]! += rh * dexp(-(d / 4) * (d / 4)) * (d <= 0 ? 1 : Math.max(0, 1 - d / 3)); }
   }
+  const flights = (a.flights ?? []).map((f) => idxOf(f, N)).sort((p, q) => p - q);
+  for (const f of flights) for (let d = -6; d <= 2; d++) { const j = (f + d + N) % N; hc[j]! += 5 * dexp(-(d / 3) * (d / 3)); }
   const wallL = new Uint8Array(N), wallR = new Uint8Array(N);
   for (const wl of a.walls) {
     const i0 = idxOf(wl.from, N), i1 = idxOf(wl.to, N);
@@ -85,13 +87,13 @@ export function prepAuthored(a: AuthoredTrackDef): Track {
   const th = themeOf(a.theme, a.themeOverrides ?? {});
   const def: TrackDef = {
     id: a.id, name: a.name, seed: a.terrain.seed, th, hills: [], ramps: a.ramps.map((r) => r.at), pads: [], tAmp: a.terrain.amp,
-    liquid: a.water ? LIQ_WATER : null, song: a.song, mul: a.mul,
+    liquid: a.water ? (a.water.kind === 'lava' ? LIQ_LAVA : a.water.kind === 'rio' ? LIQ_RIVER : LIQ_WATER) : null, song: a.song, mul: a.mul, flight: flights.length > 0,
   };
   const empty = new Float32Array(0), res = a.size / 4;
   const tr: Track = {
     def, th, authored: a, size: a.size, res, N, wd, wallL, wallR, surfaces,
     water: a.water ? { base: a.water.base, laps: Object.fromEntries(Object.entries(a.water.laps).map(([k, v]) => [Number(k), v])), rate: a.water.rate, fallDepth: a.water.fallDepth, puddleDepth: a.water.puddleDepth } : null,
-    x, y, ang, hc, flights: [], pads, boxRows: a.itemRows.map((f) => idxOf(f, N)), branches, built: false,
+    x, y, ang, hc, flights, pads, boxRows: a.itemRows.map((f) => idxOf(f, N)), branches, built: false,
     hm: empty, dg: empty, wg: empty, liq: new Uint8Array(0), ng: empty, boxes: [],
   };
   tr.bake = bakeAuthored;
@@ -141,12 +143,12 @@ export function bakeAuthored(tr: Track) {
       }
       // natural terrain: base + noise, dropping into the sea past the shore
       let tn = a.terrain.base + a.terrain.amp * (0.55 * nz(wx, wy, 150) + 0.3 * nz(wx + 500, wy, 60) + 0.15 * nz(wx, wy + 500, 24));
-      if (W) {
+      if (W && W.shore.length > 1) {
         const sd = shoreDistance(W.shore, wx, wy);
         tn = sd < 0 ? Math.max(-W.seaDepth, sd * 0.08) : Math.min(tn, W.base + 1 + sd * 0.05) + Math.max(0, tn - W.base - 1 - sd * 0.05) * clamp(sd / 300, 0, 1);
       }
       const e = Math.max(0, 1 - Math.min(wx, wy, size - wx, size - wy) / 90);
-      if (!W) tn += e * e * 120;
+      if (!W || W.shore.length < 2) tn += e * e * 120;
       let s = clamp((d - (w + 12)) / 100, 0, 1);
       s = s * s * (3 - 2 * s);
       const h = best < 0 ? tn : lerp(hr, tn, s);

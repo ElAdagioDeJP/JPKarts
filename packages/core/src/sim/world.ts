@@ -8,7 +8,9 @@ import { type Track, hAt, lateralAt, liqAt, surfaceAt } from '../track/track';
 import { aiDiff, aiInput, aiItems, newAiState, rubberBand } from '../ai/ai';
 import { effectDefs, eachFx, fxOf, tickFx, type SpeedCtx } from './effects';
 import './effectDefs';
+import './hazards';
 import { spawn, updateEntities, zoneAt } from './entities';
+import { isTimed, spawnStaticHazards, spawnTimedHazard, hazardFamily, type HazardSpec } from './hazards';
 import { charOf, emit, isHuman, kartById, ouch } from './helpers';
 import { giveItem, rollItem, useItem } from './items';
 import '../items';
@@ -54,6 +56,7 @@ export function createWorld(cfg: RaceConfig, track: Track): World {
   w.karts = cfg.grid.map((g, i) => makeKart(w, i, g.ch, g.ctrl, i, g.aiDiff));
   w.pairCD = new Array(w.karts.length * w.karts.length).fill(0);
   w.ranked = w.karts.map((k) => k.id);
+  spawnStaticHazards(w, spawn);
   return w;
 }
 
@@ -82,9 +85,28 @@ function locate(tr: Track, k: Kart): number {
   return Math.sqrt(bd);
 }
 
+/** Road width multiplier for this kart (snow narrowing the road lap after lap). */
+function narrowing(tr: Track, k: Kart): number {
+  const n = tr.authored?.narrow;
+  if (!n) return 1;
+  const i0 = Math.floor(n.from * tr.N), i1 = Math.floor(n.to * tr.N), i = k.idx;
+  if (!(i0 <= i1 ? i >= i0 && i < i1 : i >= i0 || i < i1)) return 1;
+  let m = 1;
+  const lap = Math.floor(k.prog / tr.N) + 1;
+  for (const [l, v] of Object.entries(n.laps)) if (lap >= Number(l)) m = v;
+  return m;
+}
+
+/** Weather grip (rain, sandstorm) from its starting lap, by the kart's own lap. */
+function weatherGrip(w: World, k: Kart): number {
+  const wt = w.track.authored?.weather;
+  if (!wt || Math.floor(k.prog / w.track.N) + 1 < wt.fromLap) return 1;
+  return (T.race.weather as Record<string, { grip: number }>)[wt.kind]?.grip ?? 1;
+}
+
 /** Distance past the road edge (main road or shortcut); < 0 = on the road. */
 function edgeDistance(tr: Track, k: Kart, d: number): number {
-  let e = d - tr.wd[k.idx]!;
+  let e = d - tr.wd[k.idx]! * narrowing(tr, k);
   for (const b of tr.branches) {
     const bw = b.w ?? 24;
     for (let i = 0; i < b.n; i++) {
@@ -262,6 +284,7 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
   if (k.glide) { const j = (k.idx + AIR.flightLook) % N; k.a = wrapA(k.a + wrapA(tr.ang[j]! - k.a) * Math.min(1, AIR.flightSnap * dt)); }
   let grip = off === 2 ? D.grip.offRoad : th.grip;
   if (S) grip *= S.grip;
+  grip *= weatherGrip(w, k);
   if (k.air) grip = k.glide ? D.grip.glide : D.grip.air;
   const tgtA = k.a - k.drift * DR.slip;
   k.va = wrapA(k.va + wrapA(tgtA - k.va) * Math.min(1, grip * dt));
@@ -378,12 +401,16 @@ function bumpScale(k: Kart): number {
 function updateTrackEvents(w: World, dt: number) {
   const tr = w.track, a = tr.authored;
   if (a) {
-    for (const h of a.hazards) {
+    for (const h of a.hazards as HazardSpec[]) {
+      if (!isTimed(h.kind)) continue;
       const t1 = (w.raceT + (h.offset ?? 0)) % h.period, t0 = (w.raceT - dt + (h.offset ?? 0)) % h.period;
-      if (t0 < h.period - h.warn && t1 >= h.period - h.warn) emit(w, { type: 'hazardWarn', kind: h.kind, at: h.at });
+      const warnAt = h.period - h.warn, eruption = hazardFamily(h.kind) === 'eruption';
+      if (t0 < warnAt && t1 >= warnAt) {
+        emit(w, { type: 'hazardWarn', kind: h.kind, at: h.at });
+        if (eruption) spawnTimedHazard(w, h, spawn); // eruptions show their warning on the ground
+      }
       if (t1 < t0) {
-        const i = ((Math.floor(h.at * tr.N) % tr.N) + tr.N) % tr.N, lat = h.lat ?? [60, -60];
-        spawn(w, h.kind, { s: i, lat: lat[0], vx: lat[0], vy: lat[1], life: (T.race.hazards as Record<string, { duration: number }>)[h.kind]?.duration ?? 1.5 });
+        if (!eruption) spawnTimedHazard(w, h, spawn);
         emit(w, { type: 'hazard', kind: h.kind, at: h.at });
       }
     }

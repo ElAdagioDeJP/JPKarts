@@ -1,0 +1,460 @@
+{
+  "id": "autopista-laser",
+  "name": "Autopista Láser",
+  "cup": "fuego",
+  "theme": "grid",
+  "themeOverrides": {
+    "ground": [
+      "#0a1a1a",
+      "#0d2020",
+      "#102828"
+    ],
+    "edge": "#3dff8a",
+    "curbA": "#1a1026",
+    "curbB": "#3dff8a",
+    "road": "#2a2440",
+    "road2": "#322b4c",
+    "line": "#3df0ff",
+    "out": [
+      "#150f2a",
+      "#1a1433"
+    ],
+    "sky": [
+      "#000510",
+      "#021020",
+      "#04203a",
+      "#063050",
+      "#0a4060",
+      "#105070"
+    ],
+    "fog": "#063050",
+    "strip": "city",
+    "mt1": "#2a1f4a",
+    "hill": "#1a1433",
+    "sun": null,
+    "deco": [
+      "building0",
+      "building1",
+      "building0",
+      "lamp",
+      "lamp2"
+    ],
+    "lm": [
+      "billboard",
+      "billboard",
+      "billboard",
+      "building1"
+    ],
+    "post": [
+      "neonpost",
+      "neonpost"
+    ],
+    "grip": 11,
+    "offMax": 70
+  },
+  "song": "turbo",
+  "mul": 1.08,
+  "size": 3072,
+  "spline": [
+    {
+      "x": 2382,
+      "y": 1730,
+      "h": 10,
+      "w": 37
+    },
+    {
+      "x": 2374,
+      "y": 2036,
+      "h": 66,
+      "w": 37
+    },
+    {
+      "x": 2567,
+      "y": 2293,
+      "h": 35,
+      "w": 37
+    },
+    {
+      "x": 2334,
+      "y": 2475,
+      "h": 16,
+      "w": 37
+    },
+    {
+      "x": 2014,
+      "y": 2481,
+      "h": 11,
+      "w": 37
+    },
+    {
+      "x": 1784,
+      "y": 2653,
+      "h": -38,
+      "w": 37
+    },
+    {
+      "x": 1496,
+      "y": 2746,
+      "h": -58,
+      "w": 37
+    },
+    {
+      "x": 1252,
+      "y": 2548,
+      "h": -12,
+      "w": 37
+    },
+    {
+      "x": 1174,
+      "y": 2238,
+      "h": 9,
+      "w": 37
+    },
+    {
+      "x": 970,
+      "y": 2054,
+      "h": 16,
+      "w": 37
+    },
+    {
+      "x": 648,
+      "y": 2070,
+      "h": 58,
+      "w": 37
+    },
+    {
+      "x": 549,
+      "y": 1796,
+      "h": 56,
+      "w": 37
+    },
+    {
+      "x": 686,
+      "y": 1512,
+      "h": -1,
+      "w": 37
+    },
+    {
+      "x": 496,
+      "y": 1253,
+      "h": -19,
+      "w": 37
+    },
+    {
+      "x": 537,
+      "y": 979,
+      "h": -22,
+      "w": 37
+    },
+    {
+      "x": 856,
+      "y": 933,
+      "h": -51,
+      "w": 37
+    },
+    {
+      "x": 917,
+      "y": 653,
+      "h": -29,
+      "w": 37
+    },
+    {
+      "x": 1062,
+      "y": 404,
+      "h": 33,
+      "w": 37
+    },
+    {
+      "x": 1367,
+      "y": 498,
+      "h": 39,
+      "w": 37
+    },
+    {
+      "x": 1664,
+      "y": 617,
+      "h": 34,
+      "w": 37
+    },
+    {
+      "x": 1916,
+      "y": 424,
+      "h": 50,
+      "w": 37
+    },
+    {
+      "x": 2208,
+      "y": 326,
+      "h": 12,
+      "w": 37
+    },
+    {
+      "x": 2366,
+      "y": 592,
+      "h": -45,
+      "w": 37
+    },
+    {
+      "x": 2378,
+      "y": 911,
+      "h": -36,
+      "w": 37
+    },
+    {
+      "x": 2613,
+      "y": 1120,
+      "h": -21,
+      "w": 37
+    },
+    {
+      "x": 2558,
+      "y": 1430,
+      "h": -25,
+      "w": 37
+    },
+    {
+      "x": 2394,
+      "y": 1708,
+      "h": 8,
+      "w": 37
+    }
+  ],
+  "sections": [
+    {
+      "from": 0,
+      "to": 0.004,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.004,
+      "to": 0.039,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.039,
+      "to": 0.094,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.094,
+      "to": 0.185,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.185,
+      "to": 0.264,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.264,
+      "to": 0.315,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.315,
+      "to": 0.338,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.338,
+      "to": 0.378,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.378,
+      "to": 0.393,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.393,
+      "to": 0.468,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.468,
+      "to": 0.496,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.496,
+      "to": 0.511,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.511,
+      "to": 0.543,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.543,
+      "to": 0.594,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.594,
+      "to": 0.614,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.614,
+      "to": 0.629,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.629,
+      "to": 0.661,
+      "type": "chicane",
+      "intent": "Chicane: enlazar curvas con precisión"
+    },
+    {
+      "from": 0.661,
+      "to": 0.739,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.739,
+      "to": 0.779,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.779,
+      "to": 0.806,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.806,
+      "to": 0.834,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    },
+    {
+      "from": 0.834,
+      "to": 0.897,
+      "type": "recta",
+      "intent": "Recta: rebufo, cajas y adelantamientos"
+    },
+    {
+      "from": 0.897,
+      "to": 0.936,
+      "type": "curva-rapida",
+      "intent": "Curva rápida: mantener la línea sin frenar"
+    }
+  ],
+  "walls": [
+    {
+      "from": 0.97,
+      "to": 0.05,
+      "side": "ambos"
+    }
+  ],
+  "surfaces": [],
+  "branches": [],
+  "itemRows": [
+    0.08,
+    0.35,
+    0.6,
+    0.85
+  ],
+  "pads": [
+    {
+      "at": 0.1,
+      "lat": -16
+    },
+    {
+      "at": 0.3,
+      "lat": 16
+    },
+    {
+      "at": 0.55,
+      "lat": -16
+    },
+    {
+      "at": 0.8,
+      "lat": 16
+    }
+  ],
+  "ramps": [
+    {
+      "at": 0.2
+    },
+    {
+      "at": 0.45
+    },
+    {
+      "at": 0.7
+    },
+    {
+      "at": 0.9
+    }
+  ],
+  "flights": [],
+  "hazards": [
+    {
+      "kind": "laser",
+      "at": 0.051130776794493606,
+      "period": 4,
+      "warn": 1.2,
+      "lat": [
+        14,
+        14
+      ],
+      "radius": 20,
+      "offset": 0
+    },
+    {
+      "kind": "laser",
+      "at": 0.12389380530973451,
+      "period": 5,
+      "warn": 1.2,
+      "lat": [
+        -14,
+        -14
+      ],
+      "radius": 20,
+      "offset": 1
+    },
+    {
+      "kind": "laser",
+      "at": 0.2871189773844641,
+      "period": 6,
+      "warn": 1.2,
+      "lat": [
+        14,
+        14
+      ],
+      "radius": 20,
+      "offset": 2
+    }
+  ],
+  "terrain": {
+    "seed": 149,
+    "amp": 15,
+    "base": 0
+  },
+  "metrics": {
+    "minHalfWidth": 35,
+    "lapSeconds": [
+      50,
+      65
+    ]
+  }
+}
