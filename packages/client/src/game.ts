@@ -1,8 +1,8 @@
 // Client orchestrator: screens, fixed-step simulation, camera, event → feedback, HUD.
 import {
-  CHARS, CUPS, DIFFS, LAPS, POINTS, Rng, SIM_DT, STAT_SHORT, TRACK_DEFS, TrackCache,
-  buildGrid, clamp, createWorld, fmtTime, hAt, itemDef, itemList, lerp, step, takeEvents, wrapA,
-  type GameEvent, type Input as SimInput, type Kart, type StatKey, type Track, type World,
+  CHARS, CUPS, DIFFS, LAPS, POINTS, ReplayRecorder, Rng, SIM_DT, STAT_SHORT, TRACK_DEFS, TrackCache,
+  buildGrid, clamp, createWorld, fmtTime, hAt, hashWorld, itemDef, itemList, lerp, step, takeEvents, wrapA,
+  type GameEvent, type Input as SimInput, type Kart, type Replay, type StatKey, type Track, type World,
 } from '@jpkart/core';
 import { OUT } from './art/pixel';
 import { BALLS, BIGBALL, FACES, ICONS, rotFrames } from './art/sprites';
@@ -31,6 +31,8 @@ export class Game {
   tracks = new TrackCache(TRACK_DEFS);
   tr: Track;
   world: World | null = null;
+  recorder: ReplayRecorder | null = null;
+  lastReplay: Replay | null = null;
   localId = -1;
   private prev: Pose[] = [];
   private acc = 0;
@@ -51,6 +53,9 @@ export class Game {
     renderer.setTrack(this.tr);
     input.onFirstGesture = () => audio.init();
   }
+
+  /** Debug/test hooks: current replay and state hash. */
+  debugReplay() { return { replay: this.recorder?.replay ?? this.lastReplay, hash: this.world ? hashWorld(this.world) : '' }; }
 
   get local(): Kart | undefined { return this.world && this.localId >= 0 ? this.world.karts[this.localId] : undefined; }
   mini(t: Track) { let m = this.minis.get(t); if (!m) { m = buildMinimap(t); this.minis.set(t, m); } return m; }
@@ -131,7 +136,9 @@ export class Game {
     const grid = this.mode === 'cup' && this.cup && this.cup.race > 0
       ? buildGrid(rng, humans, { cupPts: this.cup.pts, humanSlot: 0 })
       : buildGrid(rng, humans, { humanSlot: this.mode === 'cup' ? 7 : 5 });
-    this.world = createWorld({ trackIndex: ti, diff: this.diff, seed, laps: LAPS, grid }, this.tr);
+    const cfg = { trackIndex: ti, diff: this.diff, seed, laps: LAPS, grid };
+    this.world = createWorld(cfg, this.tr);
+    this.recorder = new ReplayRecorder(cfg);
     this.localId = this.world.karts.findIndex((k) => k.ctrl === 'local');
     this.prev = this.world.karts.map((k) => ({ x: k.x, y: k.y, z: k.z, a: k.a }));
     const p = this.local!;
@@ -165,7 +172,9 @@ export class Game {
       const inputs: SimInput[] = [];
       inputs[this.localId] = this.localInput();
       this.itemPressed = false;
+      this.recorder?.record(w, inputs);
       step(w, inputs);
+      this.recorder?.after(w);
       this.acc -= SIM_DT;
       for (const e of takeEvents(w)) this.onEvent(e);
     }
@@ -207,7 +216,7 @@ export class Game {
       case 'lap': if (me(e.kart)) { this.banner = { t: e.final ? '¡Última vuelta!' : 'Vuelta ' + e.lap, life: 1.8 }; A.beep(e.final ? 990 : 700, 0.2); } break;
       case 'finish': if (me(e.kart)) { this.banner = { t: '¡Meta!', life: 2.2, big: true }; A.musicWant(null); A.jingle(); } break;
       case 'flash': this.flashC = e.color; this.flashT = 0.35; break;
-      case 'raceEnd': if (this.state === 'race') this.state = 'results'; break;
+      case 'raceEnd': if (this.state === 'race') this.state = 'results'; if (this.recorder) { this.lastReplay = this.recorder.replay; this.recorder = null; } break;
     }
   }
   private itemSound(id: string, me: boolean, near: boolean, targetMe: boolean, ok: boolean) {

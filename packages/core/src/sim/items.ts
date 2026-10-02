@@ -3,6 +3,7 @@ import { wrapA } from '../math';
 import { hAt } from '../track/track';
 import { behind, emit, hit, isHuman, kartById, lateral } from './helpers';
 import type { Kart, World } from './types';
+import { datan2, dcos, dhypot, dpow, dsin } from '../dmath';
 
 export type ItemRole = 'ataque' | 'defensa' | 'movilidad' | 'caos' | 'trampa';
 
@@ -33,7 +34,7 @@ export const itemDef = (id: string) => BY_ID.get(id)!;
 export const itemList = (): readonly ItemDef[] => REG;
 
 const ahead = (w: World, k: Kart) => (k.rank > 0 ? kartById(w, w.ranked[k.rank - 1]!) : undefined);
-const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
+const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => dhypot(a.x - b.x, a.y - b.y);
 
 // ---- the 15 legacy items (behavior identical to legacy/jp-kart.html `useItem`) ----
 defineItem({ id: 'bocina', name: 'Bocina de Confusión', w: 100, role: 'caos', aiQuick: false,
@@ -45,7 +46,7 @@ defineItem({ id: 'goma', name: 'Parachoques de Goma', w: 70, role: 'defensa', ai
 defineItem({ id: 'ciego', name: 'Proyectil Ciego', w: 55, role: 'ataque',
   use(w, k) {
     const v = Math.max(k.speed, 0) + 260;
-    w.shots.push({ x: k.x + Math.cos(k.a) * 10, y: k.y + Math.sin(k.a) * 10, z: k.z + 3, vx: Math.cos(k.a) * v, vy: Math.sin(k.a) * v, owner: k.id, life: 3 });
+    w.shots.push({ x: k.x + dcos(k.a) * 10, y: k.y + dsin(k.a) * 10, z: k.z + 3, vx: dcos(k.a) * v, vy: dsin(k.a) * v, owner: k.id, life: 3 });
   } });
 defineItem({ id: 'burbuja', name: 'Escudo de Burbuja', w: 40, role: 'defensa', aiQuick: true,
   use(_w, k) { k.bubble = 1; } });
@@ -110,7 +111,7 @@ export function itemWeights(luck: number, rank: number, n: number): number[] {
   const b = n > 1 ? rank / (n - 1) : 0;
   return REG.map((it, i) => {
     const t = (2 * i) / (REG.length - 1);
-    return it.w * Math.pow(luck / 5, t) * Math.pow(0.35 + 2.65 * b, t);
+    return it.w * dpow(luck / 5, t) * dpow(0.35 + 2.65 * b, t);
   });
 }
 
@@ -156,8 +157,8 @@ export function aiItemUse(w: World, k: Kart, dt: number) {
     use = k.hold > 8;
     for (const o of w.karts) {
       if (o === k) continue;
-      const dx = o.x - k.x, dy = o.y - k.y, d = Math.hypot(dx, dy);
-      if (d < 260 && d > 20 && Math.abs(wrapA(Math.atan2(dy, dx) - k.a)) < 0.12) { use = true; break; }
+      const dx = o.x - k.x, dy = o.y - k.y, d = dhypot(dx, dy);
+      if (d < 260 && d > 20 && Math.abs(wrapA(datan2(dy, dx) - k.a)) < 0.12) { use = true; break; }
     }
   }
   if (use) useItem(w, k);

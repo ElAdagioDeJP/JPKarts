@@ -45,6 +45,11 @@ await key('F2');
 await page.waitForTimeout(1500);
 const stats = await page.evaluate(() => { const g = window.__jpkart; return { fps: g.fps, sim: g.simMs, render: g.renderMs, state: g.state, phase: g.world?.phase, speed: g.local?.speed, prog: g.local?.prog, rank: g.local?.rank }; });
 await page.screenshot({ path: `${out}/07-perf.png` });
+await page.keyboard.up('ArrowUp');
+await key('KeyP'); // pause so the replay and the hash describe the same tick
+const dbg = await page.evaluate(() => window.__jpkart.debugReplay());
+fs.writeFileSync(`${out}/replay.json`, JSON.stringify(dbg.replay));
+fs.writeFileSync(`${out}/replay-hash.txt`, dbg.hash);
 fs.writeFileSync(`${out}/log.txt`, `backend=${backend}\n${JSON.stringify(stats)}\n` + logs.join('\n'));
 console.log('backend', backend, JSON.stringify(stats));
 console.log(logs.slice(0, 30).join('\n'));

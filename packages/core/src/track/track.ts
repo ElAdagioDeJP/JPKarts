@@ -2,6 +2,7 @@ import { BW, HM, ROAD, TRACK_LEN, TS } from '../constants';
 import type { TrackDef } from '../data/tracks';
 import type { Theme } from '../data/themes';
 import { clamp, lerp, mulberry, vnoise, wrapA } from '../math';
+import { datan2, dcos, dexp, dhypot, dsin } from '../dmath';
 
 export interface Pad { i: number; lat: number; x: number; y: number }
 export interface Branch { i0: number; i1: number; x: number[]; y: number[]; h: number[]; n: number }
@@ -34,7 +35,7 @@ function resample6(pts: [number, number][]): [number[], number[]] {
   const xs = [pts[0]![0]], ys = [pts[0]![1]];
   let px = pts[0]![0], py = pts[0]![1], need = SP;
   for (let i = 1; i <= pts.length; i++) {
-    const q = pts[i % pts.length]!, dx = q[0] - px, dy = q[1] - py, L = Math.hypot(dx, dy);
+    const q = pts[i % pts.length]!, dx = q[0] - px, dy = q[1] - py, L = dhypot(dx, dy);
     let pos = 0;
     while (L - pos >= need) {
       pos += need;
@@ -46,7 +47,7 @@ function resample6(pts: [number, number][]): [number[], number[]] {
     px = q[0];
     py = q[1];
   }
-  if (Math.hypot(xs[xs.length - 1]! - xs[0]!, ys[ys.length - 1]! - ys[0]!) < SP * 0.6) {
+  if (dhypot(xs[xs.length - 1]! - xs[0]!, ys[ys.length - 1]! - ys[0]!) < SP * 0.6) {
     xs.pop();
     ys.pop();
   }
@@ -72,21 +73,21 @@ function genLayout(seed: number, target: number): [number, number][] {
     for (let i = 0; i < M; i++) {
       const t = (i / M) * 6.283;
       let r = 1;
-      for (const [k, a, p] of hs) r += a * Math.sin(k * t + p);
+      for (const [k, a, p] of hs) r += a * dsin(k * t + p);
       if (r < 0.3) { pts = null; break; }
-      let x = Math.cos(t) * r * ax, y = Math.sin(t) * r * ay;
+      let x = dcos(t) * r * ax, y = dsin(t) * r * ay;
       for (const w of wp) {
-        const nx = x + w[0]! * Math.sin(y * w[1]! + w[2]!), ny = y + w[0]! * Math.sin(x * w[1]! + w[3]!);
+        const nx = x + w[0]! * dsin(y * w[1]! + w[2]!), ny = y + w[0]! * dsin(x * w[1]! + w[3]!);
         x = nx;
         y = ny;
       }
-      pts.push([x * Math.cos(rot) - y * Math.sin(rot), x * Math.sin(rot) + y * Math.cos(rot)]);
+      pts.push([x * dcos(rot) - y * dsin(rot), x * dsin(rot) + y * dcos(rot)]);
     }
     if (!pts) continue;
     let mnx = 1e9, mxx = -1e9, mny = 1e9, mxy = -1e9;
     for (const [x, y] of pts) { mnx = Math.min(mnx, x); mxx = Math.max(mxx, x); mny = Math.min(mny, y); mxy = Math.max(mxy, y); }
     let sc = Math.min((TS - 2 * MARG) / (mxx - mnx), (TS - 2 * MARG) / (mxy - mny)), L = 0;
-    for (let i = 0; i < M; i++) { const a = pts[i]!, b = pts[(i + 1) % M]!; L += Math.hypot(b[0] - a[0], b[1] - a[1]); }
+    for (let i = 0; i < M; i++) { const a = pts[i]!, b = pts[(i + 1) % M]!; L += dhypot(b[0] - a[0], b[1] - a[1]); }
     if (L * sc < target) continue;
     sc = Math.min(sc, target / L);
     const cx = (mnx + mxx) / 2, cy = (mny + mxy) / 2;
@@ -94,14 +95,14 @@ function genLayout(seed: number, target: number): [number, number][] {
     const [xs, ys] = resample6(out), N = xs.length;
     let ok = true;
     for (let i = 0; i < N && ok; i++) {
-      const a0 = Math.atan2(ys[(i + 1) % N]! - ys[i]!, xs[(i + 1) % N]! - xs[i]!);
-      const a1 = Math.atan2(ys[(i + 9) % N]! - ys[(i + 8) % N]!, xs[(i + 9) % N]! - xs[(i + 8) % N]!);
+      const a0 = datan2(ys[(i + 1) % N]! - ys[i]!, xs[(i + 1) % N]! - xs[i]!);
+      const a1 = datan2(ys[(i + 9) % N]! - ys[(i + 8) % N]!, xs[(i + 9) % N]! - xs[(i + 8) % N]!);
       if (Math.abs(wrapA(a1 - a0)) > 1.05) ok = false;
     }
     let tc = 0;
     for (let i = 0; i < N; i++) {
-      const a0 = Math.atan2(ys[(i + 1) % N]! - ys[i]!, xs[(i + 1) % N]! - xs[i]!);
-      const a1 = Math.atan2(ys[(i + 2) % N]! - ys[(i + 1) % N]!, xs[(i + 2) % N]! - xs[(i + 1) % N]!);
+      const a0 = datan2(ys[(i + 1) % N]! - ys[i]!, xs[(i + 1) % N]! - xs[i]!);
+      const a1 = datan2(ys[(i + 2) % N]! - ys[(i + 1) % N]!, xs[(i + 2) % N]! - xs[(i + 1) % N]!);
       tc += Math.abs(wrapA(a1 - a0));
     }
     if (tc < 19) ok = false;
@@ -123,7 +124,7 @@ function genLayout(seed: number, target: number): [number, number][] {
             let g = Math.abs(i - j);
             g = Math.min(g, N - g);
             if (g < 32) continue;
-            if (Math.hypot(xs[i]! - xs[j]!, ys[i]! - ys[j]!) < 120) { ok = false; break; }
+            if (dhypot(xs[i]! - xs[j]!, ys[i]! - ys[j]!) < 120) { ok = false; break; }
           }
         }
     }
@@ -158,7 +159,7 @@ export function prepTrack(def: TrackDef): Track {
   const calc = () => {
     for (let i = 0; i < N; i++) {
       const a = (i + 1) % N, b = (i - 1 + N) % N;
-      ang[i] = Math.atan2(ys[a]! - ys[b]!, xs[a]! - xs[b]!);
+      ang[i] = datan2(ys[a]! - ys[b]!, xs[a]! - xs[b]!);
     }
   };
   calc();
@@ -174,18 +175,18 @@ export function prepTrack(def: TrackDef): Track {
   const hc = new Float32Array(N);
   for (let i = 0; i < N; i++) {
     let h = 0;
-    for (const [a, k, p] of def.hills) h += a * 1.3 * Math.sin((2 * Math.PI * k * i) / N + p);
+    for (const [a, k, p] of def.hills) h += a * 1.3 * dsin((2 * Math.PI * k * i) / N + p);
     for (const f of def.ramps) {
       const rh = 8;
       let d = i - Math.floor(f * N);
       if (d > N / 2) d -= N;
       if (d < -N / 2) d += N;
-      h += rh * Math.exp(-(d / 4) * (d / 4)) * (d <= 0 ? 1 : Math.max(0, 1 - d / 3));
+      h += rh * dexp(-(d / 4) * (d / 4)) * (d <= 0 ? 1 : Math.max(0, 1 - d / 3));
     }
     hc[i] = h;
   }
   const flights = def.flight ? pickFlights(ang, N) : [];
-  for (const f of flights) for (let d = -6; d <= 2; d++) { const j = (f + d + N) % N; hc[j]! += 5 * Math.exp(-(d / 3) * (d / 3)); }
+  for (const f of flights) for (let d = -6; d <= 2; d++) { const j = (f + d + N) % N; hc[j]! += 5 * dexp(-(d / 3) * (d / 3)); }
   for (let i = -40; i < 20; i++) { const j = (i + N) % N; hc[j]! *= clamp(Math.abs(i + 10) / 40, 0.25, 1); }
   if (def.liquid) {
     let mn = 1e9;
@@ -196,7 +197,7 @@ export function prepTrack(def: TrackDef): Track {
   const pads: Pad[] = [];
   for (const f of def.pads) { const i = Math.floor(f * N); pads.push({ i, lat: (i % 2 ? 1 : -1) * 16, x: 0, y: 0 }); }
   for (const f of def.ramps) { const i = (Math.floor(f * N) - 14 + N) % N; pads.push({ i, lat: 0, x: 0, y: 0 }); }
-  for (const p of pads) { const a = ang[p.i]!; p.x = x[p.i]! - Math.sin(a) * p.lat; p.y = y[p.i]! + Math.cos(a) * p.lat; }
+  for (const p of pads) { const a = ang[p.i]!; p.x = x[p.i]! - dsin(a) * p.lat; p.y = y[p.i]! + dcos(a) * p.lat; }
   const boxRows = [0.18, 0.43, 0.68, 0.9].map((f) => {
     let i = Math.floor(f * N);
     for (let g = 0; g < 200; g++) {
@@ -240,7 +241,7 @@ export function buildTrack(tr: Track): Track {
         }
       let d = best < 0 ? 999 : Math.sqrt(bd), hr = best < 0 ? 0 : tr.hc[best]!;
       for (const q of bp) {
-        const dd = Math.hypot(q[0] - wx, q[1] - wy) + (ROAD - BW);
+        const dd = dhypot(q[0] - wx, q[1] - wy) + (ROAD - BW);
         if (dd < d) { d = dd; hr = q[2]; best = best < 0 ? 0 : best; }
       }
       let tn = def.tAmp * (0.55 * nz(wx, wy, 150) + 0.3 * nz(wx + 500, wy, 60) + 0.15 * nz(wx, wy + 500, 24)) + bias;
@@ -261,16 +262,16 @@ export function buildTrack(tr: Track): Track {
   tr.ng = ng;
   tr.boxes = [];
   for (const b of tr.branches) {
-    const m = b.n >> 1, a = Math.atan2(b.y[b.n - 1]! - b.y[0]!, b.x[b.n - 1]! - b.x[0]!);
+    const m = b.n >> 1, a = datan2(b.y[b.n - 1]! - b.y[0]!, b.x[b.n - 1]! - b.x[0]!);
     for (const l of [-9, 9]) {
-      const x = b.x[m]! - Math.sin(a) * l, y = b.y[m]! + Math.cos(a) * l;
+      const x = b.x[m]! - dsin(a) * l, y = b.y[m]! + dcos(a) * l;
       tr.boxes.push({ x, y, z: hAt(tr, x, y), c: l > 0 ? 1 : 2 });
     }
   }
   for (const i of tr.boxRows) {
     const a = tr.ang[i]!;
     for (const l of [-27, -9, 9, 27]) {
-      const x = tr.x[i]! - Math.sin(a) * l, y = tr.y[i]! + Math.cos(a) * l;
+      const x = tr.x[i]! - dsin(a) * l, y = tr.y[i]! + dcos(a) * l;
       tr.boxes.push({ x, y, z: hAt(tr, x, y), c: ((l + 27) / 18) | 0 });
     }
   }

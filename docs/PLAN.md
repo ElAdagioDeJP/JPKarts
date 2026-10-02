@@ -62,19 +62,22 @@ Si una fase supera un presupuesto, no se cierra: se perfila, se arregla el mayor
 ## Fase 2 — Determinismo, replays y tests de hash
 **Objetivo:** `core` 100 % determinista y medible; poder grabar y reproducir carreras.
 **Skills:** `physics-tuning`, `save-systems`, `performance-optimization`, `procedural-gen` (RNG con semilla).
-- [ ] RNG con semilla inyectada (`mulberry32` ya existe en el legacy); cero `Math.random` en core.
-- [ ] Paso fijo de 60 Hz con acumulador. Límite de 5 sub-pasos por frame (anti espiral de la muerte). El render interpola entre estados.
-- [ ] **Ids en vez de referencias** (`owner`, `target`, `hookTg` → `KartId`/`EntityId`). Estado serializable a JSON plano.
-- [ ] Replay = `{version, seed, trackId, config, inputs[]}` y reproductor headless.
-- [ ] Hash del estado (FNV-1a sobre el estado serializado) cada 60 ticks.
-- [ ] `bun run bench`: carrera de 8 IA, 3 vueltas, con p50/p95 por sistema.
-- [ ] Reajustar el tuning con el paso fijo, comparando con el legacy (el feel puede cambiar al pasar de dt variable a fijo).
+- [x] RNG con semilla inyectada (`Rng`, mulberry32, estado serializable); cero `Math.random` en core (lo comprueba un test).
+- [x] Paso fijo de 60 Hz con acumulador (máx. 5 sub-pasos por frame). El render interpola posición y ángulo.
+- [x] **Ids en vez de referencias** (`owner`, `target`, `hookTg`). Estado serializable a JSON plano (`snapshot`).
+- [x] **Matemática determinista (`dmath`)**: `Math.sin/cos/atan2/exp/pow` daban bits distintos en Bun (JSC) y en V8. Se portaron de fdlibm usando solo operaciones IEEE básicas; un test prohíbe `Math.sin` y compañía en core.
+- [x] Inputs cuantizados a 8 bits por eje (`quantizeInput`): mismo valor en todos los pares y replays compactos.
+- [x] Replay = `{version, cfg, ticks, inputs (solo cambios), hashes}`, `ReplayRecorder` y `playReplay` headless. El client graba cada carrera.
+- [x] Hash del estado (FNV-1a sobre el JSON del snapshot) cada 60 ticks.
+- [x] `bun run bench`: 8 IA en 4 pistas, con p50/p95/max. El desglose por sistema queda para la Fase 3, con los pools.
+- [ ] Reajustar el tuning con el paso fijo comparando con el legacy. ⏳ Necesita prueba humana; las constantes del legacy se mantuvieron sin cambios.
 
 **Terminado cuando:**
-- Test: la misma semilla y los mismos inputs dan el **mismo hash final** en 3 ejecuciones y en Bun y Chrome.
-- Un replay grabado en el navegador se reproduce headless con el mismo hash.
-- Bench dentro del presupuesto de sim.
-- Carrera solo-IA completa en Bun sin navegador.
+- Test: la misma semilla y los mismos inputs dan el **mismo hash final** en 3 ejecuciones y en Bun y Chrome. ✅ (`replay.test.ts`; `tools/crossengine.sh` compara Bun/JSC con Node/V8: idéntico)
+- Un replay grabado en el navegador se reproduce headless con el mismo hash. ✅ (`tools/shot.mjs` lo graba en Edge y `core/tools/replay-check.ts` lo reproduce en Bun: mismo hash)
+- Bench dentro del presupuesto de sim. ✅ p95 0,045 ms/tick (presupuesto 2 ms) en la PC de desarrollo.
+- Carrera solo-IA completa en Bun sin navegador. ✅
+- Nota: la IA legacy no siempre termina en Volcán Rugiente (cae a la lava). Se corrige con la IA por capas de la Fase 4.
 
 > Prompt: "Ejecuta la Fase 2 de docs/PLAN.md."
 

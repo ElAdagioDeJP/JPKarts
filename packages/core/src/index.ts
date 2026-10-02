@@ -8,3 +8,5 @@ export * from './sim/types';
 export * from './sim/helpers';
 export * from './sim/items';
 export * from './sim/world';
+export * from './sim/replay';
+export * from './dmath';
