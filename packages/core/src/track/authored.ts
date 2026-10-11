@@ -71,6 +71,7 @@ export function prepAuthored(a: AuthoredTrackDef): Track {
   }
   const flights = (a.flights ?? []).map((f) => idxOf(f, N)).sort((p, q) => p - q);
   for (const f of flights) for (let d = -6; d <= 2; d++) { const j = (f + d + N) % N; hc[j]! += 5 * dexp(-(d / 3) * (d / 3)); }
+  const glideZones = (a.glideZones ?? []).map((z) => ({ i0: idxOf(z.from, N), i1: idxOf(z.to, N) }));
   const wallL = new Uint8Array(N), wallR = new Uint8Array(N);
   for (const wl of a.walls) {
     const i0 = idxOf(wl.from, N), i1 = idxOf(wl.to, N);
@@ -87,13 +88,13 @@ export function prepAuthored(a: AuthoredTrackDef): Track {
   const th = themeOf(a.theme, a.themeOverrides ?? {});
   const def: TrackDef = {
     id: a.id, name: a.name, seed: a.terrain.seed, th, hills: [], ramps: a.ramps.map((r) => r.at), pads: [], tAmp: a.terrain.amp,
-    liquid: a.water ? (a.water.kind === 'lava' ? LIQ_LAVA : a.water.kind === 'rio' ? LIQ_RIVER : LIQ_WATER) : null, song: a.song, mul: a.mul, flight: flights.length > 0,
+    liquid: a.water ? (a.water.kind === 'lava' ? LIQ_LAVA : a.water.kind === 'rio' ? LIQ_RIVER : LIQ_WATER) : null, song: a.song, mul: a.mul, flight: flights.length > 0 || glideZones.length > 0,
   };
   const empty = new Float32Array(0), res = a.size / 4;
   const tr: Track = {
     def, th, authored: a, size: a.size, res, N, wd, wallL, wallR, surfaces,
     water: a.water ? { base: a.water.base, laps: Object.fromEntries(Object.entries(a.water.laps).map(([k, v]) => [Number(k), v])), rate: a.water.rate, fallDepth: a.water.fallDepth, puddleDepth: a.water.puddleDepth } : null,
-    x, y, ang, hc, flights, pads, boxRows: a.itemRows.map((f) => idxOf(f, N)), branches, built: false,
+    x, y, ang, hc, flights, glideZones, pads, boxRows: a.itemRows.map((f) => idxOf(f, N)), branches, built: false,
     hm: empty, dg: empty, wg: empty, liq: new Uint8Array(0), ng: empty, boxes: [],
   };
   tr.bake = bakeAuthored;
