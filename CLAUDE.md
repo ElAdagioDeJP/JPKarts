@@ -1,6 +1,6 @@
 # JP Kart
 
-Juego de karts pixel art (terreno voxel + sprites) para jugar en LAN y como `.exe` de Windows, con arquitectura lista para online.
+Juego de karts con render Three.js moderno (PBR, sol con sombras, ruedas expuestas, HD 960×540) para jugar en LAN y como `.exe` de Windows, con arquitectura lista para online.
 
 ## Documentos (leer antes de trabajar)
 - `docs/PLAN.md`: fases. **Una fase a la vez**; marca el checklist y verifica la "Definición de terminado" con números.

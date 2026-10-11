@@ -38,6 +38,9 @@ body {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
+#stage canvas#world {
+  image-rendering: auto;
+}
 .help { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 14px; font-size: 8px; line-height: 1.6; max-width: 98vw; }
 .help span { white-space: nowrap; }
 kbd { font-family: inherit; font-size: 7px; display: inline-block; padding: 3px 5px; margin-right: 5px; background: var(--key); color: var(--ink); border: 2px solid var(--keyedge); border-bottom-width: 4px; }

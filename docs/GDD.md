@@ -66,7 +66,8 @@ Durante la cuenta atrás:
 - Al despegar de una rampa (o de un salto natural del terreno con vz > umbral) se abre una ventana de 0,25 s para pulsar **Derrapar** = truco (animación de giro).
 - Truco aterrizado = turbo 0,6 s. Truco en rampa marcada como "grande" = 0,9 s.
 - Si recibes un golpe en el aire, el truco se pierde.
-- Las rampas de **vuelo** del legacy (planeo) se conservan: el stat **Vuelo** sigue decidiendo la velocidad de planeo (`0,75 + vue × 0,055` de la base **(legacy)**).
+- Las rampas de **vuelo** y las **zonas de parapente** (`glideZones` en los datos de la pista) abren el ala: el stat **Vuelo** escala la sustentación.
+- Volar es un ala con energía, no una escalera: la sustentación crece con la velocidad; mantener **acelerar** trepa (pierde velocidad), **frenar** pica (gana velocidad), girar roza velocidad. Lento entra en **pérdida** y cae. Aterrizar duro (vz bajo el umbral) recorta velocidad.
 
 ### 2.5 Rebufo (slipstream)
 - Se carga si hay un kart delante a ≤ 70 u, en un cono de ±12°, y vas a > 100 u/s.
@@ -114,11 +115,11 @@ Las superficies se pintan en los datos de la pista (regiones o máscara) y viven
 
 ### 3.1 Reglas generales
 - **Cajas de objeto:** filas en la pista (el legacy usa 4 filas), reaparecen a los 3 s **(legacy)**. La ruleta dura 1,0 s para humanos **(legacy)** y es instantánea para la IA, pero la IA espera su tiempo de reacción.
-- **Probabilidad:** `peso_base × (suerte/5)^t × (0,35 + 2,65 × posRel)^t` con `t = 2 × tier/(n−1)` **(legacy)**. Ningún objeto llega a 0.
+- **Probabilidad (estilo Mario, sin suerte):** `peso_base × (0,2 + 3,5 × posRel)^t` con `t = 2 × tier/(n−1)` y `posRel = puesto/(n−1)` (0 primero, 1 último). Atrás salen los objetos fuertes, delante los flojos. Ningún objeto llega a 0.
 - **Límites nuevos contra el caos injusto** (en `tunables/items.json`):
   - **Enfriamiento global por tier alto:** tras usarse un objeto de tier ≥ 10, ningún otro de tier ≥ 10 puede salir en 12 s.
   - **Sin repetición:** el mismo jugador no recibe el mismo objeto dos veces seguidas (salvo los comunes).
-  - **El 1º nunca** recibe tier ≥ 8.
+  - **El 1º nunca** recibe tier ≥ 11.
 - **Telegrafía obligatoria:** todo objeto que afecta a un rival emite un evento `incoming` con al menos 0,4 s de antelación (salvo los proyectiles visibles en pantalla).
 - **Definición como datos:** cada objeto es un archivo en `core/items/<id>.ts` que se registra con:
   ```ts
@@ -131,7 +132,7 @@ Las superficies se pintan en los datos de la pista (regiones o máscara) y viven
 |---|---|---|---|---|---|
 | 1 | Bocina de Confusión | Caos | **No hace nada jugable** (solo muestra `¡!`) | Onda de 160 u: los karts dentro hacen un golpe leve y sueltan su objeto si lo llevaban detrás | Burbuja, Juggernaut, alejarse al oír el aviso |
 | 2 | Mancha de Aceite Falsa | Trampa | Solo afecta al humano; la IA es inmune; en red sería injusto | **Caja Falsa**: parece una caja de objeto (con un detalle distinguible: `?` invertido); quien la toca hace un golpe leve. Afecta a todos | Mirar el detalle, Burbuja, pasar por el lado |
-| 3 | Parachoques de Goma | Defensa | Bien | 12 s; además rebota contra muros sin perder velocidad | Proyectiles (no protege de ellos) |
+| 3 | Parachoques de Goma | Defensa | Bien | 12 s; empuja al que lo toca y lo frena; en muros rebota sin perder velocidad ni aturdimiento | Proyectiles (no protege de ellos) |
 | 4 | Proyectil Ciego | Ataque | Bien; muere al salir de pista | Rebota hasta 2 veces en muros; vida de 3 s **(legacy)** | Esquivar, Burbuja, objeto detrás |
 | 5 | Escudo de Burbuja | Defensa | Explota al salir de pista: regla confusa | Solo explota con golpes; dura hasta el golpe o 20 s | Golpes de nivel ≥ 2 la atraviesan **(legacy)** |
 | 6 | Inyector Nitro Básico | Movilidad | Bien | Igual (turbo 1,1 s) **(legacy)** | — |
@@ -235,7 +236,7 @@ defineMode({ id, setup(world, cfg), scoring(world, ev), endCondition(world), hud
 | Contrarreloj | 1 kart, 10 monedas, 3 Turbo Triple | tiempo; fantasma = replay del récord | 3 vueltas | los fantasmas salen gratis de los replays (`seed + inputs`) |
 | Batalla — Globos | arena, 3 globos por kart | perder globo al recibir un golpe; robar globo con Turbo/Juggernaut | 1 en pie o 3 min | **necesita arenas** (§6.6) |
 | Batalla — Captura | arena, 1 bandera | segundos con la bandera | 60 s acumulados o 3 min | |
-| Eliminación | carrera de N vueltas = jugadores − 1 | — | el último al cruzar meta en cada vuelta queda fuera; avisos a 10 s | funciona con las pistas normales |
+| Eliminación | 7 vueltas fijas en pistas cortas | — | el último al cruzar meta en cada vuelta queda fuera; avisos a 10 s | termina con uno en pie o sin humanos en pista |
 | Equipos | 2 equipos (rojo/azul), colores en el kart | suma de puntos de copa por equipo; el fuego amigo no golpea | igual que Carrera/Copa | modificador sobre Carrera/Copa |
 
 ---
@@ -336,8 +337,10 @@ Durante la producción, las pistas legacy procedurales siguen jugables como copa
   - **la IA difícil no completa 3 vueltas** en simulación headless con 3 semillas;
   - la vuelta media de la IA no cae en 50–60 s.
 
-### 6.6 Arenas (para batalla)
+### 6.6 Arenas (para batalla) y pistas cortas (para eliminación)
 Hacen falta 4 arenas pequeñas (cerradas, con muros y cajas). Están en **Could** del backlog y llegan con la fase de modos.
+
+Las pistas de **eliminación** son cortas (~2600 u, vuelta de ~20 s para 7 vueltas en ~2:30): `anillo-turbo` (grid) y `dunas-veloces` (dunas, con tormenta de arena desde la vuelta 3). Llevan `glideZones` (parapente), compuertas que se cierran en vueltas concretas (`laps: [2,4,6]`) y están fuera de las copas (`cup: "elim"`).
 
 ---
 
@@ -413,7 +416,7 @@ Overlay de IA (F4) que muestra:
 
 ## 8. Personajes y clases de peso
 
-Se mantienen los 8 personajes y sus stats **(legacy)**: `vel, ace, sue, man, pes, vue` (1–10). Las clases salen del peso:
+Se mantienen los 8 personajes y sus stats: `vel, ace, man, pes, vue` (1–10). Las clases salen del peso:
 
 | Clase | Rango `pes` | Personajes | Efecto en conducción | Efecto en choques |
 |---|---|---|---|---|
@@ -425,7 +428,6 @@ Stats derivados **(legacy)**:
 - `spd = 0,85 + vel × 0,03`
 - `acl = 0,75 + ace × 0,05`
 - `hnd = 0,8 + man × 0,04`
-- `luck = sue`
 - `w = pes`
 - `fly = vue`
 
