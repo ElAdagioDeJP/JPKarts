@@ -46,13 +46,13 @@ export const itemDef = (id: string) => {
 };
 export const itemList = (): readonly (ItemDef & { tier: number })[] => REG;
 
-/** Probability of each item: base weight × luck × position. None ever reaches 0. */
-export function itemWeights(luck: number, rank: number, n: number): number[] {
+/** Probability of each item: base weight × position (Mario-style: further back = stronger items). None ever reaches 0. */
+export function itemWeights(rank: number, n: number): number[] {
   const W = T.items.weights, b = n > 1 ? rank / (n - 1) : 0, R = REG.filter((it) => !it.noRoll).length;
   return REG.map((it, i) => {
     if (it.noRoll) return 0;
     const t = (2 * i) / (R - 1);
-    return it.w * dpow(luck / W.luckRef, t) * dpow(W.posBase + W.posRange * b, t);
+    return it.w * dpow(W.posBase + W.posRange * b, t);
   });
 }
 
@@ -60,9 +60,9 @@ export function itemWeights(luck: number, rank: number, n: number): number[] {
  * Item distribution v2 (GDD §3.1): no high-tier item while the global cooldown runs, no repeats of
  * non-common items, the leader never gets strong items. Weights of excluded items become 0.
  */
-export function rollItem(w: World, k: Kart, luck: number): string {
+export function rollItem(w: World, k: Kart): string {
   const DI = T.items.distribution;
-  const ws = itemWeights(luck, k.rank, w.karts.length).map((x, i) => {
+  const ws = itemWeights(k.rank, w.karts.length).map((x, i) => {
     const it = REG[i]!;
     if (w.highTierCD > 0 && it.tier >= DI.highTier) return 0;
     if (k.rank === 0 && it.tier > DI.firstMaxTier) return 0;

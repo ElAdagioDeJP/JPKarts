@@ -9,9 +9,8 @@
   "aiShotMin": 20,
   "aiShotCone": 0.12,
   "weights": {
-    "posBase": 0.35,
-    "posRange": 2.65,
-    "luckRef": 5
+    "posBase": 0.2,
+    "posRange": 3.5
   },
   "bocina": {
     "radius": 160,
