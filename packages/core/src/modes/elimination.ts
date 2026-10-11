@@ -1,4 +1,4 @@
-// Eliminación (GDD §5): N − 1 laps; every lap, the last kart to cross the line is knocked out.
+// Eliminación: 7 vueltas fijas en pistas cortas; cada vuelta, el último en cruzar meta queda fuera.
 import { emit, isHuman } from '../sim/helpers';
 import { defineMode } from '../sim/modes';
 import type { Kart, World } from '../sim/types';
@@ -11,7 +11,7 @@ function knockOut(w: World, k: Kart, left: number) {
 
 defineMode({
   id: 'elimination', name: 'Eliminación',
-  laps: (players) => Math.max(1, players - 1),
+  laps: () => 7,
   tick(w) {
     const N = w.track.N, alive = w.karts.filter((k) => !k.out);
     if (alive.length <= 1) return;

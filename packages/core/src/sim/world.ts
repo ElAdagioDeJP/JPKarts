@@ -374,7 +374,7 @@ function wallCollide(w: World, k: Kart) {
   k.speed = v * (goma ? 1 : WL.keep);
   k.va = datan2(vy, vx);
   k.a = wrapA(k.a + wrapA(k.va - k.a) * WL.faceBlend);
-  if (hard) k.wallT = WL.stun;
+  if (hard && !goma) k.wallT = WL.stun;
   if (k.wallCD <= 0) { emit(w, { type: 'wallBump', kart: k.id, hard }); k.wallCD = WL.cooldown; }
 }
 
@@ -466,6 +466,10 @@ function updateRace(w: World, inputs: readonly Input[], dt: number) {
       if (d >= rad || d < 0.01) continue;
       const nx = dx / d, ny = dy / d, p = (rad - d) / 2;
       a.x -= nx * p; a.y -= ny * p; b.x += nx * p; b.y += ny * p;
+      // mutual shove: both karts bounce apart and scrub a little speed (Mario-style bump)
+      const shove = B.push / 2;
+      a.x -= nx * shove; a.y -= ny * shove; b.x += nx * shove; b.y += ny * shove;
+      a.speed *= B.selfSlow; b.speed *= B.selfSlow;
       const key = i * n + j;
       if (w.pairCD[key]! > 0) continue;
       w.pairCD[key] = B.cooldown;

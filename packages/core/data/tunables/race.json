@@ -7,9 +7,12 @@
     "cooldown": 0.5,
     "weightPush": 0.1,
     "lightSlow": 0.92,
-    "gomaPush": 5,
-    "gomaSlow": 0.85,
-    "gomaBounce": -0.4
+    "push": 8,
+    "selfSlow": 0.95,
+    "gomaPush": 14,
+    "gomaAttackPush": 18,
+    "gomaAttackSlow": 0.9,
+    "gomaBounce": -0.8
   },
   "hit": {
     "hop": 0.25,

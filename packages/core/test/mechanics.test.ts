@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { ALL_TRACKS, LAPS, Rng, TrackCache, buildGrid, createWorld, prepAuthored, step, takeEvents, type GameEvent } from '../src';
+import { ALL_TRACKS, LAPS, Rng, TrackCache, addFx, buildGrid, createWorld, prepAuthored, step, takeEvents, type GameEvent } from '../src';
 import { SCENARIOS, runScenario } from './golden';
 
 // Every Phase 4 mechanic must actually happen in the replayed Playa Coco v2 scenario (its trajectory is
@@ -29,4 +29,28 @@ test('drift largo: nivel 3 (morado) y su mini-turbo', () => {
   ev.push(...takeEvents(w));
   expect(ev.some((e) => e.type === 'driftLevel' && e.level === 3)).toBe(true);
   expect(ev.some((e) => e.type === 'miniTurbo' && e.level === 3)).toBe(true);
+}, 60000);
+
+test('choques: ambos karts rebotan; la goma protege al dueño y frena al atacante', () => {
+  const cache = new TrackCache(ALL_TRACKS, prepAuthored), tr = cache.ensureBuilt(0);
+  const grid = buildGrid(new Rng(3), [{ ch: 0, ctrl: 'local' }, { ch: 1, ctrl: 'remote' }], { humanSlot: 2 });
+  const w = createWorld({ trackIndex: 0, diff: 0, seed: 3, laps: LAPS, grid }, tr);
+  const idle = [{ t: 0, s: 0, d: false, item: false }, { t: 0, s: 0, d: false, item: false }];
+  for (let i = 0; i < 60 * 5 && w.phase !== 'race'; i++) step(w, idle);
+  expect(w.phase).toBe('race');
+  const [a, b] = [w.karts[0]!, w.karts[1]!];
+  for (const k of [a, b]) { k.respawn = 0; k.speed = 100; k.boost = 0; k.spin = 0; }
+  b.x = a.x + 2; b.y = a.y; b.z = a.z;
+  step(w, idle);
+  const d1 = Math.hypot(b.x - a.x, b.y - a.y);
+  expect(d1).toBeGreaterThan(6); // mutual shove apart, not just de-overlap
+  expect(a.speed).toBeLessThan(100);
+  expect(b.speed).toBeLessThan(100);
+  // goma: owner keeps pace, attacker is shoved away and slowed
+  addFx(b, 'goma', 12, b.id);
+  for (const k of [a, b]) { k.respawn = 0; k.speed = 100; }
+  w.pairCD.fill(0);
+  b.x = a.x + 2; b.y = a.y; b.z = a.z;
+  step(w, idle);
+  expect(b.speed).toBeGreaterThan(a.speed);
 }, 60000);
