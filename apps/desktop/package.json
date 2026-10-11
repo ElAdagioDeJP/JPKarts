@@ -28,7 +28,7 @@
     "files": ["dist/**", "package.json"],
     "asar": true,
     "icon": "build/icon.png",
-    "win": { "target": [{ "target": "portable", "arch": ["x64"] }], "artifactName": "JP-Kart-${version}-portable.exe" },
+    "win": { "icon": "build/icon.ico", "target": [{ "target": "portable", "arch": ["x64"] }], "artifactName": "JP-Kart-${version}-portable.exe" },
     "portable": { "unicode": true }
   }
 }
