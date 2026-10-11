@@ -642,12 +642,12 @@ export class Game {
     for (const k of karts) {
       const ps = this.pose(k);
       const vis = !k.out && (k.respawn <= 0 || ((t * 10) | 0) % 2 === 1);
-      views.push({ id: k.id, ch: k.ch, x: ps.x, y: ps.y, z: k.respawn > 0 ? ps.z - 6 : ps.z, a: ps.a, lean: k.drift ? k.drift : k.sv, hop: k.hop, spin: k.spin, big: hasFx(k, 'jug'), bubble: hasFx(k, 'bubble'), reflect: hasFx(k, 'reflect'), visible: vis, ground: hAt(this.tr, ps.x, ps.y), air: k.air, trick: this.trickAnim.get(k.id) ?? 0, squash: this.squash.get(k.id) ?? 0, local: this.views.some((v) => v.localId === k.id) });
+      views.push({ id: k.id, ch: k.ch, x: ps.x, y: ps.y, z: k.respawn > 0 ? ps.z - 6 : ps.z, a: ps.a, lean: k.drift ? k.drift : k.sv, hop: k.hop, spin: k.spin, big: hasFx(k, 'jug'), bubble: hasFx(k, 'bubble'), reflect: hasFx(k, 'reflect'), visible: vis, ground: hAt(this.tr, ps.x, ps.y), air: k.air, speed: k.speed, trick: this.trickAnim.get(k.id) ?? 0, squash: this.squash.get(k.id) ?? 0, local: this.views.some((v) => v.localId === k.id) });
     }
     if (this.ghost && this.state === 'race') {
       const g = this.ghost.world.karts[0]!, pg = this.ghostPrev, a = this.acc / SIM_DT;
       const gx = pg ? lerp(pg.x, g.x, a) : g.x, gy = pg ? lerp(pg.y, g.y, a) : g.y, gz = pg ? lerp(pg.z, g.z, a) : g.z;
-      views.push({ id: 100, ch: g.ch, x: gx, y: gy, z: gz, a: g.a, lean: g.sv, hop: 0, spin: 0, big: false, bubble: false, reflect: false, visible: !this.ghost.done, ground: hAt(this.tr, gx, gy), air: g.air, trick: 0, squash: 0, local: false, ghost: true });
+      views.push({ id: 100, ch: g.ch, x: gx, y: gy, z: gz, a: g.a, lean: g.sv, hop: 0, spin: 0, big: false, bubble: false, reflect: false, visible: !this.ghost.done, ground: hAt(this.tr, gx, gy), air: g.air, speed: 0, trick: 0, squash: 0, local: false, ghost: true });
     }
     if (w) {
       const me = this.local, tc: ThingCtx = { t, lap: me ? Math.floor(me.prog / this.tr.N) + 1 : 1, lava: this.tr.def.liquid?.kind === 'lava' };

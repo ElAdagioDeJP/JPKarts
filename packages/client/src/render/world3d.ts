@@ -7,7 +7,7 @@ import { GRADES, Post, type Grade } from './post';
 import { Particles } from './particles';
 import { F, buildGroundTexture, buildScenery, buildSkyGradient, buildSkyStrip, type SceneryItem } from './trackArt';
 
-export const RW = 640, RH = 360; // internal world resolution (16:9)
+export const RW = 960, RH = 540; // internal world resolution (16:9, modern smooth HD)
 export const H0 = RH / 2 - 40; // default horizon row (legacy: 40 px above center)
 export const FOG_NEAR = 420, FOG_FAR = 1000;
 export const KART_VOXEL = 0.7; // world units per voxel: on screen it matches the legacy 12.5-unit sprite seen from CAM_BACK
@@ -16,6 +16,7 @@ export interface CamView { x: number; y: number; z: number; a: number; hz: numbe
 export interface KartView {
   id: number; ch: number; x: number; y: number; z: number; a: number; lean: number;
   hop: number; spin: number; big: boolean; bubble: boolean; reflect: boolean; visible: boolean; ground: number; air: boolean;
+  speed: number;
   /** 0..1 progress of a trick flip (0 = none) */
   trick: number;
   /** 0..1 squash after landing (1 = just landed) */
@@ -67,7 +68,7 @@ function voxelGeometry(ch: number): THREE.BufferGeometry {
   const S = KART_VOXEL, c = new THREE.Color();
   // faces in voxel space (x right, y forward, z up)
   const FACES: { n: [number, number, number]; k: number; q: [number, number, number][] }[] = [
-    { n: [0, 0, 1], k: 1.15, q: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]] },
+    { n: [0, 0, 1], k: 1.0, q: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]] },
     { n: [0, 0, -1], k: 0.55, q: [[0, 1, 0], [1, 1, 0], [1, 0, 0], [0, 0, 0]] },
     { n: [0, 1, 0], k: 0.95, q: [[1, 1, 0], [0, 1, 0], [0, 1, 1], [1, 1, 1]] },
     { n: [0, -1, 0], k: 0.8, q: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]] },
@@ -96,7 +97,7 @@ function voxelGeometry(ch: number): THREE.BufferGeometry {
   return g;
 }
 
-interface KartObj { root: THREE.Group; body: THREE.Group; shadow: THREE.Mesh; ring: THREE.Sprite; refl: THREE.Sprite }
+interface KartObj { root: THREE.Group; body: THREE.Group; shadow: THREE.Mesh; ring: THREE.Sprite; refl: THREE.Sprite; wheels: THREE.Mesh[]; spin: number }
 
 export class WorldRenderer {
   renderer!: THREE.WebGPURenderer;
@@ -110,10 +111,15 @@ export class WorldRenderer {
   private skyGroup = new THREE.Group();
   private kartObjs = new Map<number, KartObj>();
   private kartGeo = new Map<number, THREE.BufferGeometry>();
-  private kartMat = new THREE.MeshBasicMaterial({ vertexColors: true });
+  private kartMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.08 });
   private outlineMat = new THREE.MeshBasicMaterial({ color: OUT, side: THREE.BackSide });
-  private shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false });
-  private ghostMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.42, depthWrite: false });
+  private shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false });
+  private ghostMat = new THREE.MeshStandardMaterial({ vertexColors: true, transparent: true, opacity: 0.42, depthWrite: false, roughness: 0.5, metalness: 0.08 });
+  private wheelGeo = new THREE.CylinderGeometry(1.9, 1.9, 1.6, 12);
+  private wheelMat = new THREE.MeshStandardMaterial({ color: 0x232330, roughness: 0.85, metalness: 0.15 });
+  private sun = new THREE.DirectionalLight(0xfff4e0, 2.6);
+  private hemi = new THREE.HemisphereLight(0xbbddff, 0x445533, 0.9);
+  private dayBg = new THREE.Color();
   private thingPool: THREE.Object3D[] = [];
   private thingUsed = 0;
   private boxSprites: THREE.Sprite[] = [];
@@ -132,14 +138,37 @@ export class WorldRenderer {
     this.post.setGrade({ tint: [m(g.tint[0], N.tint[0]), m(g.tint[1], N.tint[1]), m(g.tint[2], N.tint[2])], saturation: m(g.saturation, N.saturation), contrast: m(g.contrast, N.contrast), lift: m(g.lift, N.lift) });
     const f = this.scene.fog;
     if (f instanceof THREE.Fog) { f.near = FOG_NEAR * (1 - fog * 0.9); f.far = FOG_FAR * (1 - fog * 0.72); }
+    // night dims the sun and cools the sky
+    this.sun.intensity = 2.6 * (1 - night * 0.8);
+    this.hemi.intensity = 0.9 * (1 - night * 0.55);
+    const bg = this.scene.background;
+    if (bg instanceof THREE.Color) bg.copy(this.dayBg).multiplyScalar(1 - night * 0.7);
+    if (f instanceof THREE.Fog) f.color.copy(this.dayBg).multiplyScalar(1 - night * 0.7);
   }
 
   async init(canvas: HTMLCanvasElement, forceWebGL = false) {
-    this.renderer = new THREE.WebGPURenderer({ canvas, antialias: false, forceWebGL });
+    this.renderer = new THREE.WebGPURenderer({ canvas, antialias: true, forceWebGL });
     await this.renderer.init();
     this.renderer.setPixelRatio(1);
     this.renderer.setSize(RW, RH, false);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.1;
     this.backend = (this.renderer.backend as any).isWebGPUBackend ? 'WebGPU' : 'WebGL2';
+    this.wheelGeo.rotateX(Math.PI / 2); // cylinder axle (Y) → kart right axis (Z)
+    // key sun with shadows + sky/ground fill
+    this.sun.castShadow = true;
+    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.camera.near = 10;
+    this.sun.shadow.camera.far = 500;
+    this.sun.shadow.camera.left = -140;
+    this.sun.shadow.camera.right = 140;
+    this.sun.shadow.camera.top = 140;
+    this.sun.shadow.camera.bottom = -140;
+    this.sun.shadow.bias = -0.0005;
+    this.sun.shadow.normalBias = 2;
+    this.scene.add(this.sun, this.sun.target, this.hemi);
     this.scene.add(this.skyGroup, this.trackGroup);
     this.camera.rotation.order = 'YXZ';
     this.post = new Post(this.renderer, this.scene, this.camera);
@@ -156,7 +185,8 @@ export class WorldRenderer {
     this.water = null;
     const fog = new THREE.Color(tr.th.fog);
     this.scene.background = fog;
-    this.scene.fog = new THREE.Fog(fog, FOG_NEAR, FOG_FAR);
+    this.dayBg.copy(fog);
+    this.scene.fog = new THREE.Fog(fog.clone(), FOG_NEAR, FOG_FAR);
     this.baseGrade = GRADES[tr.th.style] ?? GRADES.grass!;
     this.atm = { night: -1, fog: -1 };
     this.post.setGrade(this.baseGrade);
@@ -181,7 +211,7 @@ export class WorldRenderer {
     const data = buildGroundTexture(tr);
     const TS = tr.size;
     const tex = new THREE.DataTexture(data, TS, TS, THREE.RGBAFormat);
-    tex.magFilter = THREE.NearestFilter;
+    tex.magFilter = THREE.LinearFilter;
     tex.minFilter = THREE.LinearMipmapLinearFilter;
     tex.generateMipmaps = true;
     tex.anisotropy = 4;
@@ -206,8 +236,10 @@ export class WorldRenderer {
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     g.setIndex(new THREE.BufferAttribute(idx, 1));
+    g.computeVertexNormals();
     g.computeBoundingSphere();
-    const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex }));
+    const mesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, metalness: 0 }));
+    mesh.receiveShadow = true;
     mesh.frustumCulled = false;
     this.trackGroup.add(mesh);
     // outside the map: checkered plateau (legacy draws outA/outB squares there)
@@ -241,7 +273,7 @@ export class WorldRenderer {
     const tex = new THREE.CanvasTexture(cv);
     tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false;
     tex.wrapS = THREE.RepeatWrapping; tex.colorSpace = THREE.SRGBColorSpace;
-    const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+    const mat = new THREE.MeshStandardMaterial({ map: tex, side: THREE.DoubleSide, roughness: 0.8, metalness: 0 });
     const N = tr.N, H = 5;
     for (const side of [-1, 1]) {
       const flags = side < 0 ? tr.wallL : tr.wallR;
@@ -285,7 +317,7 @@ export class WorldRenderer {
     tex.repeat.set(S / 96, S / 96);
     const geo = new THREE.PlaneGeometry(S, S);
     geo.rotateX(-Math.PI / 2);
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.82, depthWrite: false }));
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, transparent: true, opacity: 0.85, roughness: 0.15, metalness: 0.3, depthWrite: false }));
     mesh.position.set(tr.size / 2, tr.water!.base, tr.size / 2);
     mesh.renderOrder = 1;
     this.trackGroup.add(mesh);
@@ -323,7 +355,7 @@ export class WorldRenderer {
       const spr = D[k]!;
       const geo = new THREE.PlaneGeometry(1, 1);
       geo.translate(0, 0.5, 0);
-      const mat = new THREE.MeshBasicMaterial({ map: texOf(spr), alphaTest: 0.5, side: THREE.DoubleSide });
+      const mat = new THREE.MeshStandardMaterial({ map: texOf(spr), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.9, metalness: 0 });
       const mesh = new THREE.InstancedMesh(geo, mat, items.length);
       mesh.frustumCulled = false;
       this.trackGroup.add(mesh);
@@ -364,12 +396,24 @@ export class WorldRenderer {
     if (!g) { g = voxelGeometry(ch); this.kartGeo.set(ch, g); }
     const root = new THREE.Group(), body = new THREE.Group();
     const mesh = new THREE.Mesh(g, ghost ? this.ghostMat : this.kartMat);
+    mesh.castShadow = true;
     const outline = new THREE.Mesh(g, this.outlineMat);
     outline.visible = !ghost;
     outline.scale.setScalar(1.07);
     outline.position.y = -0.35;
     body.add(outline, mesh);
     root.add(body);
+    // exposed MK-style wheels: roll with speed, fronts yaw with steering
+    const wheels: THREE.Mesh[] = [];
+    for (const [wx, wz] of [[4.2, 4.4], [4.2, -4.4], [-4.2, 4.4], [-4.2, -4.4]]) {
+      const wh = new THREE.Mesh(this.wheelGeo, this.wheelMat);
+      wh.castShadow = true;
+      wh.rotation.order = 'YZX';
+      wh.position.set(wx, 1.9, wz);
+      wh.userData.front = wx > 0;
+      root.add(wh);
+      wheels.push(wh);
+    }
     const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 16), this.shadowMat);
     shadow.rotation.x = -Math.PI / 2;
     const ring = new THREE.Sprite(matOf(RING));
@@ -379,7 +423,7 @@ export class WorldRenderer {
     refl.center.set(0.5, 0.25);
     refl.scale.set(19, 19, 1);
     this.scene.add(root, shadow, ring, refl);
-    o = { root, body, shadow, ring, refl };
+    o = { root, body, shadow, ring, refl, wheels, spin: 0 };
     this.kartObjs.set(id, o);
     return o;
   }
@@ -459,6 +503,10 @@ export class WorldRenderer {
   /** Shared per-frame scene update: water, boxes, karts, things, particles. */
   private update(cam: CamView, karts: KartView[], things: ThingView[], boxesActive: boolean[], t: number, water: number, dt: number) {
     const tr = this.track!;
+    // the sun follows the camera so shadows stay crisp wherever the race goes
+    this.sun.position.set(cam.x + 45, cam.z + 130, cam.y - 45);
+    this.sun.target.position.set(cam.x, cam.z, cam.y);
+    this.sun.target.updateMatrixWorld();
     if (this.water) { this.water.position.y = water; this.waterTex!.offset.set((t * 0.01) % 1, (t * 0.023) % 1); }
     // boxes
     const bf = BALLS[((t * 8) | 0) % 4]!;
@@ -486,6 +534,13 @@ export class WorldRenderer {
       o.body.rotation.set(k.lean * 0.12 + (k.trick > 0 ? k.trick * Math.PI * 2 : 0), 0, 0);
       const sq = k.squash * k.squash;
       o.body.scale.set(1 + sq * 0.15, 1 - sq * 0.13, 1 + sq * 0.15);
+      // wheels: roll with speed, fronts yaw with steering
+      o.spin += (k.speed / 1.9) * dt;
+      const steerYaw = k.lean * 0.22;
+      for (const wh of o.wheels) {
+        wh.rotation.y = wh.userData.front ? steerYaw : 0;
+        wh.rotation.z = -o.spin;
+      }
       // legibility: far rivals are drawn bigger (visual only) so they keep ≥ ~12 px on screen
       const depth = Math.hypot(k.x - cam.x, k.y - cam.y), farK = k.local ? 1 : Math.max(1, Math.min(1.6, depth / 300));
       o.root.scale.setScalar((k.big ? 2 : 1) * farK);
