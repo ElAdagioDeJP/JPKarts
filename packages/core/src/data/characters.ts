@@ -1,5 +1,5 @@
 import charactersJson from '../../data/characters.json';
-export type StatKey = 'vel' | 'ace' | 'sue' | 'man' | 'pes' | 'vue';
+export type StatKey = 'vel' | 'ace' | 'man' | 'pes' | 'vue';
 export type Stats = Record<StatKey, number>;
 
 export interface CharacterDef {
@@ -21,15 +21,14 @@ export interface Character extends CharacterDef {
   spd: number;
   acl: number;
   hnd: number;
-  luck: number;
   w: number;
   fly: number;
   desc: string;
   weightClass: 'ligero' | 'medio' | 'pesado';
 }
 
-export const STAT_NAMES: Record<StatKey, string> = { vel: 'Velocidad', ace: 'Aceleración', sue: 'Suerte', man: 'Manejo', pes: 'Peso', vue: 'Vuelo' };
-export const STAT_SHORT: Record<StatKey, string> = { vel: 'Veloc.', ace: 'Acel.', sue: 'Suerte', man: 'Manejo', pes: 'Peso', vue: 'Vuelo' };
+export const STAT_NAMES: Record<StatKey, string> = { vel: 'Velocidad', ace: 'Aceleración', man: 'Manejo', pes: 'Peso', vue: 'Vuelo' };
+export const STAT_SHORT: Record<StatKey, string> = { vel: 'Veloc.', ace: 'Acel.', man: 'Manejo', pes: 'Peso', vue: 'Vuelo' };
 
 // Characters are data: core/data/characters.json
 const DEFS = charactersJson as CharacterDef[];
@@ -47,7 +46,6 @@ export const CHARS: Character[] = DEFS.map((c) => {
     spd: 0.85 + s.vel * 0.03,
     acl: 0.75 + s.ace * 0.05,
     hnd: 0.8 + s.man * 0.04,
-    luck: s.sue,
     w: s.pes,
     fly: s.vue,
     desc: autoDesc(s),

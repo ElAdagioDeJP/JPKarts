@@ -1240,7 +1240,7 @@ export class Game {
     ui.img(rotFrames(this.sel)[((t * 10) | 0) % 24]!.cv, ox + 262, 142, 42, 42);
     ui.txt(c.name, ox + 18, 150, '#ffe45e');
     ui.txtS(c.desc, ox + 18, 162, '#fff7e0', 'left');
-    (['vel', 'ace', 'man', 'sue', 'pes', 'vue'] as StatKey[]).forEach((k, i) => this.statBar10(k, c.st[k], ox + 18 + (i % 2) * 124, 176 + ((i / 2) | 0) * 13));
+    (['vel', 'ace', 'man', 'pes', 'vue'] as StatKey[]).forEach((k, i) => this.statBar10(k, c.st[k], ox + 18 + (i % 2) * 124, 176 + ((i / 2) | 0) * 13));
     ui.txtS(this.mode === 'cup' ? 'Torneo' : 'Carrera libre', ox + 282, 196, '#9c95d6');
     ui.txtS(DIFFS[this.diff]!.name, ox + 282, 206, '#9c95d6');
     ui.txtS('Clase: ' + c.weightClass, ox + 282, 186, '#9c95d6');

@@ -337,7 +337,7 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
   k.sv = lerp(k.sv, steer, Math.min(1, SR.smooth * dt));
   if (k.prog < prevProg && k.speed > D.wrongWay.minSpeed) k.backT += dt;
   else k.backT = Math.max(0, k.backT - dt * D.wrongWay.recover);
-  if (k.roll > 0) { k.roll -= dt; if (k.roll <= 0) giveItem(w, k, rollItem(w, k, st.luck)); }
+  if (k.roll > 0) { k.roll -= dt; if (k.roll <= 0) giveItem(w, k, rollItem(w, k)); }
   if (!human) aiItems(w, k, dt);
   const laps = w.cfg.laps;
   if (!k.finished && k.prog >= laps * N) {
@@ -492,7 +492,7 @@ function updateRace(w: World, inputs: readonly Input[], dt: number) {
         bs.active = false; bs.t = I.boxRespawn;
         if (!k.item && k.roll <= 0) {
           if (isHuman(k)) { k.roll = I.rollTime; emit(w, { type: 'itemRoll', kart: k.id }); }
-          else giveItem(w, k, rollItem(w, k, charOf(k).luck));
+          else giveItem(w, k, rollItem(w, k));
         }
         break;
       }
