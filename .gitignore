@@ -8,3 +8,5 @@ shots/
 .DS_Store
 .vite/
 packages/core/tools/tmp/
+.claude/
+backup-local-v1/
