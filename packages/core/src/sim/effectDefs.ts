@@ -56,14 +56,20 @@ defineEffect({
     },
   },
 });
-/** Rubber bumper: pushes karts away and bounces off the world border. */
+/** Rubber bumper: shoves the attacker away and escapes without losing speed. */
 defineEffect({
   type: 'goma', tags: ['shield'],
+  onBump(_w, self, other) {
+    // the bumper shoves whoever touched it and slows it down; the owner keeps its pace
+    const B = T.race.bump, dx = other.x - self.x, dy = other.y - self.y, d = dhypot(dx, dy) || 1;
+    other.x += (dx / d) * B.gomaAttackPush;
+    other.y += (dy / d) * B.gomaAttackPush;
+    other.speed *= B.gomaAttackSlow;
+  },
   bumpPush(self, nx, ny, sign) {
     const B = T.race.bump;
     self.x += nx * sign * B.gomaPush;
     self.y += ny * sign * B.gomaPush;
-    self.speed *= B.gomaSlow;
   },
   onWorldBounds(k) { k.speed *= T.race.bump.gomaBounce; },
 });
