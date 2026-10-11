@@ -197,6 +197,18 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
         }
       }
   }
+  // paraglider zones (authored tracks): entering fast on the ground opens the wing
+  if (tr.glideZones.length && !k.air && k.speed > D.air.minGlideSpeed) {
+    for (const z of tr.glideZones) {
+      const inside = z.i0 <= z.i1 ? (k.idx >= z.i0 && k.idx <= z.i1) : (k.idx >= z.i0 || k.idx <= z.i1);
+      if (inside && d - tr.wd[k.idx]! < 10) {
+        k.air = true; k.glide = true; k.vz = Math.max(k.vz, D.air.flightVz * 0.7); k.drift = 0; k.dc = 0;
+        takeOff(w, k);
+        emit(w, { type: 'flight', kart: k.id });
+        break;
+      }
+    }
+  }
   // liquids: legacy baked mask, or dynamic water (tides) on authored tracks
   const ground = hAt(tr, k.x, k.y), depth = waterDepth(w, k, ground);
   const falls = tr.water ? !k.air && off >= 1 && depth > tr.water.fallDepth : !k.air && off === 2 && liqAt(tr, k.x, k.y);
@@ -256,8 +268,19 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
     const ca = dcos(k.a), sa = dsin(k.a), sl = (hAt(tr, k.x + ca * 5, k.y + sa * 5) - hAt(tr, k.x - ca * 5, k.y - sa * 5)) / 10;
     k.speed -= sl * D.slope * dt;
   } else {
-    // in the air: the Flight stat speeds the kart up or slows it down
-    if (k.glide) { const tgt = base * (AIR.glideBase + st.fly * AIR.glideFly); k.speed += clamp(tgt - k.speed, -AIR.glideRate * dt, AIR.glideRate * dt); }
+    // gliding: a wing, not an escalator. Lift grows with speed (Flight stat scales it);
+    // hold acelerar to climb (bleeds speed), frenar to dive (gains speed), steer to carve (scrubs speed).
+    if (k.glide) {
+      const liftK = AIR.glideLiftGain * (0.7 + st.fly * AIR.glideFlyMul);
+      k.vz += (k.speed - base) * liftK * dt;
+      if (inp.t > 0) { k.vz += AIR.glideClimb * inp.t * dt; k.speed -= AIR.glideClimbBleed * inp.t * dt; }
+      else if (inp.t < 0) { k.vz += AIR.glideDive * inp.t * dt; k.speed -= AIR.glideDiveGain * inp.t * dt; }
+      if (k.speed < AIR.glideStallSpeed) k.vz -= AIR.glideStallSink * dt; // stall: the nose drops, speed rebuilds
+      const cap = base * AIR.glideMaxMul;
+      if (k.speed > cap) k.speed = Math.max(cap, k.speed - AIR.glideDiveGain * 2 * dt); // drag past Vne
+      if (k.vz > AIR.glideMaxVz) k.vz = AIR.glideMaxVz;
+      k.speed -= Math.abs(inp.s) * AIR.glideTurnBleed * dt;
+    }
     else k.speed += (st.fly - 5) * AIR.airFly * dt;
     k.lapFly += dt;
     // tricks: press drift during the take-off window
@@ -312,7 +335,9 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
     k.vz -= (k.glide ? AIR.glideGravity : AIR.gravity) * dt;
     k.z += k.vz * dt;
     if (k.z <= g2) {
-      emit(w, { type: 'land', kart: k.id, hard: k.vz < AIR.landHard });
+      const hard = k.vz < AIR.landHard;
+      emit(w, { type: 'land', kart: k.id, hard });
+      if (hard) k.speed *= AIR.landHardKeep;
       k.z = g2; k.air = false; k.glide = false; k.vz = 0;
       if (k.trick) { k.boost = Math.max(k.boost, k.trickBig ? D.trick.bigBoost : D.trick.boost); k.trick = false; }
       k.trickT = 0;

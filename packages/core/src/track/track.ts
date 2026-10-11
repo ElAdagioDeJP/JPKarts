@@ -38,6 +38,8 @@ export interface Track {
   ang: Float32Array;
   hc: Float32Array; // centerline height
   flights: number[];
+  /** paraglider zones as sample ranges (authored tracks); entering fast on the ground opens the wing */
+  glideZones: { i0: number; i1: number }[];
   pads: Pad[];
   boxRows: number[];
   branches: Branch[];
@@ -234,7 +236,7 @@ export function prepTrack(def: TrackDef): Track {
   const empty32 = new Float32Array(0);
   return {
     def, th: def.th, authored: null, size: TS, res: HM, N, wd: new Float32Array(N).fill(ROAD), wallL: new Uint8Array(N), wallR: new Uint8Array(N), surfaces: [], water: null,
-    x, y, ang, hc, flights, pads, boxRows, branches: [], built: false,
+    x, y, ang, hc, flights, glideZones: [], pads, boxRows, branches: [], built: false,
     hm: empty32, dg: empty32, wg: empty32, liq: new Uint8Array(0), ng: empty32, boxes: [],
   };
 }

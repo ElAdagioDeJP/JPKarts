@@ -32,6 +32,8 @@ export interface AuthoredTrackDef {
   ramps: { at: number; big?: boolean }[];
   /** gliding ramps (legacy "vuelo"): the Flight stat matters */
   flights?: number[];
+  /** paraglider zones (fractions of the lap): entering fast on the ground opens the wing */
+  glideZones?: { from: number; to: number }[];
   /** see sim/hazards.ts: crossers, sweepers, eruptions, rollers, trampolines, gates (laps = closed laps for gates) */
   hazards: { kind: string; at: number; period: number; warn: number; offset?: number; lat?: [number, number]; radius?: number; laps?: number[] }[];
   /** weather from a lap on (rain lowers grip) */
