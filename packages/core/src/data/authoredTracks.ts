@@ -15,6 +15,8 @@ import canonRojo from '../../data/tracks/canon-rojo.json';
 import autopistaLaser from '../../data/tracks/autopista-laser.json';
 import volcanRugiente from '../../data/tracks/volcan-rugiente.json';
 import craterArdiente from '../../data/tracks/crater-ardiente.json';
+import anilloTurbo from '../../data/tracks/anillo-turbo.json';
+import dunasVeloces from '../../data/tracks/dunas-veloces.json';
 import arenaPlaza from '../../data/tracks/arena-plaza.json';
 import arenaCrater from '../../data/tracks/arena-crater.json';
 import arenaHielo from '../../data/tracks/arena-hielo.json';
@@ -23,7 +25,7 @@ import type { AuthoredTrackDef } from '../track/authoredTypes';
 import { TRACK_DEFS, type TrackDef } from './tracks';
 
 export const AUTHORED: AuthoredTrackDef[] = [
-  playaCoco, praderaJp, tenisJp, bosqueEncantado, valleMolino, dunasDoradas, bahiaAtardecer, glaciarPolar, ciudadNeon, selvaTropical, picoNevado, estadioCentral, canonRojo, autopistaLaser, volcanRugiente, craterArdiente,
+  playaCoco, praderaJp, tenisJp, bosqueEncantado, valleMolino, dunasDoradas, bahiaAtardecer, glaciarPolar, ciudadNeon, selvaTropical, picoNevado, estadioCentral, canonRojo, autopistaLaser, volcanRugiente, craterArdiente, anilloTurbo, dunasVeloces,
 ] as unknown as AuthoredTrackDef[];
 
 /** Battle arenas (GDD §6.6): wide closed rings with walls and boxes. Not part of any cup. */
