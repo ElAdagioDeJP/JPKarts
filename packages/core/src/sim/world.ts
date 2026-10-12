@@ -268,11 +268,12 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
     const ca = dcos(k.a), sa = dsin(k.a), sl = (hAt(tr, k.x + ca * 5, k.y + sa * 5) - hAt(tr, k.x - ca * 5, k.y - sa * 5)) / 10;
     k.speed -= sl * D.slope * dt;
   } else {
-    // gliding: a wing, not an escalator. Lift grows with speed (Flight stat scales it);
+    // gliding: a wing, not an escalator. Lift is referenced to stall speed
+    // (cruise holds ~level with a gentle MK7 sink, Flight stat scales it);
     // hold acelerar to climb (bleeds speed), frenar to dive (gains speed), steer to carve (scrubs speed).
     if (k.glide) {
       const liftK = AIR.glideLiftGain * (0.7 + st.fly * AIR.glideFlyMul);
-      k.vz += (k.speed - base) * liftK * dt;
+      k.vz += (k.speed - AIR.glideStallSpeed) * liftK * dt;
       if (inp.t > 0) { k.vz += AIR.glideClimb * inp.t * dt; k.speed -= AIR.glideClimbBleed * inp.t * dt; }
       else if (inp.t < 0) { k.vz += AIR.glideDive * inp.t * dt; k.speed -= AIR.glideDiveGain * inp.t * dt; }
       if (k.speed < AIR.glideStallSpeed) k.vz -= AIR.glideStallSink * dt; // stall: the nose drops, speed rebuilds
@@ -335,6 +336,7 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
     k.vz -= (k.glide ? AIR.glideGravity : AIR.gravity) * dt;
     k.z += k.vz * dt;
     if (k.z <= g2) {
+      if (k.glide && inp.t > 0) k.vz += AIR.glideFlare; // flare: pulling up at touchdown softens it
       const hard = k.vz < AIR.landHard;
       emit(w, { type: 'land', kart: k.id, hard });
       if (hard) k.speed *= AIR.landHardKeep;

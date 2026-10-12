@@ -67,7 +67,7 @@ Durante la cuenta atrás:
 - Truco aterrizado = turbo 0,6 s. Truco en rampa marcada como "grande" = 0,9 s.
 - Si recibes un golpe en el aire, el truco se pierde.
 - Las rampas de **vuelo** y las **zonas de parapente** (`glideZones` en los datos de la pista) abren el ala: el stat **Vuelo** escala la sustentación.
-- Volar es un ala con energía, no una escalera: la sustentación crece con la velocidad; mantener **acelerar** trepa (pierde velocidad), **frenar** pica (gana velocidad), girar roza velocidad. Lento entra en **pérdida** y cae. Aterrizar duro (vz bajo el umbral) recorta velocidad.
+- Volar es un ala con energía, no una escalera: la sustentación crece con la velocidad por encima de la pérdida (en crucero planea con hundimiento leve); mantener **acelerar** trepa (pierde velocidad), **frenar** pica (gana velocidad), girar roza velocidad. Lento entra en **pérdida** y cae. Aterrizar duro (vz bajo el umbral) recorta velocidad; tirar hacia arriba justo al tocar suelo (*flare*) lo suaviza. Las compuertas son obstáculos de suelo: pasarlas volando por encima vale.
 
 ### 2.5 Rebufo (slipstream)
 - Se carga si hay un kart delante a ≤ 70 u, en un cono de ±12°, y vas a > 100 u/s.
@@ -328,7 +328,7 @@ Durante la producción, las pistas legacy procedurales siguen jugables como copa
   - racing line y líneas alternativas de la IA;
   - spawns, cajas, monedas, peligros con su reloj.
 
-  Permite mover puntos de control y guardar el JSON (solo en dev).
+  Permite mover puntos de control y guardar el JSON (solo en dev). Clic selecciona un punto y **RePág/AvPág** ajustan su altura ±2 (verticalidad: rampas de planeo, cañones, saltos); S guarda.
 - **Validador** (`bun run validate:tracks`, también en CI). Falla si:
   - la spline se cruza a sí misma (salvo puentes declarados con `h` distinta ≥ 20);
   - el semiancho es menor que el mínimo de la copa;

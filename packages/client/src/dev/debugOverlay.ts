@@ -2,7 +2,7 @@
 //  F3 — track viewer/editor: sections, walls, surfaces, racing line, shortcuts, boxes, hazards; drag control
 //       points of authored tracks and press S to save the JSON (dev server only).
 //  F4 — AI overlay: current tactic, utility scores, item score and target point of every AI kart.
-import { CHARS, aiDebug, type AuthoredTrackDef, type Track, type World } from '@jpkart/core';
+import { CHARS, aiDebug, clamp, type AuthoredTrackDef, type Track, type World } from '@jpkart/core';
 import type { Ui } from '../ui/draw';
 
 const SECTION_COL: Record<string, string> = {
@@ -17,6 +17,8 @@ export class DebugOverlay {
   /** map panel in UI coordinates */
   private box = { x: 96, y: 8, s: 224 };
   private drag = -1;
+  /** punto de control seleccionado (arrastre o clic): RePág/AvPág editan su altura */
+  sel = -1;
   dirty = false;
 
   /** World → panel coordinates. */
@@ -77,9 +79,9 @@ export class DebugOverlay {
     // control points (authored): draggable
     if (a) a.spline.forEach((p, i) => {
       const [px, py] = this.P(tr, p.x, p.y);
-      c.fillStyle = i === 0 ? '#ff3df0' : i === this.drag ? '#ffffff' : '#3df0ff';
+      c.fillStyle = i === 0 ? '#ff3df0' : i === this.drag ? '#ffffff' : i === this.sel ? '#ffe45e' : '#3df0ff';
       c.fillRect(px - 2, py - 2, 4, 4);
-      ui.txtS(String(i), px + 3, py - 3, '#9cc', 'left');
+      ui.txtS(i + (i === this.sel ? ' h' + p.h : ''), px + 3, py - 3, '#9cc', 'left');
     });
     // live entities and karts
     if (w) {
@@ -87,7 +89,7 @@ export class DebugOverlay {
       for (const k of w.karts) { const [px, py] = this.P(tr, k.x, k.y); c.fillStyle = CHARS[k.ch]!.kart; c.fillRect(px - 2, py - 2, 4, 4); }
       if (tr.water) ui.txtS(`agua ${w.water.toFixed(1)}`, x + 2, y + s - 8, '#58b8f0', 'left');
     }
-    ui.txtS(`F3 · ${tr.def.name} · ${N} muestras · ${(N * 6) | 0} u${a ? (this.dirty ? ' · S: guardar*' : ' · arrastra los puntos') : ''}`, x + s / 2, y + s + 2, '#fff7e0');
+    ui.txtS(`F3 · ${tr.def.name} · ${N} muestras · ${(N * 6) | 0} u${a ? (this.dirty ? ' · S: guardar*' : ' · arrastra los puntos · RePág/AvPág: altura') : ''}`, x + s / 2, y + s + 2, '#fff7e0');
   }
 
   private drawAi(ui: Ui, w: World) {
@@ -113,6 +115,7 @@ export class DebugOverlay {
       let best = -1, bd = 12 * k;
       a.spline.forEach((p, i) => { const d = Math.hypot(p.x - wx, p.y - wy); if (d < bd) { bd = d; best = i; } });
       this.drag = best;
+      if (best >= 0) this.sel = best;
       return false;
     }
     if (kind === 'move' && this.drag >= 0) {
@@ -122,6 +125,16 @@ export class DebugOverlay {
     }
     if (kind === 'up' && this.drag >= 0) { this.drag = -1; this.dirty = true; return true; }
     return false;
+  }
+
+  /** Editor: ±2 de altura al punto seleccionado (verticalidad). True = cambió la geometría. */
+  bumpHeight(tr: Track, dir: 1 | -1): boolean {
+    const a = tr.authored;
+    if (!this.track || !a || this.sel < 0 || this.sel >= a.spline.length) return false;
+    const p = a.spline[this.sel]!;
+    p.h = clamp(Math.round(p.h + dir * 2), -80, 150);
+    this.dirty = true;
+    return true;
   }
 
   /** Save the authored JSON through the dev server (see vite.config.ts). */

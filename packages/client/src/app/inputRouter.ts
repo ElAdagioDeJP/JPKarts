@@ -36,6 +36,8 @@ export function onPress(g: Game, code: string) {
   if (code === 'F4') g.dbg.ai = !g.dbg.ai;
   if (code === 'KeyS' && g.dbg.track && g.dbg.dirty && g.tr.authored)
     void g.dbg.save(g.tr.authored).then((m) => g.toast(m));
+  if (code === 'PageUp' && g.dbg.track && g.tr.authored && g.dbg.bumpHeight(g.tr, 1)) g.rebuildAuthored();
+  if (code === 'PageDown' && g.dbg.track && g.tr.authored && g.dbg.bumpHeight(g.tr, -1)) g.rebuildAuthored();
   switch (g.state) {
     case 'title': if (ok) { g.state = 'menu'; A.blip(); } break;
     case 'menu':

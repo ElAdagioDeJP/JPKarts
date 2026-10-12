@@ -50,5 +50,8 @@ export default defineConfig({
   base: './',
   plugins: [hotTunables(), saveTracks()],
   server: { port: 5173, host: true },
+  // .glb van embutidos como data-URI: el .exe de Electron carga por file:// y fetch local fallaría.
+  assetsInclude: ['**/*.glb'],
+  assetsInlineLimit: 300000,
   build: { target: 'es2022', chunkSizeWarningLimit: 2000 },
 });

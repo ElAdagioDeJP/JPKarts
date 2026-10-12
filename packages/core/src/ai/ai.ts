@@ -5,7 +5,7 @@ import { CHARS } from '../data/characters';
 import { datan2, dcos, dhypot, dsin } from '../dmath';
 import { clamp, wrapA } from '../math';
 import { T } from '../tunables';
-import { lateralAt, type Track } from '../track/track';
+import { lateralAt, hAt, type Track } from '../track/track';
 import { cornerSpeed, targetSpeed, type RacingLine } from './line';
 import { entityDef } from '../sim/entities';
 import { itemDef, useItem } from '../sim/items';
@@ -194,6 +194,13 @@ export function aiInput(w: World, k: Kart): Input {
   if (k.drift) vt *= 1.12; // drifting turns tighter
   let t = k.speed > vt * 1.12 ? -1 : k.speed > vt ? 0 : 1;
   if (Math.abs(diffA) > 1.3) t = 0.4;
+  if (k.glide) {
+    // En planeo la IA vuela como un piloto prudente: pica con altura para recuperar
+    // velocidad, neutro para planear, y tira hacia arriba para suavizar el aterrizaje.
+    // (Trepar sin altura lleva a la pérdida; picar sin altura, al suelo.)
+    const AIR = T.driving.air, alt = k.z - hAt(tr, k.x, k.y);
+    t = alt < 25 && k.vz < -30 ? 1 : k.speed < AIR.glideStallSpeed * 1.3 && alt > 60 ? -1 : 0;
+  }
   // drift through tight corners (sign = direction of the turn), up to the difficulty's level
   let d = false;
   const DR = A.drift, N = tr.N;

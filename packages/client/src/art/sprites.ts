@@ -1,8 +1,10 @@
-// Characters, items and scenery pixel art (ported verbatim from legacy/jp-kart.html).
+// Characters, items and scenery pixel art.
+// Rig de pilotos: estilo Mario Kart 7 (chibi, ojos grandes). Ver art/mk7.ts.
 import { CHARS, type Character } from '@jpkart/core';
 import { OUT, P, PX, cyl, miniText, miniW, mk, mulberry, shade, sph, type PXBuf, type Spr } from './pixel';
-
-export const BEARD = '#3a2418';
+import { BEARD as MK7_BEARD, mk7Voxels } from './mk7';
+export type { Voxel } from './mk7';
+export const BEARD = MK7_BEARD;
 function drawAcc(p: PXBuf, c: Character, cx: number, cy: number, r: number) {
   const A = c.accCol, Ad = shade(A, 0.75);
   switch (c.acc) {
@@ -20,65 +22,45 @@ function drawAcc(p: PXBuf, c: Character, cx: number, cy: number, r: number) {
 function drawAccPost(p: PXBuf, c: Character, cx: number, cy: number, r: number) {
   if (c.acc === 'headphones') for (const s of [-1, 1]) P.ell(p, cx + s * r * 0.98, cy + r * 0.12, r * 0.3, r * 0.44, sph(c.accCol));
 }
-export const suitOf = (c: Character) => shade(c.helmet, 0.72);
+export const suitOf = (c: Character) => c.suit ?? shade(c.helmet, 0.72);
 
 function portrait(c: Character): Spr {
+  // Retrato estilo MK7: casco grande, cara ancha, ojos grandes con iris.
   const p = PX(32, 32), S = suitOf(c);
   P.ell(p, 16, 33, 13, 8, sph(S));
   drawAcc(p, c, 16, 15, 11);
   P.ell(p, 16, 15, 11, 11, sph(c.helmet));
-  P.ell(p, 16, 17.5, 7.6, 6.6, (dx, dy) => (dy > 0.62 ? shade(c.skin, 0.8) : dx < -0.45 && dy < -0.1 ? shade(c.skin, 1.1) : c.skin));
-  if (c.beard) P.ell(p, 16, 21.8, 7, 3.2, (_dx, dy) => (dy > -0.7 ? BEARD : 0));
-  for (const ex of [12, 19]) { P.rect(p, ex, 15, 2, 3, OUT); P.set(p, ex, 15, '#ffffff'); }
-  if (!c.beard) { P.rect(p, 10, 19, 2, 1, '#ff8a9a'); P.rect(p, 21, 19, 2, 1, '#ff8a9a'); }
-  P.set(p, 14, 20, c.mouth); P.set(p, 18, 20, c.mouth); P.rect(p, 15, 21, 3, 1, c.mouth);
-  if (c.acc === 'glasses') { P.rect(p, 10, 14, 5, 4, '#20306e'); P.rect(p, 17, 14, 5, 4, '#20306e'); P.rect(p, 15, 15, 2, 1, '#20306e'); P.rect(p, 11, 14, 2, 1, '#6a9aff'); P.rect(p, 18, 14, 2, 1, '#6a9aff'); }
+  P.ell(p, 16, 18, 8.2, 7, (dx, dy) => (dy > 0.62 ? shade(c.skin, 0.8) : dx < -0.45 && dy < -0.1 ? shade(c.skin, 1.1) : c.skin));
+  if (c.beard) P.ell(p, 16, 22.4, 7.4, 3.4, (_dx, dy) => (dy > -0.7 ? BEARD : 0));
+  // ojos grandes: esclerótica + iris + pupila + brillo
+  for (const ex of [9, 18]) {
+    P.rect(p, ex, 13, 5, 7, '#ffffff');
+    P.rect(p, ex + 1, 14, 3, 5, c.acc === 'glasses' ? '#20306e' : c.eye ?? '#20306e');
+    if (c.acc !== 'glasses') {
+      P.rect(p, ex + 1, 15, 2, 3, '#101020');
+      P.set(p, ex + 1, 14, '#ffffff');
+    } else {
+      P.rect(p, ex + 2, 14, 1, 1, '#6a9aff');
+    }
+    P.rect(p, ex - 1, 12, 7, 1, OUT); // ceja / borde superior
+  }
+  if (!c.beard) { P.rect(p, 7, 19, 2, 1, '#ff8a9a'); P.rect(p, 23, 19, 2, 1, '#ff8a9a'); }
+  // sonrisa MK7
+  P.rect(p, 13, 21, 6, 1, c.mouth);
+  P.set(p, 12, 20, c.mouth); P.set(p, 19, 20, c.mouth);
+  P.rect(p, 14, 22, 4, 1, shade(c.mouth, 0.8));
+  if (c.acc === 'glasses') { P.rect(p, 14, 15, 4, 1, '#20306e'); }
   P.ell(p, 12, 9, 2.2, 1.4, shade(c.helmet, 1.55));
   drawAccPost(p, c, 16, 15, 11);
   P.outline(p);
   return P.toSpr(p);
 }
 
-export type Voxel = [number, number, number, string];
-/** Voxel model of a kart + driver: +y forward, +x right, +z up (legacy `voxelKart`). */
-export function voxelKart(c: Character): Voxel[] {
-  const V = new Map<string, Voxel>(), add = (x: number, y: number, z: number, col: string) => V.set(x + ',' + y + ',' + z, [x, y, z, col]);
-  const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, col: string | ((x: number, y: number, z: number) => string)) => {
-    for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++)
-      for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++)
-        for (let z = Math.min(z0, z1); z <= Math.max(z0, z1); z++) add(x, y, z, typeof col === 'function' ? col(x, y, z) : col);
-  };
-  const tire = '#2a2833', rim = '#b8bccc', K = c.kart, S = suitOf(c), A = c.accCol;
-  for (const s of [-1, 1]) {
-    box(s * 5, s * 7, -8, -4, 0, 4, (x, y, z) => (x === s * 7 && y >= -7 && y <= -5 && z >= 1 && z <= 3 ? rim : tire));
-    box(s * 5, s * 7, 4, 7, 0, 3, (x, y, z) => (x === s * 7 && y >= 5 && y <= 6 && z >= 1 && z <= 2 ? rim : tire));
-  }
-  box(-4, 4, -8, 8, 1, 1, '#3a3848');
-  box(-5, 5, -6, 6, 2, 3, (_x, _y, z) => (z === 3 ? shade(K, 1.18) : K));
-  box(-3, 3, 6, 8, 2, 3, (_x, _y, z) => (z === 3 ? shade(K, 1.18) : K)); box(-3, 3, 9, 9, 2, 2, '#c0c4d4');
-  box(-3, 3, -8, -7, 2, 4, (_x, _y, z) => (z === 4 ? '#c0c4d4' : '#8a90a4')); box(-2, -2, -9, -9, 3, 3, '#c0c4d4'); box(2, 2, -9, -9, 3, 3, '#c0c4d4');
-  box(-3, 3, -6, -5, 4, 7, shade(K, 0.7));
-  box(-2, 2, -4, -1, 4, 8, S); box(-3, -3, -2, 2, 6, 7, S); box(3, 3, -2, 2, 6, 7, S); add(-3, 3, 7, c.skin); add(3, 3, 7, c.skin);
-  box(-2, 2, 4, 4, 6, 7, '#2a2833');
-  for (let x = -4; x <= 4; x++)
-    for (let y = -6; y <= 4; y++)
-      for (let z = 8; z <= 16; z++) {
-        const d = x * x + (y + 1) * (y + 1) + (z - 12) * (z - 12);
-        if (d > 3.9 * 3.9) continue;
-        let col = c.helmet;
-        if (y >= 1 && z >= 10 && z <= 14 && Math.abs(x) <= 2) col = c.skin;
-        if (y >= 1 && z === 13 && Math.abs(x) === 1) col = c.acc === 'glasses' ? '#20306e' : OUT;
-        if (c.beard && y >= 1 && z === 10 && Math.abs(x) <= 2) col = BEARD;
-        add(x, y, z, col);
-      }
-  if (c.acc === 'mohawk') box(0, 0, -4, 2, 16, 17, A);
-  if (c.acc === 'tuft') { box(-1, 1, -2, 0, 16, 16, A); add(0, -1, 17, A); }
-  if (c.acc === 'spikes') for (const x of [-2, 0, 2]) { box(x, x, -2, 0, 16, 16, A); add(x, -1, 17, A); }
-  if (c.acc === 'antenna') { box(2, 2, -1, -1, 16, 18, '#2a2833'); box(2, 3, -1, -1, 19, 19, A); }
-  if (c.acc === 'headphones') { box(-5, -4, -2, 0, 11, 14, A); box(4, 5, -2, 0, 11, 14, A); for (let x = -4; x <= 4; x++) add(x, -1, Math.round(12 + Math.sqrt(Math.max(0, 16 - x * x)) * 1.05), '#2a2833'); }
-  return [...V.values()];
+/** Voxel model MK7 (kart + piloto sentado chibi). +y adelante, +x derecha, +z arriba. */
+export function voxelKart(c: Character): import('./mk7').Voxel[] {
+  return mk7Voxels(c);
 }
-function renderVoxel(V: Voxel[], ang: number): Spr {
+function renderVoxel(V: import('./mk7').Voxel[], ang: number): Spr {
   const S = 3, w = 84, h = 84, el = 0.55, ce = Math.cos(el), se = Math.sin(el), ca = Math.cos(ang), sa = Math.sin(ang);
   const occ = new Set(V.map((v) => v[0] + ',' + v[1] + ',' + v[2])), zb = new Float32Array(w * h).fill(-1e9), p = PX(w, h);
   for (const [x, y, z, c] of V) {
@@ -96,13 +78,14 @@ function renderVoxel(V: Voxel[], ang: number): Spr {
   return P.toSpr(p);
 }
 const ROT = new Map<number, Spr[]>();
-/** 24 pre-rendered 360° frames (menus and podium). */
+export const ROT_FRAMES = 32;
+/** 32 frames pre-renderizados 360° estilo MK7 (menus y podio). */
 export function rotFrames(ci: number): Spr[] {
   let r = ROT.get(ci);
   if (!r) {
     const V = voxelKart(CHARS[ci]!);
     r = [];
-    for (let i = 0; i < 24; i++) r.push(renderVoxel(V, (i / 24) * Math.PI * 2));
+    for (let i = 0; i < ROT_FRAMES; i++) r.push(renderVoxel(V, (i / ROT_FRAMES) * Math.PI * 2));
     ROT.set(ci, r);
   }
   return r;

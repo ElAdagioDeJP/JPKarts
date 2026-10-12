@@ -54,10 +54,14 @@
   - Sin degradados suaves en sprites; el dithering solo se usa en niebla y cielo.
 - **Outline:** 1 px `#1a1026` en todo lo que se mueve o se puede chocar. El decorado lejano lleva outline del color de sombra del bioma, para separar planos.
 
-## 4. Karts y personajes
+## 4. Karts y personajes (estilo Mario Kart 7 + base Mii)
 
-- Se mantiene la generación voxel (`voxelKart`, `renderVoxel`). Se suben a **32 rotaciones** (cache por personaje, generada al cargar o en build).
-- Cada personaje conserva casco, kart, piel y accesorio **(legacy)**. Se añade un **color de identidad** usado en minimapa, nombre y estela (el color del casco).
+- Generación voxel por capas en `client/src/art/mk7.ts` (`mk7Layers` → `kart/body/head`, `mk7Voxels` como fusión compat). `voxelKart` es un alias. Retratos MK7 en `sprites.ts` (`portrait`: ojos grandes con iris + brillo, sonrisa, colorete).
+- **Proporción chibi MK7:** cabeza grande (r ≈ 4,6 en `MK7_RIG.HEAD_C`), piloto sentado con piernas al morro y brazos al volante, morro cónico con franja, escapes dobles cromados, alerón y guardabarros del color del kart, tapacubos del color del kart en las 4 ruedas 3D.
+- **Render (`world3d.ts`):** dos geometrías por personaje (cuerpo + cabeza). La cabeza pivota en `MK7_RIG.HEAD_C` (mira a la salida del derrape, cabezazo en truco/aterrizaje). Escala visual por clase (`visualScale`: ligero 0,92 / medio 1 / pesado 1,08, solo visual).
+- **Pre-Mii (sin implementar):** `Character.mii?: MiiDef` (core) + `miiHeadVoxels()` (firma congelada, lanza). El próximo refactor solo regenera la capa `head` desde el Mii y reutiliza `kart/body` + el nodo `headG`. `isMii()` ya existe y hoy siempre es falso.
+- 32 rotaciones en menús/podio (`ROT_FRAMES = 32`).
+- Cada personaje conserva casco, kart, piel y accesorio **(legacy)** más `suit/glove/boot/eye` derivados (sobrescribibles en el JSON). Color de identidad = casco (minimapa, nombre, estela).
 - Estados animados (frames voxel con offset/rotación):
 
 | Estado | Frames | Nota |

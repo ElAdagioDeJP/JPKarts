@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "assets": [
+    { "id": "kart-jp-body", "file": "src/assets/models/jp_body.glb", "origin": "externo", "source": "assets-src/jpkarts_racers.blend (JP_Kart + cuerpo JP_Driver)", "license": "propia", "status": "gris", "tris": 760, "note": "Blender 5.2, 1 material + colores por vertice" },
+    { "id": "kart-jp-head", "file": "src/assets/models/jp_head.glb", "origin": "externo", "source": "assets-src/jpkarts_racers.blend (casco JP_Driver)", "license": "propia", "status": "gris", "tris": 348, "note": "Pivota en MK7_RIG.HEAD_C como la capa head voxel" },
+    { "id": "kart-miguel-body", "file": "src/assets/models/miguel_body.glb", "origin": "externo", "source": "assets-src/jpkarts_racers.blend (Miguel_Kart + cuerpo)", "license": "propia", "status": "gris", "tris": 760, "note": "Clon de JP recoloreado" },
+    { "id": "kart-miguel-head", "file": "src/assets/models/miguel_head.glb", "origin": "externo", "source": "assets-src/jpkarts_racers.blend (casco + antena)", "license": "propia", "status": "gris", "tris": 420, "note": "Antena en vez de gafas" },
+    { "id": "ala-planeo", "file": "src/assets/models/wing.glb", "origin": "externo", "source": "assets-src/jpkarts_racers.blend (Wing)", "license": "propia", "status": "gris", "tris": 52, "note": "Geometria unica, tinte por personaje en cliente" },
+    { "id": "seta-rebote", "file": "src/assets/models/shroom.glb", "origin": "externo", "source": "assets-src/jpkarts_trackparts.blend (Shroom)", "license": "propia", "status": "gris", "tris": 480, "note": "Trampolin de Cañon Rojo, render 3D en vez de sprite" }
+  ]
+}

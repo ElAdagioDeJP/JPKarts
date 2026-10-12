@@ -132,11 +132,15 @@ export class Game {
 
   /** Editor: mouse events in UI coordinates (F3). Rebuilds the authored track after a drag. */
   pointer(kind: 'down' | 'move' | 'up', ux: number, uy: number) {
-    if (this.dbg.pointer(kind, ux, uy, this.tr) && this.tr.authored) {
-      const i = ALL_TRACKS.findIndex((t) => t.id === this.tr.def.id);
-      const fresh = this.tracks.rebuildAuthored(i);
-      if (fresh) { this.tr = fresh; this.renderer.setTrack(fresh); this.toast('Pista reconstruida (' + fresh.N + ' muestras)'); }
-    }
+    if (this.dbg.pointer(kind, ux, uy, this.tr) && this.tr.authored) this.rebuildAuthored();
+  }
+
+  /** Editor F3: reconstruye la pista authored tras editar geometría o alturas. */
+  rebuildAuthored() {
+    if (!this.tr.authored) return;
+    const i = ALL_TRACKS.findIndex((t) => t.id === this.tr.def.id);
+    const fresh = this.tracks.rebuildAuthored(i);
+    if (fresh) { this.tr = fresh; this.renderer.setTrack(fresh); this.toast('Pista reconstruida (' + fresh.N + ' muestras)'); }
   }
 
   /** Debug/test hooks: perf numbers. */

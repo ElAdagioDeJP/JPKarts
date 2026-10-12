@@ -141,6 +141,7 @@ function gate(kind: string) {
       e.lat = (e.vx + e.vy) / 2;
       place(w, e);
       for (const k of w.karts) {
+        if (k.air) continue; // volando se pasa por encima: la compuerta es un obstáculo de suelo
         const lap = Math.floor(k.prog / tr.N) + 1;
         if (!((e.target >> lap) & 1)) continue;
         // along-track distance to the gate line

@@ -90,4 +90,60 @@ test('parapente: trepar cambia altura por velocidad, picar da velocidad, en pér
   flyTicks(stall, 0, 120); flyTicks(neut3, 0, 120);
   expect(stall.k.air).toBe(false);
   expect(neut3.k.air).toBe(true);
+  // crucero neutro: el ala planea con hundimiento leve, no cae como roca (2 s < 60 u de caída, sigue en el aire)
+  const cruise = mkGlider();
+  cruise.k.z = 400; cruise.k.speed = 140; cruise.k.vz = 0;
+  flyTicks(cruise, 0, 120);
+  expect(cruise.k.air).toBe(true);
+  expect(cruise.k.z).toBeLessThan(400);
+  expect(cruise.k.z).toBeGreaterThan(340);
+  // flare: tirar hacia arriba al tocar suelo suaviza el aterrizaje (no duro), soltarlo lo deja duro
+  const landWith = (t: number) => {
+    const g = mkGlider();
+    g.k.z = 60; g.k.vz = -60; g.k.speed = 140;
+    takeEvents(g.w);
+    for (let i = 0; i < 300 && g.k.air; i++) step(g.w, [{ t, s: 0, d: false, item: false }]);
+    const land = takeEvents(g.w).find((e) => e.type === 'land');
+    return { landed: !g.k.air, hard: land?.type === 'land' ? land.hard : undefined };
+  };
+  const flared = landWith(1), plain = landWith(0);
+  expect(flared.landed).toBe(true);
+  expect(plain.landed).toBe(true);
+  expect(flared.hard).toBe(false);
+  expect(plain.hard).toBe(true);
+}, 60000);
+
+test('canon-rojo: las setas rebotan y la glideZone abre el ala', () => {
+  const cache = new TrackCache(ALL_TRACKS, prepAuthored), tr = cache.ensureBuilt(28);
+  expect(tr.glideZones.length).toBeGreaterThan(0);
+  const mk = () => {
+    const grid = buildGrid(new Rng(7), [{ ch: 5, ctrl: 'local' }], { humanSlot: 0 });
+    const w = createWorld({ trackIndex: 28, diff: 0, seed: 7, laps: LAPS, grid }, tr);
+    const idle = [{ t: 0, s: 0, d: false, item: false }];
+    for (let i = 0; i < 60 * 5 && w.phase !== 'race'; i++) step(w, idle);
+    const k = w.karts[0]!;
+    k.respawn = 0; k.invuln = 0; k.air = false; k.glide = false; k.vz = 0;
+    return { w, k };
+  };
+  // seta: pisarla en el suelo lanza por los aires (sin golpe: level -1)
+  const b = mk();
+  const idle0 = [{ t: 0, s: 0, d: false, item: false }];
+  for (let i = 0; i < 5; i++) step(b.w, idle0); // deja que las entidades fijas se coloquen
+  const seta = b.w.ents.find((e) => e.kind === 'seta');
+  expect(seta).toBeTruthy();
+  b.k.x = seta!.x; b.k.y = seta!.y; b.k.speed = 120;
+  step(b.w, [{ t: 0, s: 0, d: false, item: false }]);
+  expect(b.k.air).toBe(true);
+  expect(b.k.vz).toBeGreaterThan(0);
+  // glideZone: entrar rapido en el suelo abre el ala
+  const g = mk();
+  const z = tr.glideZones[0]!;
+  g.k.x = tr.x[z.i0]!; g.k.y = tr.y[z.i0]!; g.k.speed = 140;
+  let opened = false;
+  for (let i = 0; i < 10 && !opened; i++) {
+    step(g.w, [{ t: 0, s: 0, d: false, item: false }]);
+    opened = g.k.glide;
+  }
+  expect(opened).toBe(true);
+  expect(g.k.air).toBe(true);
 }, 60000);

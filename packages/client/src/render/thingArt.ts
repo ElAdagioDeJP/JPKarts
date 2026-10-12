@@ -7,8 +7,8 @@ import {
   SNOWBALL, TARS, TRAIN, WARN_RING,
 } from '../art/sprites';
 
-/** One drawable: legacy world coordinates (x, y ground plane, z up), size in world units. */
-export interface ThingView { spr: Spr; flat: boolean; x: number; y: number; z: number; w: number; h: number; yaw?: number }
+/** One drawable: legacy world coordinates (x, y ground plane, z up), size in world units. `mesh` renders a 3D model instead of the sprite. */
+export interface ThingView { spr: Spr; flat: boolean; x: number; y: number; z: number; w: number; h: number; yaw?: number; mesh?: 'shroom' }
 export interface ThingCtx {
   t: number;
   /** lap of the local kart (gates are drawn closed on the laps they close) */
@@ -62,7 +62,7 @@ export const THING_ART: Record<string, Art> = {
   roca: (e, _c, o) => bb(o, ROCK_BALL, e.x, e.y, e.z - 1, 16, 16),
   pelota: (e, _c, o) => bb(o, BIGBALL, e.x, e.y, e.z - 1, 14, 14),
   bolanieve: (e, _c, o) => bb(o, SNOWBALL, e.x, e.y, e.z - 1, 18, 18),
-  seta: (e, _c, o) => bb(o, MUSHROOM, e.x, e.y, e.z - 1, 26, 22),
+  seta: (e, _c, o) => { o.push({ spr: MUSHROOM, flat: false, x: e.x, y: e.y, z: e.z - 1, w: 26, h: 22, mesh: 'shroom' }); },
   flag: (e, c, o) => bb(o, FLAG, e.x, e.y, e.z + (e.target >= 0 ? 12 : 0) + Math.sin(c.t * 3) * 0.8, 12, 16),
   compuerta: (e, c, o) => { if ((e.target >> c.lap) & 1) bb(o, GATE, e.x, e.y, e.z - 1, e.vy - e.vx, 16); },
 };

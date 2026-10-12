@@ -91,7 +91,7 @@ export function drawSelect(g: Game, t: number) {
   });
   const c = CHARS[g.sel]!;
   ui.panel(ox + 10, 144, 300, 90, '#1b1740');
-  ui.img(rotFrames(g.sel)[((t * 10) | 0) % 24]!.cv, ox + 262, 142, 42, 42);
+  ui.img(rotFrames(g.sel)[((t * 10) | 0) % rotFrames(g.sel).length]!.cv, ox + 262, 142, 42, 42);
   ui.txt(c.name, ox + 18, 150, '#ffe45e');
   ui.txtS(c.desc, ox + 18, 162, '#fff7e0', 'left');
   (['vel', 'ace', 'man', 'pes', 'vue'] as StatKey[]).forEach((k, i) => statBar10(g, k, c.st[k], ox + 18 + (i % 2) * 124, 176 + ((i / 2) | 0) * 13));
@@ -215,7 +215,7 @@ export function drawPodium(g: Game, list: number[], title: string, col: string, 
     ctx.fillStyle = i === 0 ? '#ffe45e' : i === 1 ? '#c8ccdc' : '#d9894a'; ctx.fillRect(x - 31, base - h, 62, h);
     ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(x - 31, base - h, 62, 3);
     ui.txt(String(i + 1), x, base - h + 6, OUT, 8, 'center', '#fff7e0');
-    ui.img(rotFrames(ch)[((t * 12 + i * 8) | 0) % 24]!.cv, x - 21, base - h - 38, 42, 42);
+    ui.img(rotFrames(ch)[((t * 12 + i * 8) | 0) % rotFrames(ch).length]!.cv, x - 21, base - h - 38, 42, 42);
     ui.img(FACES[ch]!.cv, x - 8, base - h - 56 + Math.round(Math.sin(t * 5 + i) * 2), 16, 16);
     ui.txtS(CHARS[ch]!.short, x, base + 5, '#fff7e0');
     if (sub) ui.txtS(sub(ch), x, base + 14, '#ffe45e');

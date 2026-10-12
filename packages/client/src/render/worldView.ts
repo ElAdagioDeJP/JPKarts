@@ -36,7 +36,7 @@ export function renderWorld(g: Game, t: number, karts: Kart[]) {
       id: k.id, ch: k.ch, x: ps.x, y: ps.y, z: k.respawn > 0 ? ps.z - 6 : ps.z, a: ps.a,
       lean: k.drift ? k.drift : k.sv, hop: k.hop, spin: k.spin,
       big: hasFx(k, 'jug'), bubble: hasFx(k, 'bubble'), reflect: hasFx(k, 'reflect'),
-      visible: vis, ground: hAt(g.tr, ps.x, ps.y), air: k.air, speed: k.speed,
+      visible: vis, ground: hAt(g.tr, ps.x, ps.y), air: k.air, glide: k.glide, speed: k.speed,
       trick: g.trickAnim.get(k.id) ?? 0, squash: g.squash.get(k.id) ?? 0,
       local: g.views.some((v) => v.localId === k.id),
     });
@@ -47,7 +47,7 @@ export function renderWorld(g: Game, t: number, karts: Kart[]) {
     views.push({
       id: 100, ch: gh.ch, x: gx, y: gy, z: gz, a: gh.a, lean: gh.sv, hop: 0, spin: 0,
       big: false, bubble: false, reflect: false, visible: !g.ghost.done,
-      ground: hAt(g.tr, gx, gy), air: gh.air, speed: 0, trick: 0, squash: 0, local: false, ghost: true,
+      ground: hAt(g.tr, gx, gy), air: gh.air, glide: false, speed: 0, trick: 0, squash: 0, local: false, ghost: true,
     });
   }
   if (w) {

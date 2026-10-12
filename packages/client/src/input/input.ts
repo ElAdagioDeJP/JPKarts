@@ -40,7 +40,7 @@ export class Input {
 
   attach(target: Window, focusEl: HTMLElement) {
     target.addEventListener('keydown', (e) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'F3', 'F4'].includes(e.code)) e.preventDefault();
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'F3', 'F4', 'PageUp', 'PageDown'].includes(e.code)) e.preventDefault();
       if (this.textMode && (e.key.length === 1 || e.key === 'Backspace')) this.typed.push(e.key);
       if (!this.keys.has(e.code)) this.pressedQ.push(e.code);
       this.keys.add(e.code);

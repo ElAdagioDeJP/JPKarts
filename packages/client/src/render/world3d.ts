@@ -2,7 +2,15 @@
 import * as THREE from 'three/webgpu';
 import { CHARS, type Track, hAt } from '@jpkart/core';
 import { OUT, hexRGB, shade, type Spr } from '../art/pixel';
-import { BALLS, D, ICONS, MINE, OLA, PUDDLE, REFLECT_RING, RING, SHOT, TARS, voxelKart } from '../art/sprites';
+import { BALLS, D, ICONS, MINE, OLA, PUDDLE, REFLECT_RING, RING, SHOT, TARS } from '../art/sprites';
+import { MK7_RIG, mk7Layers, type Voxel } from '../art/mk7';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import jpBodyUrl from '../assets/models/jp_body.glb?inline';
+import jpHeadUrl from '../assets/models/jp_head.glb?inline';
+import miguelBodyUrl from '../assets/models/miguel_body.glb?inline';
+import miguelHeadUrl from '../assets/models/miguel_head.glb?inline';
+import wingUrl from '../assets/models/wing.glb?inline';
+import shroomUrl from '../assets/models/shroom.glb?inline';
 import { GRADES, Post, type Grade } from './post';
 import { Particles } from './particles';
 import { F, buildGroundTexture, buildScenery, buildSkyGradient, buildSkyStrip, type SceneryItem } from './trackArt';
@@ -15,7 +23,7 @@ export const KART_VOXEL = 0.7; // world units per voxel: on screen it matches th
 export interface CamView { x: number; y: number; z: number; a: number; hz: number; f?: number; roll?: number }
 export interface KartView {
   id: number; ch: number; x: number; y: number; z: number; a: number; lean: number;
-  hop: number; spin: number; big: boolean; bubble: boolean; reflect: boolean; visible: boolean; ground: number; air: boolean;
+  hop: number; spin: number; big: boolean; bubble: boolean; reflect: boolean; visible: boolean; ground: number; air: boolean; glide: boolean;
   speed: number;
   /** 0..1 progress of a trick flip (0 = none) */
   trick: number;
@@ -61,8 +69,7 @@ function flatOf(s: Spr): THREE.MeshBasicMaterial {
 }
 
 /** Merged voxel geometry with face culling and baked directional shading. Local frame: +X forward, +Z right, +Y up. */
-function voxelGeometry(ch: number): THREE.BufferGeometry {
-  const V = voxelKart(CHARS[ch]!);
+function geometryFromVoxels(V: Voxel[]): THREE.BufferGeometry {
   const occ = new Set(V.map((v) => v[0] + ',' + v[1] + ',' + v[2]));
   const pos: number[] = [], colr: number[] = [], idx: number[] = [];
   const S = KART_VOXEL, c = new THREE.Color();
@@ -97,7 +104,21 @@ function voxelGeometry(ch: number): THREE.BufferGeometry {
   return g;
 }
 
-interface KartObj { root: THREE.Group; body: THREE.Group; shadow: THREE.Mesh; ring: THREE.Sprite; refl: THREE.Sprite; wheels: THREE.Mesh[]; spin: number }
+interface WheelRig { g: THREE.Group; tire: THREE.Mesh; hub: THREE.Mesh; front: boolean }
+interface KartObj {
+  root: THREE.Group; body: THREE.Group; headG: THREE.Group;
+  shadow: THREE.Mesh; ring: THREE.Sprite; refl: THREE.Sprite;
+  wheels: WheelRig[]; spin: number;
+  ch: number; ghost: boolean;
+  bodyMesh: THREE.Mesh; bodyOut: THREE.Mesh; headMesh: THREE.Mesh; headOut: THREE.Mesh;
+  wingMesh: THREE.Mesh | null; wingMat: THREE.MeshStandardMaterial; deploy: number; extCh: number;
+}
+/** Karts modelados en Blender (fase 2): ch -> glb body/head. El resto usa voxels. */
+const EXT_MODELS: Record<number, { body: string; head: string }> = {
+  5: { body: jpBodyUrl, head: jpHeadUrl },
+  4: { body: miguelBodyUrl, head: miguelHeadUrl },
+};
+interface KartGeo { body: THREE.BufferGeometry; head: THREE.BufferGeometry; headC: THREE.Vector3 }
 
 export class WorldRenderer {
   renderer!: THREE.WebGPURenderer;
@@ -110,12 +131,21 @@ export class WorldRenderer {
   private trackGroup = new THREE.Group();
   private skyGroup = new THREE.Group();
   private kartObjs = new Map<number, KartObj>();
-  private kartGeo = new Map<number, THREE.BufferGeometry>();
+  private kartGeo = new Map<number, KartGeo>();
+  private extGeo = new Map<number, { body: THREE.BufferGeometry; head: THREE.BufferGeometry }>();
+  private wingGeo: THREE.BufferGeometry | null = null;
+  private wingCenter = new THREE.Vector3();
+  private shroomGeo: THREE.BufferGeometry | null = null;
+  private shroomPool: THREE.Mesh[] = [];
+  private shroomUsed = 0;
+  private extLoading = false;
+  private hubMat = new Map<number, THREE.MeshStandardMaterial>();
   private kartMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.08 });
   private outlineMat = new THREE.MeshBasicMaterial({ color: OUT, side: THREE.BackSide });
   private shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false });
   private ghostMat = new THREE.MeshStandardMaterial({ vertexColors: true, transparent: true, opacity: 0.42, depthWrite: false, roughness: 0.5, metalness: 0.08 });
   private wheelGeo = new THREE.CylinderGeometry(1.9, 1.9, 1.6, 12);
+  private hubGeo = new THREE.CylinderGeometry(0.95, 0.95, 1.7, 10);
   private wheelMat = new THREE.MeshStandardMaterial({ color: 0x232330, roughness: 0.85, metalness: 0.15 });
   private sun = new THREE.DirectionalLight(0xfff4e0, 2.6);
   private hemi = new THREE.HemisphereLight(0xbbddff, 0x445533, 0.9);
@@ -157,6 +187,7 @@ export class WorldRenderer {
     this.renderer.toneMappingExposure = 1.1;
     this.backend = (this.renderer.backend as any).isWebGPUBackend ? 'WebGPU' : 'WebGL2';
     this.wheelGeo.rotateX(Math.PI / 2); // cylinder axle (Y) → kart right axis (Z)
+    this.hubGeo.rotateX(Math.PI / 2);
     // key sun with shadows + sky/ground fill
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
@@ -389,30 +420,138 @@ export class WorldRenderer {
     }
   }
 
+  private kartGeoOf(ch: number): KartGeo {
+    let g = this.kartGeo.get(ch);
+    if (!g) {
+      const L = mk7Layers(CHARS[ch]!);
+      const body = geometryFromVoxels([...L.kart, ...L.body]);
+      const head = geometryFromVoxels(L.head);
+      // centro de la cabeza en coords locales (para pivotear la mirada MK7
+      // y para el futuro swap por cabeza Mii: solo cambia `head` + `headC`).
+      const S = KART_VOXEL;
+      const headC = new THREE.Vector3(MK7_RIG.HEAD_C.y * S, (MK7_RIG.HEAD_C.z + 0.5) * S, MK7_RIG.HEAD_C.x * S);
+      g = { body, head, headC };
+      this.kartGeo.set(ch, g);
+    }
+    return g;
+  }
+
+  /** Carga perezosa de los .glb de Blender (data-URI embutido, sin fetch): al resolver, swapea los karts en escena. */
+  private ensureExternal() {
+    if (this.extLoading) return;
+    this.extLoading = true;
+    const loader = new GLTFLoader();
+    const one = async (url: string): Promise<THREE.BufferGeometry | null> => {
+      try {
+        const gl = await loader.loadAsync(url);
+        const mesh = gl.scene.getObjectByProperty('type', 'Mesh') as THREE.Mesh | undefined;
+        const geo = mesh?.geometry as THREE.BufferGeometry | undefined;
+        gl.scene.traverse((ob) => {
+          const m = ob as THREE.Mesh;
+          if (m.isMesh && m.material) for (const x of Array.isArray(m.material) ? m.material : [m.material]) x.dispose();
+        });
+        return geo ?? null;
+      } catch { return null; }
+    };
+    (async () => {
+      const jobs: { ch: number; part: 'body' | 'head'; url: string }[] = [];
+      for (const [ch, f] of Object.entries(EXT_MODELS)) jobs.push({ ch: +ch, part: 'body', url: f.body }, { ch: +ch, part: 'head', url: f.head });
+      const geos = await Promise.all(jobs.map((j) => one(j.url)));
+      geos.forEach((geo, i) => {
+        if (!geo) return;
+        geo.rotateY(-Math.PI / 2); // three (-Z adelante) -> marco del juego (+X adelante)
+        const j = jobs[i]!;
+        let e = this.extGeo.get(j.ch);
+        if (!e) { e = { body: null as unknown as THREE.BufferGeometry, head: null as unknown as THREE.BufferGeometry }; this.extGeo.set(j.ch, e); }
+        e[j.part] = geo;
+      });
+      const wg = await one(wingUrl);
+      if (wg) {
+        wg.rotateY(-Math.PI / 2);
+        wg.computeBoundingBox();
+        wg.boundingBox!.getCenter(this.wingCenter);
+        wg.translate(-this.wingCenter.x, -this.wingCenter.y, -this.wingCenter.z);
+        this.wingGeo = wg;
+      }
+      const sg = await one(shroomUrl);
+      if (sg) this.shroomGeo = sg;
+      for (const o of this.kartObjs.values()) this.applyExternal(o);
+    })();
+  }
+
+  private applyExternal(o: KartObj) {
+    const e = this.extGeo.get(o.ch);
+    if (!e?.body || !e?.head || o.extCh === o.ch) return;
+    const mat = o.ghost ? this.ghostMat : this.kartMat;
+    o.bodyMesh.geometry = e.body; o.bodyMesh.material = mat;
+    o.bodyOut.geometry = e.body; o.bodyOut.visible = !o.ghost;
+    o.headMesh.geometry = e.head; o.headMesh.material = mat;
+    o.headOut.geometry = e.head; o.headOut.visible = !o.ghost;
+    o.extCh = o.ch;
+  }
+
+  private wingOf(o: KartObj) {
+    if (!o.wingMesh && this.wingGeo) {
+      const m = new THREE.Mesh(this.wingGeo, o.wingMat);
+      m.castShadow = true;
+      m.visible = false;
+      m.position.copy(this.wingCenter);
+      o.body.add(m);
+      o.wingMesh = m;
+    }
+  }
+
+  private hubMatOf(ch: number): THREE.Material {
+    let m = this.hubMat.get(ch);
+    if (!m) {
+      m = new THREE.MeshStandardMaterial({ color: new THREE.Color(CHARS[ch]!.kart), roughness: 0.35, metalness: 0.45 });
+      this.hubMat.set(ch, m);
+    }
+    return m;
+  }
+
   private kartObj(id: number, ch: number, ghost = false): KartObj {
     let o = this.kartObjs.get(id);
     if (o) return o;
-    let g = this.kartGeo.get(ch);
-    if (!g) { g = voxelGeometry(ch); this.kartGeo.set(ch, g); }
+    const g = this.kartGeoOf(ch);
+    const mat = ghost ? this.ghostMat : this.kartMat;
     const root = new THREE.Group(), body = new THREE.Group();
-    const mesh = new THREE.Mesh(g, ghost ? this.ghostMat : this.kartMat);
+    const mesh = new THREE.Mesh(g.body, mat);
     mesh.castShadow = true;
-    const outline = new THREE.Mesh(g, this.outlineMat);
+    const outline = new THREE.Mesh(g.body, this.outlineMat);
     outline.visible = !ghost;
     outline.scale.setScalar(1.07);
     outline.position.y = -0.35;
     body.add(outline, mesh);
+    // cabeza aparte: pivota en headC (mirada + cabezazo). El Mii reutilizará este nodo.
+    const headG = new THREE.Group();
+    headG.position.copy(g.headC);
+    const head = new THREE.Mesh(g.head, mat);
+    head.castShadow = true;
+    head.position.copy(g.headC).negate();
+    const headOut = new THREE.Mesh(g.head, this.outlineMat);
+    headOut.visible = !ghost;
+    headOut.scale.setScalar(1.07);
+    headOut.position.copy(head.position).add(new THREE.Vector3(0, -0.35, 0));
+    headG.add(headOut, head);
+    body.add(headG);
     root.add(body);
-    // exposed MK-style wheels: roll with speed, fronts yaw with steering
-    const wheels: THREE.Mesh[] = [];
+    // ruedas expuestas MK7: neumático + tapacubos del color del kart; giran con
+    // la velocidad y las delanteras orientan con el derrape/dirección.
+    const hub = this.hubMatOf(ch);
+    const wheels: WheelRig[] = [];
     for (const [wx, wz] of [[4.2, 4.4], [4.2, -4.4], [-4.2, 4.4], [-4.2, -4.4]]) {
-      const wh = new THREE.Mesh(this.wheelGeo, this.wheelMat);
-      wh.castShadow = true;
-      wh.rotation.order = 'YZX';
-      wh.position.set(wx, 1.9, wz);
-      wh.userData.front = wx > 0;
-      root.add(wh);
-      wheels.push(wh);
+      const grp = new THREE.Group();
+      grp.position.set(wx, 1.9, wz);
+      const front = wx > 0;
+      const tire = new THREE.Mesh(this.wheelGeo, ghost ? this.ghostMat : this.wheelMat);
+      tire.castShadow = true;
+      const cap = new THREE.Mesh(this.hubGeo, ghost ? this.ghostMat : hub);
+      grp.add(tire, cap);
+      grp.rotation.order = 'YZX';
+      grp.userData.front = front;
+      root.add(grp);
+      wheels.push({ g: grp, tire, hub: cap, front });
     }
     const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 16), this.shadowMat);
     shadow.rotation.x = -Math.PI / 2;
@@ -423,7 +562,10 @@ export class WorldRenderer {
     refl.center.set(0.5, 0.25);
     refl.scale.set(19, 19, 1);
     this.scene.add(root, shadow, ring, refl);
-    o = { root, body, shadow, ring, refl, wheels, spin: 0 };
+    const wingMat = new THREE.MeshStandardMaterial({ vertexColors: true, color: new THREE.Color(CHARS[ch]?.kart ?? '#ffffff'), roughness: 0.5, metalness: 0.08 });
+    if (ghost) { wingMat.transparent = true; wingMat.opacity = 0.42; wingMat.depthWrite = false; }
+    o = { root, body, headG, shadow, ring, refl, wheels, spin: 0, ch, ghost, bodyMesh: mesh, bodyOut: outline, headMesh: head, headOut, wingMesh: null, wingMat, deploy: 0, extCh: -1 };
+    this.applyExternal(o);
     this.kartObjs.set(id, o);
     return o;
   }
@@ -503,6 +645,7 @@ export class WorldRenderer {
   /** Shared per-frame scene update: water, boxes, karts, things, particles. */
   private update(cam: CamView, karts: KartView[], things: ThingView[], boxesActive: boolean[], t: number, water: number, dt: number) {
     const tr = this.track!;
+    this.ensureExternal();
     // the sun follows the camera so shadows stay crisp wherever the race goes
     this.sun.position.set(cam.x + 45, cam.z + 130, cam.y - 45);
     this.sun.target.position.set(cam.x, cam.z, cam.y);
@@ -534,16 +677,30 @@ export class WorldRenderer {
       o.body.rotation.set(k.lean * 0.12 + (k.trick > 0 ? k.trick * Math.PI * 2 : 0), 0, 0);
       const sq = k.squash * k.squash;
       o.body.scale.set(1 + sq * 0.15, 1 - sq * 0.13, 1 + sq * 0.15);
+      // cabeza MK7: mira hacia la salida del derrape + cabezazo en truco/aterrizaje
+      o.headG.rotation.set(k.trick > 0 ? -0.35 * Math.sin(k.trick * Math.PI) : sq * 0.3, -k.lean * 0.3, 0);
+      // ala externa: visible en planeo, despliegue 0.25 s + escora con el kart
+      this.wingOf(o);
+      const want = k.glide && k.visible ? 1 : 0;
+      o.deploy += Math.sign(want - o.deploy) * Math.min(Math.abs(want - o.deploy), dt / 0.25);
+      if (o.wingMesh) {
+        o.wingMesh.visible = o.deploy > 0.02;
+        const e = o.deploy * o.deploy * (3 - 2 * o.deploy);
+        o.wingMesh.scale.setScalar(Math.max(0.001, e));
+        o.wingMesh.rotation.x = -k.lean * 0.15;
+      }
       // wheels: roll with speed, fronts yaw with steering
       o.spin += (k.speed / 1.9) * dt;
       const steerYaw = k.lean * 0.22;
       for (const wh of o.wheels) {
-        wh.rotation.y = wh.userData.front ? steerYaw : 0;
-        wh.rotation.z = -o.spin;
+        wh.g.rotation.y = wh.front ? steerYaw : 0;
+        wh.tire.rotation.z = -o.spin;
+        wh.hub.rotation.z = -o.spin;
       }
       // legibility: far rivals are drawn bigger (visual only) so they keep ≥ ~12 px on screen
       const depth = Math.hypot(k.x - cam.x, k.y - cam.y), farK = k.local ? 1 : Math.max(1, Math.min(1.6, depth / 300));
-      o.root.scale.setScalar((k.big ? 2 : 1) * farK);
+      const baseScale = CHARS[k.ch]?.visualScale ?? 1;
+      o.root.scale.setScalar(baseScale * (k.big ? 2 : 1) * farK);
       const sw = k.big ? 2 : 1;
       o.shadow.position.set(k.x, k.ground + 0.25, k.y);
       const sh = k.air ? 0.6 : 0.86;
@@ -555,13 +712,24 @@ export class WorldRenderer {
     for (const [id, o] of this.kartObjs) if (!seen.has(id)) { o.root.visible = o.shadow.visible = o.ring.visible = o.refl.visible = false; }
     // transient things
     this.thingUsed = 0;
+    this.shroomUsed = 0;
     for (const th of things) {
+      if (th.mesh === 'shroom' && this.shroomGeo) {
+        let m = this.shroomPool[this.shroomUsed];
+        if (!m) { m = new THREE.Mesh(this.shroomGeo, this.kartMat); m.castShadow = true; this.scene.add(m); this.shroomPool[this.shroomUsed] = m; }
+        m.visible = true;
+        m.position.set(th.x, th.z, th.y);
+        m.scale.setScalar(th.w / 8);
+        this.shroomUsed++;
+        continue;
+      }
       const o = this.thing(th.spr, th.flat);
       o.position.set(th.x, th.z, th.y);
       o.scale.set(th.w, th.h, 1);
       if (th.flat) o.rotation.set(-Math.PI / 2, 0, th.yaw ?? 0);
     }
     for (let i = this.thingUsed; i < this.thingPool.length; i++) this.thingPool[i]!.visible = false;
+    for (let i = this.shroomUsed; i < this.shroomPool.length; i++) this.shroomPool[i]!.visible = false;
     this.particles.update(dt, this.camera);
   }
 
@@ -614,3 +782,4 @@ function disposeDeep(o: THREE.Object3D) {
 const NIGHT_GRADE: Grade = { tint: [0.55, 0.62, 0.95], saturation: 0.85, contrast: 1.1, lift: -0.04 };
 
 export const fogColor = (tr: Track) => hexRGB(tr.th.fog);
+
