@@ -32,5 +32,13 @@ for (let y = 0; y < S; y++) { raw[y * (S * 4 + 1)] = 0; raw.set(px.subarray(y * 
 const png = [new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', new Uint8Array())];
 const dir = join(import.meta.dir, '..', 'build');
 mkdirSync(dir, { recursive: true });
-writeFileSync(join(dir, 'icon.png'), Buffer.concat(png));
-console.log('build/icon.png');
+const pngBytes = Buffer.concat(png);
+writeFileSync(join(dir, 'icon.png'), pngBytes);
+// icon.ico: ICO container with the PNG inside (valid on Vista+; lets electron-builder skip its png->ico converter).
+const ico = Buffer.alloc(6 + 16 + pngBytes.length);
+ico.writeUInt16LE(0, 0); ico.writeUInt16LE(1, 2); ico.writeUInt16LE(1, 4);
+ico[6] = 0; ico[7] = 0; ico[8] = 0; ico[9] = 0; ico.writeUInt16LE(1, 10); ico.writeUInt16LE(32, 12);
+ico.writeUInt32LE(pngBytes.length, 14); ico.writeUInt32LE(6 + 16, 18);
+pngBytes.copy(ico, 6 + 16);
+writeFileSync(join(dir, 'icon.ico'), ico);
+console.log('build/icon.png + build/icon.ico');
