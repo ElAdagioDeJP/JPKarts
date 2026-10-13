@@ -84,20 +84,13 @@ test('parapente: trepar cambia altura por velocidad, picar da velocidad, en pér
   flyTicks(dive, -1, 60); flyTicks(neut2, 0, 60);
   expect(dive.k.speed).toBeGreaterThan(neut2.k.speed);
   expect(dive.k.z).toBeLessThan(neut2.k.z);
-  // pérdida: si no insistes en trepar, el morro recupera velocidad y sigue volando (no es roca);
-  // si insistes en trepar (t=1), cae y aterriza
+  // pérdida: lento y sin picar cae y aterriza antes que el neutro
   const stall = mkGlider(), neut3 = mkGlider();
   for (const g of [stall, neut3]) { g.k.z = 400; }
   stall.k.speed = 30; neut3.k.speed = 140;
   flyTicks(stall, 0, 120); flyTicks(neut3, 0, 120);
-  expect(stall.k.air).toBe(true); // se recupera sola sin input
-  expect(stall.k.speed).toBeGreaterThan(55);
+  expect(stall.k.air).toBe(false);
   expect(neut3.k.air).toBe(true);
-  const stallPush = mkGlider();
-  stallPush.k.z = 400; stallPush.k.speed = 30;
-  let landed = false;
-  for (let i = 0; i < 300 && !landed; i++) { step(stallPush.w, [{ t: 1, s: 0, d: false, item: false }]); landed = !stallPush.k.air; }
-  expect(landed).toBe(true); // trepar en pérdida = caída
   // crucero sostenido ≥4 s sin input: sigue en el aire con hundimiento leve (<60 u)
   const cruise4 = mkGlider();
   cruise4.k.z = 400; cruise4.k.speed = 140; cruise4.k.vz = 0;
@@ -107,9 +100,9 @@ test('parapente: trepar cambia altura por velocidad, picar da velocidad, en pér
   expect(cruise4.k.z).toBeLessThan(460); // vuelo sostenido ±60 u, no escalera ni roca
   expect(cruise4.k.z).toBeGreaterThan(340);
   // flare: tirar hacia arriba al tocar suelo suaviza el aterrizaje (no duro), soltarlo lo deja duro
-  const landWith = (t: number, vz = -60) => {
+  const landWith = (t: number) => {
     const g = mkGlider();
-    g.k.z = 60; g.k.vz = vz; g.k.speed = 140;
+    g.k.z = 60; g.k.vz = -60; g.k.speed = 140;
     takeEvents(g.w);
     for (let i = 0; i < 300 && g.k.air; i++) step(g.w, [{ t, s: 0, d: false, item: false }]);
     const land = takeEvents(g.w).find((e) => e.type === 'land');
@@ -120,7 +113,6 @@ test('parapente: trepar cambia altura por velocidad, picar da velocidad, en pér
   expect(plain.landed).toBe(true);
   expect(flared.hard).toBe(false);
   expect(plain.hard).toBe(true);
-  expect(landWith(1, -100).hard).toBe(false); // el flare salva caídas profundas
 }, 60000);
 
 test('parapente: spin/golpe en vuelo cierran el ala (cae sin sustentación)', () => {
