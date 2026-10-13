@@ -1,7 +1,7 @@
 // Core → feedback bridge: game events become sound, banners, shake and flashes.
 // Core never touches audio/render; all side effects live here.
 // Add a new event case here + its sound/feel, no changes to Game needed beyond delegation.
-import { CHARS, clamp, modeOf } from '@jpkart/core';
+import { CHARS, T, clamp, modeOf } from '@jpkart/core';
 import type { GameEvent, Kart, World } from '@jpkart/core';
 import { HAZARD_WARN } from '../app/types';
 import type { Game } from '../game';
@@ -101,7 +101,7 @@ export function onEvent(g: Game, e: GameEvent) {
   }
 }
 
-/** Positional rival engines + adaptive music intensity. */
+/** Positional rival engines + adaptive music intensity + stall warning. */
 export function audioFrame(g: Game, w: World, p: Kart) {
   const near = w.karts.filter((k) => k !== p && k.respawn <= 0).map((k) => {
     const dx = k.x - p.x, dy = k.y - p.y, dist = Math.hypot(dx, dy);
@@ -111,4 +111,10 @@ export function audioFrame(g: Game, w: World, p: Kart) {
   const crowd = near.filter((r) => r.dist < 120).length / 3;
   const lastLap = p.prog >= (w.cfg.laps - 1) * g.tr.N ? 0.35 : 0;
   g.audio.intensity = Math.min(1, 0.25 + crowd * 0.4 + lastLap + (p.rank === 0 ? 0.1 : 0) + (p.boost > 0 ? 0.1 : 0));
+  // stall warning: the wing is losing it — dive to rebuild speed (GDD §2.4)
+  if (p.glide && p.speed < T.driving.air.glideStallSpeed * 1.15) {
+    g.banner = { t: '¡Pérdida: pica!', life: 0.6 };
+    const beat = Math.floor(w.raceT * 2);
+    if (g.stallBeep !== beat) { g.stallBeep = beat; g.audio.beep(440, 0.12, 'square', 0.05, -120); }
+  }
 }

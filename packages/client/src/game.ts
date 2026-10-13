@@ -103,6 +103,7 @@ export class Game {
   fx: Fx3d;
   /** visual hit-stop: hold the rendered poses for a few frames (simulation keeps running) */
   hitStop = 0;
+  stallBeep = -1;
   /** visual-only animation timers per kart */
   trickAnim = new Map<number, number>();
   squash = new Map<number, number>();

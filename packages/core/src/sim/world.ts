@@ -286,7 +286,8 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
       k.vz += (k.speed - AIR.glideStallSpeed) * liftK * dt;
       if (inp.t > 0) { k.vz += AIR.glideClimb * inp.t * dt; k.speed -= AIR.glideClimbBleed * inp.t * dt; }
       else if (inp.t < 0) { k.vz += AIR.glideDive * inp.t * dt; k.speed -= AIR.glideDiveGain * inp.t * dt; }
-      if (k.speed < AIR.glideStallSpeed) k.vz -= AIR.glideStallSink * dt; // stall: the nose drops, speed rebuilds
+      // stall: the nose drops (warned on the HUD) but speed rebuilds instead of falling like a rock
+      if (k.speed < AIR.glideStallSpeed) { k.vz -= AIR.glideStallSink * dt; k.speed += AIR.glideStallRecover * dt; }
       const cap = base * AIR.glideMaxMul;
       if (k.speed > cap) k.speed = Math.max(cap, k.speed - AIR.glideDiveGain * 2 * dt); // drag past Vne
       if (k.vz > AIR.glideMaxVz) k.vz = AIR.glideMaxVz;
