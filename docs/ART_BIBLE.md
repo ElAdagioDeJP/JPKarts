@@ -148,6 +148,7 @@ Se mantiene la síntesis con WebAudio (sin archivos de audio), coherente con "to
 - **Buses:** `Master ← Música, SFX, Motores, Voces (gruñidos "¡Ay!"), UI`, con un limitador de seguridad en Master. Los sliders de opciones se convierten a dB (`linear → dB`).
 - **Música adaptativa:**
   - Las canciones del legacy (`SONGS`) se parten en **stems**: bajo, batería, melodía, armonía.
+  - **Una base por bioma, un leitmotiv por pista**: la batería la pone el bioma (`DRUM_BY_STYLE`: dunes/snow/grid/rock tienen su kit, el resto conserva el patrón legacy); cada pista transpone (−5..+6) y ornamenta (giro melódico + bajo alterno) desde el hash de su id (`motifForTrack`). Base compartida + variación distintiva: 38 pistas, ninguna idéntica en 10 s (test `music.test.ts`).
   - Intensidad 0..1 a partir de la posición, de la distancia a rivales y del objeto en mano.
   - **Capas verticales**: entra la batería completa con intensidad > 0,5 y la melodía 2 en > 0,8.
   - **Última vuelta:** tempo ×1,06 (el legacy ya tiene `mul`) y una nota de aviso. Los cambios se cuantizan al compás.

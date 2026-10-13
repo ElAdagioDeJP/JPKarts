@@ -3,7 +3,7 @@ import { ROAD } from '../constants';
 import { dhypot, dpow, dsin, dcos } from '../dmath';
 import { lerp } from '../math';
 import { T } from '../tunables';
-import { dgAt, hAt, wgAt } from '../track/track';
+import { dgAt, hAt, lateralAt, wgAt } from '../track/track';
 import { addFx, eachFx } from './effects';
 import { emit, hit, isHuman } from './helpers';
 import { giveItem } from './items';
@@ -100,16 +100,41 @@ defineEntity({
   zone(t, k) { return dhypot(k.x - t.x, k.y - t.y) < t.r; },
   zoneEffect: { maxMul: () => T.items.alquitran.maxMul, cancelDrift: true },
 });
-/** Blind shot: flies straight, dies off-road. */
+/** Blind shot: flies straight, dies off-road. Bounces off hard walls (GDD §3.2). */
 defineEntity({
   kind: 'shot', blackHole: 'notOwner',
   update(w, s, dt) {
-    const C = T.items.ciego;
+    const C = T.items.ciego, tr = w.track, N = tr.N;
     s.life -= dt;
     s.x += s.vx * dt;
     s.y += s.vy * dt;
-    s.z = hAt(w.track, s.x, s.y) + C.lift;
-    if (dgAt(w.track, s.x, s.y) - wgAt(w.track, s.x, s.y) > C.offRoad) return false;
+    // nearest sample (windowed around the last one, global fallback); kept in `s`
+    let bi = ((Math.round(s.s) % N) + N) % N, bd = 1e12;
+    for (let j = -25; j <= 25; j++) {
+      const i = (bi + j + N) % N, dx = tr.x[i]! - s.x, dy = tr.y[i]! - s.y, d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; bi = i; }
+    }
+    if (bd > 130 * 130) {
+      bd = 1e12;
+      for (let i = 0; i < N; i++) { const dx = tr.x[i]! - s.x, dy = tr.y[i]! - s.y, d = dx * dx + dy * dy; if (d < bd) { bd = d; bi = i; } }
+    }
+    s.s = bi;
+    s.z = hAt(tr, s.x, s.y) + C.lift;
+    if (dgAt(tr, s.x, s.y) - wgAt(tr, s.x, s.y) > C.offRoad) return false;
+    // hard walls: bounce up to `bounces` times (impact count in `lat`), then fizzle
+    const lat = lateralAt(tr, bi, s.x, s.y), lim = tr.wd[bi]! + 8;
+    let side = 0;
+    if (lat > lim && tr.wallR[bi]) side = 1;
+    else if (lat < -lim && tr.wallL[bi]) side = -1;
+    if (side) {
+      s.lat += 1;
+      if (s.lat > C.bounces) return false;
+      const a = tr.ang[bi]!, rx = -dsin(a), ry = dcos(a);
+      const vn = (s.vx * rx + s.vy * ry) * side;
+      if (vn > 0) { s.vx -= 2 * vn * rx * side; s.vy -= 2 * vn * ry * side; }
+      const pen = Math.abs(lat) - lim;
+      s.x -= rx * pen * side; s.y -= ry * pen * side;
+    }
     for (const k of w.karts) {
       if (k.id === s.owner) continue;
       if (dhypot(k.x - s.x, k.y - s.y) < C.radius) {

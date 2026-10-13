@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
-import { ALL_TRACKS, LAPS, Rng, TrackCache, addFx, buildGrid, createWorld, prepAuthored, step, takeEvents, type GameEvent, type Kart, type World } from '../src';
+import { ALL_TRACKS, LAPS, Rng, TrackCache, addFx, arenaGust, buildGrid, createWorld, lateralAt, prepAuthored, step, takeEvents, type GameEvent, type Kart, type World } from '../src';
+import { hit } from '../src/sim/helpers';
 import { SCENARIOS, runScenario } from './golden';
 
 // Every Phase 4 mechanic must actually happen in the replayed Playa Coco v2 scenario (its trajectory is
@@ -90,13 +91,14 @@ test('parapente: trepar cambia altura por velocidad, picar da velocidad, en pér
   flyTicks(stall, 0, 120); flyTicks(neut3, 0, 120);
   expect(stall.k.air).toBe(false);
   expect(neut3.k.air).toBe(true);
-  // crucero neutro: el ala planea con hundimiento leve, no cae como roca (2 s < 60 u de caída, sigue en el aire)
-  const cruise = mkGlider();
-  cruise.k.z = 400; cruise.k.speed = 140; cruise.k.vz = 0;
-  flyTicks(cruise, 0, 120);
-  expect(cruise.k.air).toBe(true);
-  expect(cruise.k.z).toBeLessThan(400);
-  expect(cruise.k.z).toBeGreaterThan(340);
+  // crucero sostenido ≥4 s sin input: sigue en el aire con hundimiento leve (<60 u)
+  const cruise4 = mkGlider();
+  cruise4.k.z = 400; cruise4.k.speed = 140; cruise4.k.vz = 0;
+  flyTicks(cruise4, 0, 240);
+  expect(cruise4.k.air).toBe(true);
+  expect(cruise4.k.glide).toBe(true);
+  expect(cruise4.k.z).toBeLessThan(400);
+  expect(cruise4.k.z).toBeGreaterThan(340);
   // flare: tirar hacia arriba al tocar suelo suaviza el aterrizaje (no duro), soltarlo lo deja duro
   const landWith = (t: number) => {
     const g = mkGlider();
@@ -111,6 +113,23 @@ test('parapente: trepar cambia altura por velocidad, picar da velocidad, en pér
   expect(plain.landed).toBe(true);
   expect(flared.hard).toBe(false);
   expect(plain.hard).toBe(true);
+}, 60000);
+
+test('parapente: spin/golpe en vuelo cierran el ala (cae sin sustentación)', () => {
+  const cache = new TrackCache(ALL_TRACKS, prepAuthored), tr = cache.ensureBuilt(0);
+  const grid = buildGrid(new Rng(3), [{ ch: 5, ctrl: 'local' }], { humanSlot: 0 });
+  const w = createWorld({ trackIndex: 0, diff: 0, seed: 3, laps: LAPS, grid }, tr);
+  const idle = [{ t: 0, s: 0, d: false, item: false }];
+  for (let i = 0; i < 60 * 5 && w.phase !== 'race'; i++) step(w, idle);
+  const k = w.karts[0]!;
+  k.respawn = 0; k.invuln = 0; k.air = true; k.glide = true; k.vz = 10; k.z = 400; k.speed = 140;
+  expect(hit(w, k, 1.0, 1, -1)).toBe(true);
+  expect(k.glide).toBe(false);
+  expect(k.air).toBe(true); // sigue en el aire pero sin sustentación
+  expect(k.spin).toBeGreaterThan(0);
+  // sin ala cae con gravedad normal: tras 1 s el vz es claramente negativo
+  for (let i = 0; i < 60; i++) step(w, [{ t: 0, s: 0, d: false, item: false }]);
+  expect(k.vz).toBeLessThan(-30);
 }, 60000);
 
 test('canon-rojo: las setas rebotan y la glideZone abre el ala', () => {
@@ -146,4 +165,82 @@ test('canon-rojo: las setas rebotan y la glideZone abre el ala', () => {
   }
   expect(opened).toBe(true);
   expect(g.k.air).toBe(true);
+}, 60000);
+
+test('tormenta de arena: ráfagas laterales deterministas desde su vuelta', () => {
+  const cache = new TrackCache(ALL_TRACKS, prepAuthored), tr = cache.ensureBuilt(21); // dunas-doradas (arena desde la vuelta 2)
+  const mk = () => {
+    const grid = buildGrid(new Rng(7), [{ ch: 5, ctrl: 'local' }], { humanSlot: 0 });
+    const w = createWorld({ trackIndex: 21, diff: 0, seed: 7, laps: LAPS, grid }, tr);
+    const idle = [{ t: 0, s: 0, d: false, item: false }];
+    for (let i = 0; i < 60 * 5 && w.phase !== 'race'; i++) step(w, idle);
+    return w;
+  };
+  const w1 = mk(), k1 = w1.karts[0]!;
+  k1.prog = 0; // vuelta 1: sin tormenta
+  expect(arenaGust(w1, k1)).toBe(0);
+  const w2 = mk(), k2 = w2.karts[0]!;
+  k2.prog = tr.N; // vuelta 2: tormenta activa, ráfaga acotada
+  expect(Math.abs(arenaGust(w2, k2))).toBeLessThanOrEqual(10);
+  const w3 = mk(), k3 = w3.karts[0]!; // determinista: mismo tick + kart → misma ráfaga
+  k3.prog = tr.N;
+  expect(arenaGust(w3, k3)).toBe(arenaGust(w2, k2));
+  let peak = 0;
+  const p0 = k2.prog;
+  for (let i = 0; i < 300; i++) { step(w2, [{ t: 1, s: 0, d: false, item: false }]); peak = Math.max(peak, Math.abs(arenaGust(w2, k2))); }
+  expect(peak).toBeGreaterThan(5); // la tormenta empuja de verdad en alguna fase
+  expect(k2.respawn).toBe(0); // …sin sacar al kart de carrera
+  expect(k2.prog).toBeGreaterThan(p0);
+}, 60000);
+
+test('proyectil ciego: rebota en muros en vez de atravesarlos', () => {
+  const cache = new TrackCache(ALL_TRACKS, prepAuthored), tr = cache.ensureBuilt(16); // playa-coco, con muros
+  let wi = -1;
+  for (let i = 0; i < tr.N; i++) if (tr.wallR[i]) { wi = i; break; }
+  expect(wi).toBeGreaterThanOrEqual(0);
+  const grid = buildGrid(new Rng(1), [{ ch: 0, ctrl: 'local' }], { humanSlot: 0 });
+  const w = createWorld({ trackIndex: 16, diff: 0, seed: 1, laps: LAPS, grid }, tr);
+  const idle = [{ t: 0, s: 0, d: false, item: false }];
+  for (let i = 0; i < 60 * 5 && w.phase !== 'race'; i++) step(w, idle);
+  const k = w.karts[0]!;
+  k.respawn = 0; k.invuln = 0;
+  const a = tr.ang[wi]!;
+  k.x = tr.x[wi]!; k.y = tr.y[wi]!; k.speed = 0; k.a = a - Math.PI / 2; k.va = k.a; // mirando al muro derecho
+  k.item = 'ciego';
+  step(w, [{ t: 0, s: 0, d: false, item: true }]);
+  takeEvents(w);
+  expect(w.ents.some((e) => e.kind === 'shot')).toBe(true);
+  let bounced = false, escaped = false;
+  for (let i = 0; i < 120; i++) {
+    step(w, [{ t: 0, s: 0, d: false, item: false }]);
+    const s = w.ents.find((e) => e.kind === 'shot');
+    if (!s) break;
+    if (s.lat >= 1) bounced = true;
+    const bi = Math.round(s.s) % tr.N;
+    if (Math.abs(lateralAt(tr, bi, s.x, s.y)) > tr.wd[bi]! + 20) escaped = true;
+  }
+  expect(bounced).toBe(true); // tocó el muro y rebotó…
+  expect(escaped).toBe(false); // …sin atravesarlo
+}, 60000);
+
+test('zonas de planeo = barrancos: anillo y dunas abren el ala sobre desnivel real', () => {
+  for (const idx of [32, 33]) {
+    const cache = new TrackCache(ALL_TRACKS, prepAuthored), tr = cache.ensureBuilt(idx);
+    expect(tr.glideZones.length).toBeGreaterThan(0);
+    const grid = buildGrid(new Rng(7), [{ ch: 5, ctrl: 'local' }], { humanSlot: 0 });
+    const w = createWorld({ trackIndex: idx, diff: 0, seed: 7, laps: LAPS, grid }, tr);
+    const idle = [{ t: 0, s: 0, d: false, item: false }];
+    for (let i = 0; i < 60 * 5 && w.phase !== 'race'; i++) step(w, idle);
+    const k = w.karts[0]!;
+    k.respawn = 0; k.invuln = 0; k.air = false; k.glide = false; k.vz = 0;
+    const z = tr.glideZones[0]!;
+    k.x = tr.x[z.i0]!; k.y = tr.y[z.i0]!; k.speed = 140;
+    let opened = false;
+    for (let i = 0; i < 10 && !opened; i++) { step(w, [{ t: 0, s: 0, d: false, item: false }]); opened = k.glide; }
+    expect(opened).toBe(true);
+    // desnivel real dentro de la zona (cresta - fondo): nada de llanos
+    let mn = 1e9, mx = -1e9;
+    for (let i = z.i0; ; i = (i + 1) % tr.N) { mn = Math.min(mn, tr.hc[i]!); mx = Math.max(mx, tr.hc[i]!); if (i === z.i1) break; }
+    expect(mx - mn).toBeGreaterThan(15);
+  }
 }, 60000);

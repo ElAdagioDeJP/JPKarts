@@ -1,6 +1,6 @@
 {
   "id": "tenis-jp",
-  "name": "Club de Tenis JP",
+  "name": "Campus Kernel",
   "cup": "hoja",
   "theme": "clay",
   "themeOverrides": {
@@ -37,19 +37,19 @@
       "round",
       "round",
       "bush",
-      "umpire"
+      "robot"
     ],
     "lm": [
       "stands",
       "stands",
       "stands",
-      "bigball",
-      "bigball",
-      "net",
-      "net",
-      "umpire"
+      "server",
+      "server",
+      "pcb",
+      "pcb",
+      "robot"
     ],
-    "post": "windscreen",
+    "post": "ledwall",
     "grip": 10,
     "offMax": 62
   },
@@ -360,7 +360,7 @@
   "flights": [],
   "hazards": [
     {
-      "kind": "pelota",
+      "kind": "bug",
       "at": 0.015732546705998034,
       "period": 6,
       "warn": 1.2,
@@ -370,7 +370,7 @@
       ]
     },
     {
-      "kind": "pelota",
+      "kind": "bug",
       "at": 0.20452310717797442,
       "period": 7,
       "warn": 1.2,

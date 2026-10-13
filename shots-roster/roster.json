@@ -1,0 +1,26 @@
+{
+ "kinds": {
+  "0": "code",
+  "1": "code",
+  "2": "code",
+  "3": "code",
+  "4": "ext",
+  "5": "ext",
+  "6": "code",
+  "7": "code"
+ },
+ "shot": {
+  "pool": 1,
+  "visible": 1,
+  "geo": true
+ },
+ "perf": {
+  "fps": 60.019361084220705,
+  "sim": 0.5,
+  "render": 5.399999999906868,
+  "drawCalls": 149,
+  "backend": "WebGL2",
+  "state": "race"
+ },
+ "errors": []
+}

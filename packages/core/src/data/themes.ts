@@ -51,7 +51,7 @@ export const TH: Record<ThemeStyle, Theme> = {
     deco: ['darkrock', 'deadtree', 'darkrock', 'obsidian'], lm: ['skull', 'skull', 'geyser', 'geyser', 'geyser', 'obsidian'], post: 'bollard', grip: 10, offMax: 58 },
   clay: { style: 'clay', ground: ['#d8703a', '#cc6632', '#e07c44'], edge: '#fff7e0', curbA: '#ffffff', curbB: '#2ec46b', road: '#3a6fb5', road2: '#3466aa', line: '#ffffff', out: ['#2e8a4a', '#287a42'],
     sky: ['#3a80e8', '#4a92f4', '#62a8ff', '#86c0ff', '#aad6ff', '#d0ecff'], fog: '#d0ecff', strip: 'mount', mt1: '#7a92d8', mt2: '#5a76c0', hill: '#3a8a4a', sun: '#fff7b0',
-    deco: ['round', 'round', 'bush', 'umpire'], lm: ['stands', 'stands', 'stands', 'bigball', 'bigball', 'net', 'net', 'umpire'], post: 'windscreen', grip: 10, offMax: 62 },
+    deco: ['round', 'round', 'bush', 'robot'], lm: ['stands', 'stands', 'stands', 'server', 'server', 'pcb', 'pcb', 'robot'], post: 'ledwall', grip: 10, offMax: 62 },
 };
 
 export const th = (b: ThemeStyle, o: Partial<Theme> = {}): Theme => Object.assign({}, TH[b], o);

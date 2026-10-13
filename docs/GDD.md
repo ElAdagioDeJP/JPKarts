@@ -65,7 +65,7 @@ Durante la cuenta atrás:
 ### 2.4 Rampas y trucos
 - Al despegar de una rampa (o de un salto natural del terreno con vz > umbral) se abre una ventana de 0,25 s para pulsar **Derrapar** = truco (animación de giro).
 - Truco aterrizado = turbo 0,6 s. Truco en rampa marcada como "grande" = 0,9 s.
-- Si recibes un golpe en el aire, el truco se pierde.
+- Si recibes un golpe en el aire, el truco se pierde y el ala se cierra (sigues en el aire pero sin sustentación: caes con gravedad normal).
 - Las rampas de **vuelo** y las **zonas de parapente** (`glideZones` en los datos de la pista) abren el ala: el stat **Vuelo** escala la sustentación.
 - Volar es un ala con energía, no una escalera: la sustentación crece con la velocidad por encima de la pérdida (en crucero planea con hundimiento leve); mantener **acelerar** trepa (pierde velocidad), **frenar** pica (gana velocidad), girar roza velocidad. Lento entra en **pérdida** y cae. Aterrizar duro (vz bajo el umbral) recorta velocidad; tirar hacia arriba justo al tocar suelo (*flare*) lo suaviza. Las compuertas son obstáculos de suelo: pasarlas volando por encima vale.
 
@@ -108,6 +108,7 @@ Las superficies se pintan en los datos de la pista (regiones o máscara) y viven
 | Charco | 0,85 durante 0,4 s | 0,7 | 1,0 | salpicadura |
 | Acelerador | turbo 0,8 s **(legacy)** | — | — | enfriamiento 0,5 s por kart |
 | Lluvia (clima) | — | ×0,8 en toda la pista | — | se acumula con la superficie |
+| Tormenta de arena (clima, dunas) | — | ×0,9 en toda la pista | — | + ráfagas laterales deterministas (`weather.arena.gust` u/s); haze + niebla visual en el client |
 
 ---
 
@@ -305,10 +306,10 @@ Métricas por copa (las comprueba el validador, §6.5):
 |---|---|---|---|---|---|---|
 | Hoja | Pradera JP | hierba | Pista tutorial: enseña drift, rampas y cajas | vacas que cruzan lento (1) | campo de heno (hierba; necesita turbo) | ★ |
 | Hoja | Playa Coco | arena | **Marea**: en la vuelta 2–3 el agua cubre la línea exterior (charcos → agua) | olas en la pasarela | muelle de madera (estrecho, sin muros) | ★ |
-| Hoja | Club de Tenis JP | arcilla | Máquinas lanzapelotas: pelotas rodantes (reusa los sprites `BALL`) | pelotas | cruzar la pista por el hueco de la red | ★★ |
+| Hoja | Campus Kernel | arcilla | Servidores con fugas: bugs rodantes | bugs | recta técnica con bugs (sin atajo) | ★★ |
 | Hoja | Bosque Encantado | hierba noche | Niebla + setas trampolín (salto con truco) | setas que rebotan de lado | tronco hueco (oscuro, curvo) | ★★ |
 | Estrella | Valle Molino | hierba atardecer | **Aspas** de molino que barren la pista con ritmo | aspas, viento lateral | atravesar el granero (puertas que abren y cierran) | ★★ |
-| Estrella | Dunas Doradas | dunas | **Tormenta de arena** en la vuelta 2 (vista + agarre); dunas-salto | remolinos que desvían | duna alta (truco obligatorio) | ★★ |
+| Estrella | Dunas Doradas | dunas | **Tormenta de arena** en la vuelta 2 (vista + agarre ×0,9 + ráfagas laterales deterministas); dunas-salto; decorado clave en 3D low-poly (cactus, pirámide, calavera) | remolinos que desvían | duna alta (truco obligatorio) | ★★ |
 | Estrella | Bahía Atardecer | arena | **Día → noche** durante la carrera; el faro barre la pista | olas en la pasarela | pantalán (caída al agua) | ★★ |
 | Estrella | Glaciar Polar | nieve | Hielo con poco agarre en las horquillas | pingüinos cruzando, grietas que se abren en la vuelta 3 | cueva de hielo (suelo hielo puro) | ★★★ |
 | Rayo | Ciudad Neón | grid noche | **Tráfico**: autos por carriles fijos | autos, charcos con reflejos | callejón (estrecho, contenedores) | ★★★ |
@@ -417,6 +418,7 @@ Overlay de IA (F4) que muestra:
 ## 8. Personajes y clases de peso
 
 Se mantienen los 8 personajes y sus stats: `vel, ace, man, pes, vue` (1–10). Las clases salen del peso:
+Roster 3D: JP y Miguel usan `.glb` de Blender; Marco, Guaycaipuro, Luis, Jesús, Mario y Andrés usan modelos procedurales (`client/src/art/codeModels.ts`: cuerpo 372 tris, cabezas 224–372 tris, 1 material + colores por vértice, cabeza aparte en `MK7_RIG.HEAD_C`, tinte de ala por kart). Fallback voxel si un modelo falla.
 
 | Clase | Rango `pes` | Personajes | Efecto en conducción | Efecto en choques |
 |---|---|---|---|---|
@@ -462,7 +464,7 @@ Stats derivados **(legacy)**:
 ## 11. Audio (resumen; detalle en `docs/ART_BIBLE.md` §8)
 
 - Buses: `Master ← Música, SFX, Motores, Voces, UI`, controlados en dB.
-- Música adaptativa por intensidad y última vuelta.
+- Música adaptativa por intensidad y última vuelta. Cada pista tiene su identidad (stems del bioma + leitmotiv propio, todo sintetizado).
 - Ducking en eventos grandes.
 - Motores posicionales de los 3 rivales más cercanos.
 

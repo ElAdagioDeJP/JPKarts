@@ -7,7 +7,7 @@ import {
   type StatKey,
 } from '@jpkart/core';
 import { OUT } from '../art/pixel';
-import { BALLS, BIGBALL, FACES, rotFrames } from '../art/sprites';
+import { BALLS, BUG, FACES, rotFrames } from '../art/sprites';
 import { assignSources } from '../input/players';
 import { SOURCE_NAMES } from '../input/players';
 import { HAZARD_TAG, TEAM_COL, TEAM_NAME, WEATHER_TAG, isArena } from '../app/types';
@@ -33,7 +33,7 @@ export function drawTitle(g: Game, t: number) {
   ctx.fillStyle = '#ff8a1f'; ctx.fillRect(W / 2 - 128, y + 46, 256, 2);
   ui.txt('Gran Premio Pixel', W / 2, y + 56, '#fff7e0', 8, 'center');
   const b = Math.round(Math.abs(Math.sin(t * 3)) * 14);
-  ui.img(BIGBALL.cv, W / 2 + 104, y - 14 - b, 20, 20);
+  ui.img(BUG.cv, W / 2 + 104, y - 14 - b, 20, 20);
   CHARS.forEach((_, i) => {
     const x = W / 2 - 140 + i * 35, bb = Math.round(Math.sin(t * 5 + i) * 2);
     ui.img(FACES[i]!.cv, x, 146 + bb, 32, 32);

@@ -77,7 +77,7 @@ export interface CupState {
 export const HAZARD_TAG: Record<string, string> = {
   ola: 'Olas', tren: 'Tren', vaca: 'Vacas', auto: 'Tráfico', pinguino: 'Pingüinos',
   aspa: 'Molinos', geiser: 'Géiseres', laser: 'Láseres', meteoro: 'Meteoritos',
-  roca: 'Rocas', pelota: 'Pelotas gigantes', bolanieve: 'Bolas de nieve',
+  roca: 'Rocas', bug: 'Bugs', bolanieve: 'Bolas de nieve',
   seta: 'Setas saltarinas', compuerta: 'Compuertas',
 };
 export const WEATHER_TAG: Record<string, string> = {
@@ -87,5 +87,5 @@ export const WEATHER_TAG: Record<string, string> = {
 export const HAZARD_WARN: Record<string, string> = {
   ola: '¡Ola!', tren: '¡Tren!', vaca: '¡Vacas!', auto: '¡Tráfico!',
   pinguino: '¡Pingüinos!', geiser: '¡Géiser!', laser: '¡Láser!',
-  meteoro: '¡Meteorito!', roca: '¡Roca!', pelota: '¡Pelota!', bolanieve: '¡Bola de nieve!',
+  meteoro: '¡Meteorito!', roca: '¡Roca!', bug: '¡Bug!', bolanieve: '¡Bola de nieve!',
 };

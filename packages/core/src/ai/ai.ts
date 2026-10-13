@@ -37,7 +37,7 @@ export const aiDebug = new Map<number, AiDebug>();
 /** Difficulty parameters of a kart's AI (or the race's when no kart is given). */
 export const aiDiff = (w: World, k?: Kart) => T.ai.difficulty[k?.ai?.diff ?? w.cfg.diff]!;
 /** Entities the AI steers around. */
-const AVOID = new Set(['mine', 'fakebox', 'ice', 'smoke', 'ola', 'tren', 'vaca', 'auto', 'pinguino', 'roca', 'pelota', 'bolanieve', 'geiser', 'laser', 'meteoro', 'aspa', 'seta']);
+const AVOID = new Set(['mine', 'fakebox', 'ice', 'smoke', 'ola', 'tren', 'vaca', 'auto', 'pinguino', 'roca', 'bug', 'bolanieve', 'geiser', 'laser', 'meteoro', 'aspa', 'seta']);
 const persona = (k: Kart) => T.ai.personality[CHARS[k.ch]!.personality];
 const yawRate = (k: Kart) => T.driving.steer.rate * CHARS[k.ch]!.hnd * 0.92;
 

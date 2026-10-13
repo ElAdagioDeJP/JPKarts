@@ -111,7 +111,24 @@ function ballSprite(size: number, phase: number, colr = BALL, face?: string): Sp
   });
 }
 export const BALLS = [0, 1, 2, 3].map((i) => ballSprite(16, (i * Math.PI) / 2));
-export const BIGBALL = ballSprite(28, 0.6);
+export const BIGBALL = mk(28, 28, (p) => {
+  // Boya a rayas (decoración neutra: playa, estadio).
+  const c = 14, r = 13;
+  P.ell(p, c, c, r, r, (dx, dy) => (((dy * r + c) / 4 | 0) % 2 ? '#fff7e0' : '#e8455a'));
+  P.ell(p, c - 4, c - 5, 3, 4, (_dx, dy) => (dy < 0 ? '#ffffff' : 0));
+  P.rect(p, 12, 0, 4, 3, '#9aa0b4');
+});
+/** Bug rodante (peligro del Campus Kernel y del estadio): escarabajo rojo con patas y ojos. */
+export const BUG = mk(28, 28, (p) => {
+  const c = 14, r = 12;
+  for (const s of [-1, 1]) for (let k = 0; k < 3; k++) P.line(p, c + s * 8, c - 6 + k * 6, c + s * 12, c - 8 + k * 6, OUT, 1);
+  P.ell(p, c, c, r, r, sph('#e8455a'));
+  P.ell(p, c - 4, c - 5, 3, 4, (_dx, dy) => (dy < 0 ? '#ff9a9a' : 0));
+  P.line(p, c - 7, c - 9, c - 3, c - 6, OUT, 2); P.line(p, c + 7, c - 9, c + 3, c - 6, OUT, 2);
+  P.ell(p, c - 4, c - 2, 2.6, 3, '#ffffff'); P.ell(p, c + 4, c - 2, 2.6, 3, '#ffffff');
+  P.set(p, c - 4, c - 2, OUT); P.set(p, c + 4, c - 2, OUT);
+  P.rect(p, c - 3, c + 6, 6, 2, OUT);
+});
 function qmark(p: PXBuf, x: number, y: number, c: string) {
   ['111', '001', '011', '000', '010'].forEach((r, j) => { for (let i = 0; i < 3; i++) if (r[i] === '1') P.set(p, x + i, y + j, c); });
 }
@@ -208,10 +225,11 @@ D.skull = mk(24, 18, (p) => { P.ell(p, 12, 10, 11, 8, sph('#6a5a60')); P.ell(p, 
 D.geyser = mk(12, 26, (p) => { P.ell(p, 6, 23, 5.5, 3, sph('#4a3036')); for (let y = 2; y < 22; y++) { const w = 2 + Math.sin(y * 0.7) * 1 + (22 - y) * 0.08; P.rect(p, 6 - w, y, w * 2, 1, y % 3 ? '#ff8a1f' : '#ffe45e'); } P.ell(p, 6, 3, 3, 2.5, '#ffe45e'); });
 D.darkrock = mk(16, 10, (p) => { P.ell(p, 8, 6, 7.5, 4.5, sph('#4a3036')); P.line(p, 4, 6, 9, 4, '#ff6a2a', 1); P.line(p, 9, 4, 12, 7, '#ff8a1f', 1); });
 D.deadtree = mk(18, 30, (p) => { const c = '#3a2a2e'; P.line(p, 9, 30, 9, 10, c, 2); P.line(p, 9, 16, 3, 8, c, 1); P.line(p, 9, 13, 15, 5, c, 1); P.line(p, 4, 9, 2, 3, c, 1); P.line(p, 14, 6, 16, 1, c, 1); P.line(p, 9, 10, 8, 3, c, 1); });
-D.stands = mk(48, 24, (p) => { for (let r = 0; r < 5; r++) { P.rect(p, r * 2, 4 + r * 4, 48 - r * 4, 4, r % 2 ? '#c8ccdc' : '#aab0c4'); for (let x = r * 2 + 1; x < 46 - r * 2; x += 3) P.rect(p, x, 4 + r * 4, 2, 2, ['#e8455a', '#2f6bff', '#ffe45e', '#2ec46b', '#ff8a1f', '#fff0e6'][(x * 7 + r * 3) % 6]!); } P.rect(p, 0, 0, 48, 4, '#2ec46b'); miniText(p, 'JP', 19, 0, '#fff7e0', 1); });
-D.umpire = mk(14, 28, (p) => { P.rect(p, 2, 10, 2, 18, '#fff7e0'); P.rect(p, 10, 10, 2, 18, '#fff7e0'); P.rect(p, 2, 16, 10, 1, '#fff7e0'); P.rect(p, 1, 8, 12, 3, '#2ec46b'); P.ell(p, 7, 4, 3, 3, sph('#e0a878')); P.rect(p, 4, 1, 6, 2, '#fff7e0'); });
-D.net = mk(36, 12, (p) => { P.rect(p, 0, 0, 2, 12, '#9aa0b4'); P.rect(p, 34, 0, 2, 12, '#9aa0b4'); P.rect(p, 2, 1, 32, 1, '#ffffff'); P.rect(p, 2, 2, 32, 8, (i, j) => (i % 3 === 0 || j % 3 === 0 ? '#e8e8f0' : 0)); P.rect(p, 2, 10, 32, 1, '#ffffff'); });
+D.stands = mk(48, 24, (p) => { for (let r = 0; r < 5; r++) { P.rect(p, r * 2, 4 + r * 4, 48 - r * 4, 4, r % 2 ? '#c8ccdc' : '#aab0c4'); for (let x = r * 2 + 1; x < 46 - r * 2; x += 3) P.rect(p, x, 4 + r * 4, 2, 2, ['#e8455a', '#2f6bff', '#ffe45e', '#2ec46b', '#ff8a1f', '#fff0e6'][(x * 7 + r * 3) % 6]!); } P.rect(p, 0, 0, 48, 4, '#1a2a5a'); for (let x = 1; x < 46; x += 4) P.rect(p, x, 1, 2, 2, x % 8 ? '#3df0ff' : '#ff3df0'); miniText(p, 'JP', 19, 0, '#fff7e0', 1); });
+D.robot = mk(14, 28, (p) => { P.rect(p, 2, 24, 10, 4, '#3a3450'); P.rect(p, 3, 22, 8, 2, '#9aa0b4'); P.rect(p, 3, 10, 8, 12, cyl('#8a90a4')); P.rect(p, 4, 12, 6, 4, '#1a1026'); P.rect(p, 5, 13, 1, 2, '#3df0ff'); P.rect(p, 8, 13, 1, 2, '#3df0ff'); P.rect(p, 3, 4, 8, 6, cyl('#aab0c4')); P.rect(p, 5, 5, 1, 2, '#ff3df0'); P.rect(p, 8, 5, 1, 2, '#ff3df0'); P.rect(p, 6, 0, 2, 4, '#9aa0b4'); P.ell(p, 7, 0, 1.6, 1.6, '#ff3df0'); });
+D.pcb = mk(36, 12, (p) => { P.rect(p, 0, 0, 2, 12, '#9aa0b4'); P.rect(p, 34, 0, 2, 12, '#9aa0b4'); P.rect(p, 2, 2, 32, 8, '#1a5a3a'); P.rect(p, 2, 2, 32, 8, (i, j) => ((i + j * 3) % 7 === 0 ? '#ffd23a' : 0)); P.rect(p, 6, 4, 3, 3, '#ffd23a'); P.rect(p, 24, 5, 4, 2, '#3df0ff'); P.rect(p, 2, 10, 32, 1, '#0d3a26'); });
 D.bigball = BIGBALL;
+D.server = mk(24, 32, (p) => { P.rect(p, 1, 1, 22, 30, '#3a3450'); P.rect(p, 1, 1, 22, 30, (i, j) => (i === 1 || j === 1 || i === 22 ? '#9aa0b4' : 0)); for (let r = 0; r < 4; r++) { P.rect(p, 3, 4 + r * 7, 18, 5, '#1a1026'); for (let x = 0; x < 6; x++) P.rect(p, 4 + x * 3, 5 + r * 7, 2, 2, ['#2ec46b', '#ffd23a', '#ff3df0'][(x + r) % 3]!); } P.rect(p, 3, 29, 18, 1, '#9aa0b4'); });
 D.fence = mk(18, 12, (p) => { P.rect(p, 1, 1, 3, 11, cyl('#9a6a3a')); P.rect(p, 14, 1, 3, 11, cyl('#9a6a3a')); P.rect(p, 0, 3, 18, 2, '#c89a5a'); P.rect(p, 0, 7, 18, 2, '#b0804a'); });
 D.buoy = mk(8, 16, (p) => { P.rect(p, 1, 2, 6, 14, (_i, j) => (((j / 3) | 0) % 2 ? '#fff7e0' : '#e8455a')); P.ell(p, 4, 2, 3, 2, '#e8455a'); });
 D.stake = mk(8, 16, (p) => { P.rect(p, 2, 2, 4, 14, cyl('#a8783a')); P.tri(p, 2, 2, 6, 2, 4, 0, '#a8783a'); P.rect(p, 0, 5, 8, 1, '#e8d0a0'); });
@@ -220,6 +238,7 @@ D.neonpost = mk(6, 22, (p) => { P.rect(p, 2, 4, 2, 18, '#3a3450'); P.rect(p, 0, 
 D.neonpost2 = mk(6, 22, (p) => { P.rect(p, 2, 4, 2, 18, '#3a3450'); P.rect(p, 0, 0, 6, 5, '#ff3df0'); P.rect(p, 1, 1, 4, 3, '#ffffff'); });
 D.bollard = mk(14, 10, (p) => { P.ell(p, 7, 6, 6.5, 4, sph('#4a3036')); P.rect(p, 3, 4, 8, 1, '#ff6a2a'); });
 D.windscreen = mk(20, 14, (p) => { P.rect(p, 0, 0, 2, 14, '#9aa0b4'); P.rect(p, 18, 0, 2, 14, '#9aa0b4'); P.rect(p, 2, 1, 16, 11, (i, j) => ((i + j) % 3 === 0 ? '#3f8a4a' : '#2e6a3a')); });
+D.ledwall = mk(20, 14, (p) => { P.rect(p, 0, 0, 2, 14, '#3a3450'); P.rect(p, 18, 0, 2, 14, '#3a3450'); P.rect(p, 2, 1, 16, 11, '#1a2a5a'); for (let y = 2; y < 11; y += 2) for (let x = 3; x < 17; x += 2) P.rect(p, x, y, 1, 1, (x + y) % 4 ? '#3df0ff' : '#ff3df0'); miniText(p, 'IO', 7, 5, '#fff7e0', 1); });
 D.arch = mk(72, 44, (p) => {
   for (const x of [2, 64]) P.rect(p, x, 8, 6, 36, (i, j) => (((i >> 1) + (j >> 1)) % 2 ? '#ffffff' : '#1a1026'));
   P.rect(p, 0, 2, 72, 12, '#e8455a'); P.rect(p, 0, 2, 72, 2, '#ff8a9a'); P.rect(p, 0, 12, 72, 2, '#9a2a38');
@@ -233,7 +252,7 @@ D.fern = mk(18, 12, (p) => { for (let i = -3; i <= 3; i++) P.line(p, 9, 12, 9 + 
 /** World height of each scenery sprite (units). */
 export const DH: Record<string, number> = {
   tree: 40, round: 32, bush: 12, windmill: 70, barn: 40, cow: 13, lighthouse: 80, umbrella: 20, surf: 18, palm: 52, pyramid: 80, camel: 22, cactus: 30, rock: 10, igloo: 22, crystal: 34, penguin: 14, snowtree: 42, snowman: 24,
-  building0: 90, building1: 90, lamp: 34, lamp2: 34, billboard: 48, obsidian: 40, skull: 22, geyser: 34, darkrock: 12, deadtree: 32, stands: 44, umpire: 28, net: 14, bigball: 30,
+  building0: 90, building1: 90, lamp: 34, lamp2: 34, billboard: 48, obsidian: 40, skull: 22, geyser: 34, darkrock: 12, deadtree: 32, stands: 44, robot: 28, pcb: 14, bigball: 30, server: 34, ledwall: 13,
   fence: 11, buoy: 13, stake: 12, iceblock: 11, neonpost: 22, neonpost2: 22, bollard: 10, windscreen: 13, arch: 66, purpletree: 40, mushroom: 16, fern: 12,
 };
 

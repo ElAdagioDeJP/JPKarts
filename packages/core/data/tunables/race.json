@@ -107,7 +107,7 @@
       "level": 1,
       "spin": 1.1
     },
-    "pelota": {
+    "bug": {
       "speed": 140,
       "radius": 9,
       "level": 0
@@ -137,7 +137,8 @@
       "grip": 0.8
     },
     "arena": {
-      "grip": 0.9
+      "grip": 0.9,
+      "gust": 10
     },
     "niebla": {
       "grip": 1.0

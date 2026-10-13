@@ -1,6 +1,29 @@
 // Synthesized chiptune audio (ported from legacy). Buses: master ← music, sfx, engine, voice.
 import type { Character, SongId } from '@jpkart/core';
 
+/** Per-track identity: biome drum stems + the track's own leitmotiv (ART_BIBLE §8). */
+export type DrumKitId = 'base' | 'dunes' | 'snow' | 'grid' | 'rock';
+interface DrumKit { kick: number[]; kickExtra: number[]; snare: number[]; hats: 'q' | 'e' | 's'; soft: boolean }
+const DRUMS: Record<Exclude<DrumKitId, 'base'>, DrumKit> = {
+  dunes: { kick: [0, 8], kickExtra: [14], snare: [4, 12], hats: 'e', soft: false },
+  snow: { kick: [0, 8], kickExtra: [], snare: [], hats: 'q', soft: true },
+  grid: { kick: [0, 4, 8, 12], kickExtra: [], snare: [4, 12], hats: 's', soft: false },
+  rock: { kick: [0, 8], kickExtra: [6, 14], snare: [4, 12], hats: 'e', soft: false },
+};
+/** Biome → drum stem. `base` keeps each song's original pattern. */
+export const DRUM_BY_STYLE: Record<string, DrumKitId> = {
+  grass: 'base', sand: 'base', clay: 'base', dunes: 'dunes', snow: 'snow', grid: 'grid', rock: 'rock',
+};
+export interface Motif { transpose: number; seed: number; drums: DrumKitId }
+export const PLAIN_MOTIF: Motif = { transpose: 0, seed: 0, drums: 'base' };
+/** Track sound identity from its id (stable): transposition −5..+6 plus an ornament seed. Shared base, distinctive variation. */
+export function motifForTrack(id: string): { transpose: number; seed: number } {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (Math.imul(h, 31) + id.charCodeAt(i)) | 0;
+  const u = h >>> 0;
+  return { transpose: (u % 12) - 5, seed: (u >>> 4) || 1 };
+}
+
 export class Audio {
   AC: AudioContext | null = null;
   muted = false;
@@ -9,7 +32,7 @@ export class Audio {
   private voice!: GainNode;
   private engBus!: GainNode;
   private eng: { o: OscillatorNode; g: GainNode } | null = null;
-  private mus = { id: null as SongId | null, mul: 1, step: 0, next: 0, bus: null as GainNode | null, lead: null as GainNode | null, noise: null as AudioBuffer | null, timer: 0 as any };
+  private mus = { id: null as SongId | null, motif: null as Motif | null, mul: 1, step: 0, next: 0, bus: null as GainNode | null, lead: null as GainNode | null, noise: null as AudioBuffer | null, timer: 0 as any };
   volumes = { music: 0.9, sfx: 1, engine: 1, voice: 1 };
   /** 0..1: drives the drum layers of the adaptive music */
   intensity = 0.5;
@@ -152,38 +175,38 @@ export class Audio {
   }
   private musicTick() {
     const AC = this.AC, mus = this.mus;
-    if (!AC || !mus.id) return;
+    if (!AC || !mus.id || !mus.motif) return;
     const S = SONGS[mus.id], sd = 60 / (S.bpm * mus.mul) / 4;
     if (mus.next < AC.currentTime - 0.25) mus.next = AC.currentTime + 0.05;
     while (mus.next < AC.currentTime + 0.15) {
-      const t = mus.next, st = mus.step, bar = (st >> 4) % 8, inBar = st & 15, ci = bar % 4, root = S.roots[ci]!, ch = S.chords[ci]!;
-      if (!this.muted) {
-        if (!(inBar & 1)) {
-          const ln = S.lead[bar]!, e = inBar >> 1, n = ln[e]!;
-          if (n > 0) { let len = 1; while (e + len < 8 && ln[e + len] === -1) len++; this.note(mus.lead!, 'square', this.mtof(n), t, sd * 2 * len * 0.95, 0.042); }
-          const bn = inBar === 14 ? root + 7 : e % 2 ? root + 12 : root;
-          this.note(mus.bus!, 'triangle', this.mtof(bn), t, sd * 1.8, 0.13);
+      const t = mus.next;
+      if (!this.muted)
+        for (const ev of scoreStep(mus.id, mus.motif, mus.mul, mus.step, this.intensity)) {
+          const at = t + ev.dt;
+          if (ev.kind === 'lead') this.note(mus.lead!, 'square', this.mtof(ev.midi), at, ev.dur, ev.vol);
+          else if (ev.kind === 'bass') this.note(mus.bus!, 'triangle', this.mtof(ev.midi), at, ev.dur, ev.vol);
+          else if (ev.kind === 'chord') this.note(mus.bus!, 'square', this.mtof(ev.midi), at, ev.dur, ev.vol);
+          else this.drum(ev.kind === 'kick' ? 'k' : ev.kind === 'snare' ? 's' : 'h', at);
         }
-        this.note(mus.bus!, 'square', this.mtof(root + 24 + ch[inBar % 3]!), t, sd * 0.8, 0.012);
-        // adaptive layers: calm = bass + lead; more intensity adds kick, snare and hats
-        const I = this.intensity;
-        if (I > 0.2 && inBar % 4 === 0 && inBar !== 4 && inBar !== 12) this.drum('k', t);
-        if (I > 0.45 && (inBar === 4 || inBar === 12) && !S.soft) this.drum('s', t);
-        if (I > 0.65 && (S.h16 || inBar % 2 === 0)) this.drum('h', t);
-        else if (I > 0.35 && inBar % 4 === 2) this.drum('h', t);
-      }
       mus.step++;
       mus.next += sd;
     }
   }
-  musicWant(id: SongId | null, mul = 1, vol = 1) {
+  musicWant(id: SongId | null, mul = 1, vol = 1, motif: Motif = PLAIN_MOTIF) {
     const AC = this.AC;
     if (!AC) return;
     this.musicInit();
-    if (id !== this.mus.id) { this.mus.id = id; this.mus.step = 0; this.mus.next = AC.currentTime + 0.08; }
+    const m = this.mus.motif;
+    if (id !== this.mus.id || !m || m.transpose !== motif.transpose || m.seed !== motif.seed || m.drums !== motif.drums) {
+      this.mus.id = id; this.mus.motif = motif; this.mus.step = 0; this.mus.next = AC.currentTime + 0.08;
+    }
     if (!id) return;
     this.mus.mul = mul;
     if (AC.currentTime > this.duckUntil) this.mus.bus!.gain.setTargetAtTime(this.muted ? 0 : vol * this.volumes.music, AC.currentTime, 0.08);
+  }
+  /** QA: qué suena ahora (canción, transposición, tempo). */
+  musicState(): { song: SongId | null; transpose: number; drums: DrumKitId; mul: number } {
+    return { song: this.mus.id, transpose: this.mus.motif?.transpose ?? 0, drums: this.mus.motif?.drums ?? 'base', mul: this.mus.mul };
   }
   jingle() {
     const AC = this.AC;
@@ -194,6 +217,52 @@ export class Audio {
       this.note(this.sfx, 'triangle', this.mtof(n - 24), t + i * 0.11, 0.12, 0.1);
     });
   }
+}
+
+export interface ScoreEvent { dt: number; kind: 'lead' | 'bass' | 'chord' | 'kick' | 'snare' | 'hats'; midi: number; dur: number; vol: number }
+/**
+ * Pure step-sequencer voice: the score events of one 16th-note step (times relative
+ * to the step, in seconds). The audio engine plays them; tests fingerprint them.
+ * `base` drums reproduce each song's legacy pattern exactly; other kits restyle it.
+ */
+export function scoreStep(songId: SongId, motif: Motif, mul: number, step: number, intensity: number): ScoreEvent[] {
+  const S = SONGS[songId], sd = 60 / (S.bpm * mul) / 4;
+  const out: ScoreEvent[] = [];
+  const bar = (step >> 4) % 8, inBar = step & 15, ci = bar % 4;
+  const root = S.roots[ci]!, ch = S.chords[ci]!, tp = motif.transpose;
+  const vary = motif.seed !== 0; // seed 0 = tema literal (menús, legacy exacto)
+  if (!(inBar & 1)) {
+    const ln = S.lead[bar]!, e = inBar >> 1;
+    let n = ln[e]!;
+    if (n > 0) {
+      if (vary && bar >= 1) { // leitmotiv: the track's own turn on the shared melody
+        const h = (((motif.seed + bar * 7 + e * 3) % 5) + 5) % 5;
+        if (h === 0) n += 2; else if (h === 1) n += 4;
+      }
+      let len = 1;
+      while (e + len < 8 && ln[e + len] === -1) len++;
+      out.push({ dt: 0, kind: 'lead', midi: n + tp, dur: sd * 2 * len * 0.95, vol: 0.042 });
+    }
+    const flip = vary && bar >= 1 && (((motif.seed + bar * 5 + e) % 4) + 4) % 4 === 0;
+    const hi = flip ? e % 2 === 0 : e % 2 === 1;
+    const bn = inBar === 14 ? root + 7 : hi ? root + 12 : root;
+    out.push({ dt: 0, kind: 'bass', midi: bn + tp, dur: sd * 1.8, vol: 0.13 });
+  }
+  out.push({ dt: 0, kind: 'chord', midi: root + 24 + ch[inBar % 3]! + tp, dur: sd * 0.8, vol: 0.012 });
+  const I = intensity;
+  if (motif.drums === 'base') {
+    if (I > 0.2 && inBar % 4 === 0 && inBar !== 4 && inBar !== 12) out.push({ dt: 0, kind: 'kick', midi: 0, dur: 0.14, vol: 0.22 });
+    if (I > 0.45 && (inBar === 4 || inBar === 12) && !S.soft) out.push({ dt: 0, kind: 'snare', midi: 0, dur: 0.13, vol: 0.09 });
+    if (I > 0.65 && (S.h16 || inBar % 2 === 0)) out.push({ dt: 0, kind: 'hats', midi: 0, dur: 0.035, vol: 0.028 });
+    else if (I > 0.35 && inBar % 4 === 2) out.push({ dt: 0, kind: 'hats', midi: 0, dur: 0.035, vol: 0.028 });
+  } else {
+    const kit = DRUMS[motif.drums];
+    if (I > 0.25 && (kit.kick.includes(inBar) || (I > 0.5 && kit.kickExtra.includes(inBar)))) out.push({ dt: 0, kind: 'kick', midi: 0, dur: 0.14, vol: 0.22 });
+    if (!kit.soft && I > 0.45 && kit.snare.includes(inBar)) out.push({ dt: 0, kind: 'snare', midi: 0, dur: 0.13, vol: 0.09 });
+    const hat = kit.hats === 's' ? I > 0.6 : kit.hats === 'e' ? I > 0.5 && inBar % 2 === 0 : I > 0.5 && inBar % 4 === 2;
+    if (hat) out.push({ dt: 0, kind: 'hats', midi: 0, dur: 0.035, vol: 0.028 });
+  }
+  return out;
 }
 
 interface Song { bpm: number; soft?: boolean; h16?: boolean; roots: number[]; chords: number[][]; lead: number[][] }

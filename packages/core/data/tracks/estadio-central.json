@@ -37,19 +37,19 @@
       "round",
       "round",
       "bush",
-      "umpire"
+      "robot"
     ],
     "lm": [
       "stands",
       "stands",
       "stands",
       "stands",
-      "bigball",
-      "net",
-      "net",
-      "umpire"
+      "server",
+      "pcb",
+      "pcb",
+      "robot"
     ],
-    "post": "windscreen",
+    "post": "ledwall",
     "grip": 10,
     "offMax": 62,
     "stars": true
@@ -390,7 +390,7 @@
   "flights": [],
   "hazards": [
     {
-      "kind": "pelota",
+      "kind": "bug",
       "at": 0.011799410029498525,
       "period": 5,
       "warn": 1.2,

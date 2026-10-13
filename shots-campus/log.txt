@@ -1,0 +1,6 @@
+backend=WebGL2
+{"fps":59.95203836930439,"sim":0.2999999998137355,"render":6.2000000001862645,"drawCalls":49,"backend":"WebGL2","state":"race","phase":"race","speed":62.19874990695493,"prog":84,"rank":7}
+[debug] [vite] connecting...
+[debug] [vite] connected.
+[debug] [vite] connecting...
+[debug] [vite] connected.

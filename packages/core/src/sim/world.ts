@@ -111,6 +111,16 @@ function weatherGrip(w: World, k: Kart): number {
   return (T.race.weather as Record<string, { grip: number }>)[wt.kind]?.grip ?? 1;
 }
 
+/** Lateral sandstorm gust (u/s) for this kart: 0 outside arena weather. Deterministic: tick + kart id only. */
+export function arenaGust(w: World, k: Kart): number {
+  const wt = w.track.authored?.weather;
+  if (!wt || wt.kind !== 'arena') return 0;
+  if (Math.floor(k.prog / w.track.N) + 1 < wt.fromLap) return 0;
+  const G = (T.race.weather as Record<string, { gust?: number }>).arena?.gust ?? 0;
+  if (!G) return 0;
+  return dsin(w.tick * 0.02 + k.id * 2.1) * G;
+}
+
 /** Distance past the road edge (main road or shortcut); < 0 = on the road. */
 function edgeDistance(tr: Track, k: Kart, d: number): number {
   let e = d - tr.wd[k.idx]! * narrowing(tr, k);
@@ -324,6 +334,13 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
   k.va = wrapA(k.va + wrapA(tgtA - k.va) * Math.min(1, grip * dt));
   k.x += dcos(k.va) * k.speed * dt;
   k.y += dsin(k.va) * k.speed * dt;
+  // sandstorm gusts: deterministic lateral drift while the storm is on (telegraphed by the haze)
+  const gust = arenaGust(w, k);
+  if (gust !== 0) {
+    const ga = tr.ang[k.idx]!;
+    k.x += -dsin(ga) * gust * dt;
+    k.y += dcos(ga) * gust * dt;
+  }
   wallCollide(w, k);
   const M = D.worldMargin, size = tr.size;
   if (k.x < M || k.y < M || k.x > size - M || k.y > size - M) {

@@ -34,7 +34,8 @@
     "life": 3,
     "radius": 10,
     "offRoad": 14,
-    "hit": 1.0
+    "hit": 1.0,
+    "bounces": 2
   },
   "nitro": {
     "boost": 1.1

@@ -1,10 +1,12 @@
 // Three.js (WebGPU) world renderer. Draws the state it receives; owns no game logic.
 import * as THREE from 'three/webgpu';
-import { CHARS, type Track, hAt } from '@jpkart/core';
+import { CHARS, type Character, type Track, hAt } from '@jpkart/core';
 import { OUT, hexRGB, shade, type Spr } from '../art/pixel';
 import { BALLS, D, ICONS, MINE, OLA, PUDDLE, REFLECT_RING, RING, SHOT, TARS } from '../art/sprites';
 import { MK7_RIG, mk7Layers, type Voxel } from '../art/mk7';
+import { buildCodeBody, buildCodeHead, buildShot, painted, part } from '../art/codeModels';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import jpBodyUrl from '../assets/models/jp_body.glb?inline';
 import jpHeadUrl from '../assets/models/jp_head.glb?inline';
 import miguelBodyUrl from '../assets/models/miguel_body.glb?inline';
@@ -104,6 +106,46 @@ function geometryFromVoxels(V: Voxel[]): THREE.BufferGeometry {
   return g;
 }
 
+/**
+ * Decorado low-poly del bioma dunes (cactus, pirámide, calavera): piezas de ≤170 tris,
+ * 1 material + colores por vértice, como `shroom.glb`. Base en y=0. Todo es código.
+ */
+/** Cactus de 30 u (150 tris): tronco + 2 brazos + flor, como el sprite `cactus`. */
+function cactusGeo(): THREE.BufferGeometry | null {
+  const G = '#4f9a4a', Gd = '#478a42';
+  return mergeGeometries([
+    painted(part(new THREE.CylinderGeometry(2.6, 3.0, 26, 7), 0, 13, 0), G),
+    painted(part(new THREE.ConeGeometry(2.6, 2.5, 7), 0, 27.2, 0), '#5fae58'),
+    painted(part(new THREE.BoxGeometry(1.4, 1.4, 1.4), 0, 29.5, 0), '#ff6a9a'),
+    painted(part(new THREE.CylinderGeometry(1.4, 1.4, 5, 6), -4.5, 14, 0, Math.PI / 2), Gd),
+    painted(part(new THREE.CylinderGeometry(1.4, 1.6, 7, 6), -7, 17.5, 0), Gd),
+    painted(part(new THREE.CylinderGeometry(1.4, 1.4, 5, 6), 4.5, 11, 0, Math.PI / 2), G),
+    painted(part(new THREE.CylinderGeometry(1.4, 1.6, 7, 6), 7, 14.5, 0), G),
+  ]);
+}
+/** Pirámide de 84 u (20 tris): cara lit/sombra como el sprite `pyramid`. */
+function pyramidGeo(): THREE.BufferGeometry | null {
+  const cone = new THREE.ConeGeometry(42, 80, 4, 1);
+  cone.rotateY(Math.PI / 4);
+  cone.translate(0, 44, 0);
+  return mergeGeometries([
+    painted(cone, (x) => (x < 0 ? '#f0c878' : '#c8984a')),
+    painted(part(new THREE.BoxGeometry(88, 4, 88), 0, 2, 0), '#b88a4e'),
+  ]);
+}
+/** Calavera de 22 u (128 tris): cráneo + mandíbula + cuencas, como el sprite `skull`. */
+function skullGeo(): THREE.BufferGeometry | null {
+  return mergeGeometries([
+    painted(part(new THREE.IcosahedronGeometry(8, 1), 0, 14, 0), '#7a6a70'),
+    painted(part(new THREE.BoxGeometry(9, 5, 7), 0, 6, 0), '#6a5a60'),
+    painted(part(new THREE.BoxGeometry(3, 3.5, 1.2), -3, 13.5, 7.8), '#1a1026'),
+    painted(part(new THREE.BoxGeometry(3, 3.5, 1.2), 3, 13.5, 7.8), '#1a1026'),
+    painted(part(new THREE.BoxGeometry(1.6, 2.2, 1.2), 0, 10.5, 7.8), '#1a1026'),
+  ]);
+}
+/** Alturas de modelo (u) para escalar cada pieza a su altura de sprite (DH). */
+const SOLID_H: Record<string, number> = { cactus: 30, pyramid: 84, skull: 22 };
+
 interface WheelRig { g: THREE.Group; tire: THREE.Mesh; hub: THREE.Mesh; front: boolean }
 interface KartObj {
   root: THREE.Group; body: THREE.Group; headG: THREE.Group;
@@ -112,8 +154,10 @@ interface KartObj {
   ch: number; ghost: boolean;
   bodyMesh: THREE.Mesh; bodyOut: THREE.Mesh; headMesh: THREE.Mesh; headOut: THREE.Mesh;
   wingMesh: THREE.Mesh | null; wingMat: THREE.MeshStandardMaterial; deploy: number; extCh: number;
+  /** qué geometría lleva puesta: voxel (fallback), code (procedural) o ext (.glb) */
+  model: 'voxel' | 'code' | 'ext';
 }
-/** Karts modelados en Blender (fase 2): ch -> glb body/head. El resto usa voxels. */
+/** Karts modelados en Blender (fase 2): ch -> glb body/head. El resto usa modelos procedurales (codeModels); el voxel es el fallback. */
 const EXT_MODELS: Record<number, { body: string; head: string }> = {
   5: { body: jpBodyUrl, head: jpHeadUrl },
   4: { body: miguelBodyUrl, head: miguelHeadUrl },
@@ -133,11 +177,16 @@ export class WorldRenderer {
   private kartObjs = new Map<number, KartObj>();
   private kartGeo = new Map<number, KartGeo>();
   private extGeo = new Map<number, { body: THREE.BufferGeometry; head: THREE.BufferGeometry }>();
+  private codeGeo = new Map<number, { body: THREE.BufferGeometry; head: THREE.BufferGeometry }>();
   private wingGeo: THREE.BufferGeometry | null = null;
   private wingCenter = new THREE.Vector3();
   private shroomGeo: THREE.BufferGeometry | null = null;
   private shroomPool: THREE.Mesh[] = [];
   private shroomUsed = 0;
+  private shotGeo: THREE.BufferGeometry | null = null;
+  private shotGeoTried = false;
+  private shotPool: THREE.Mesh[] = [];
+  private shotUsed = 0;
   private extLoading = false;
   private hubMat = new Map<number, THREE.MeshStandardMaterial>();
   private kartMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.08 });
@@ -377,12 +426,31 @@ export class WorldRenderer {
     this.skyGroup.add(gradMesh, stripMesh);
   }
 
-  /** Scenery as one InstancedMesh per sprite kind (cylindrical billboards), shadows in a single mesh. */
+  /** Scenery as one InstancedMesh per sprite kind (cylindrical billboards), shadows in a single mesh. Solid 3D kinds (dunes) use their low-poly geometry instead. */
   private buildSceneryObjs(list: SceneryItem[]) {
     const byKind = new Map<string, SceneryItem[]>();
     for (const d of list) { let l = byKind.get(d.k); if (!l) byKind.set(d.k, (l = [])); l.push(d); }
     this.decor = [];
+    let solid: Record<string, THREE.BufferGeometry | null> = {};
+    try {
+      solid = { cactus: cactusGeo(), pyramid: pyramidGeo(), skull: skullGeo() };
+    } catch { solid = {}; } // fallback: todo sprites si falla la fusión
+    const sm = new THREE.Matrix4(), sq = new THREE.Quaternion(), ss = new THREE.Vector3(), sp = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
     for (const [k, items] of byKind) {
+      const geo3d = solid[k];
+      if (geo3d) {
+        const mesh = new THREE.InstancedMesh(geo3d, this.kartMat, items.length);
+        mesh.castShadow = true;
+        mesh.frustumCulled = false;
+        items.forEach((d, i) => {
+          const s = d.h / (SOLID_H[k] ?? d.h);
+          sq.setFromAxisAngle(up, Math.sin(d.x * 12.9898 + d.y * 78.233) * Math.PI);
+          sm.compose(sp.set(d.x, d.z, d.y), sq, ss.set(s, s, s));
+          mesh.setMatrixAt(i, sm);
+        });
+        this.trackGroup.add(mesh);
+        continue;
+      }
       const spr = D[k]!;
       const geo = new THREE.PlaneGeometry(1, 1);
       geo.translate(0, 0.5, 0);
@@ -392,7 +460,7 @@ export class WorldRenderer {
       this.trackGroup.add(mesh);
       this.decor.push({ mesh, items: items.map((d) => ({ x: d.x, y: d.y, z: d.z, w: (spr.w * d.h) / spr.h, h: d.h })) });
     }
-    const shadowItems = list.filter((d) => d.h >= 30 && !d.arch);
+    const shadowItems = list.filter((d) => d.h >= 30 && !d.arch && !solid[d.k]);
     if (shadowItems.length) {
       const geo = new THREE.CircleGeometry(1, 12);
       geo.rotateX(-Math.PI / 2);
@@ -475,19 +543,55 @@ export class WorldRenderer {
       }
       const sg = await one(shroomUrl);
       if (sg) this.shroomGeo = sg;
-      for (const o of this.kartObjs.values()) this.applyExternal(o);
+      for (const o of this.kartObjs.values()) this.applyModel(o);
     })();
   }
 
-  private applyExternal(o: KartObj) {
+  /** Modelo procedural del ch (los 6 sin .glb). Null si falla la fusión → fallback voxel. */
+  private codeModelOf(ch: number): { body: THREE.BufferGeometry; head: THREE.BufferGeometry } | null {
+    if (ch in EXT_MODELS) return null;
+    let m = this.codeGeo.get(ch);
+    if (!m) {
+      try {
+        const def = CHARS[ch] as Character | undefined;
+        if (!def) return null;
+        const body = buildCodeBody(def), head = buildCodeHead(def);
+        if (!body || !head) return null;
+        m = { body, head };
+        this.codeGeo.set(ch, m);
+      } catch { return null; }
+    }
+    return m;
+  }
+
+  /** Elige geometría: .glb si cargó, procedural si existe, voxel si todo falla. */
+  private applyModel(o: KartObj) {
     const e = this.extGeo.get(o.ch);
-    if (!e?.body || !e?.head || o.extCh === o.ch) return;
-    const mat = o.ghost ? this.ghostMat : this.kartMat;
-    o.bodyMesh.geometry = e.body; o.bodyMesh.material = mat;
-    o.bodyOut.geometry = e.body; o.bodyOut.visible = !o.ghost;
-    o.headMesh.geometry = e.head; o.headMesh.material = mat;
-    o.headOut.geometry = e.head; o.headOut.visible = !o.ghost;
-    o.extCh = o.ch;
+    if (e?.body && e?.head) {
+      if (o.model !== 'ext' || o.extCh !== o.ch) {
+        const mat = o.ghost ? this.ghostMat : this.kartMat;
+        o.bodyMesh.geometry = e.body; o.bodyMesh.material = mat;
+        o.bodyOut.geometry = e.body; o.bodyOut.visible = !o.ghost;
+        o.headMesh.geometry = e.head; o.headMesh.material = mat;
+        o.headOut.geometry = e.head; o.headOut.visible = !o.ghost;
+        o.model = 'ext'; o.extCh = o.ch;
+      }
+      return;
+    }
+    const c = this.codeModelOf(o.ch);
+    if (c && (o.model !== 'code' || o.extCh !== o.ch)) {
+      const mat = o.ghost ? this.ghostMat : this.kartMat;
+      o.bodyMesh.geometry = c.body; o.bodyMesh.material = mat;
+      o.bodyOut.geometry = c.body; o.bodyOut.visible = !o.ghost;
+      o.headMesh.geometry = c.head; o.headMesh.material = mat;
+      o.headOut.geometry = c.head; o.headOut.visible = !o.ghost;
+      o.model = 'code'; o.extCh = o.ch;
+    }
+  }
+
+  /** Debug/QA: qué modelo lleva cada kart en escena (id → ch + kind). */
+  modelKinds(): Record<number, { ch: number; model: KartObj['model'] }> {
+    return Object.fromEntries([...this.kartObjs.entries()].map(([id, o]) => [id, { ch: o.ch, model: o.model }]));
   }
 
   private wingOf(o: KartObj) {
@@ -538,6 +642,8 @@ export class WorldRenderer {
     root.add(body);
     // ruedas expuestas MK7: neumático + tapacubos del color del kart; giran con
     // la velocidad y las delanteras orientan con el derrape/dirección.
+    // Van en `body` (no en `root`) para heredar barrel-roll del truco y squash:
+    // posiciones en el mismo marco que el voxel (origen de body = origen de root).
     const hub = this.hubMatOf(ch);
     const wheels: WheelRig[] = [];
     for (const [wx, wz] of [[4.2, 4.4], [4.2, -4.4], [-4.2, 4.4], [-4.2, -4.4]]) {
@@ -550,7 +656,7 @@ export class WorldRenderer {
       grp.add(tire, cap);
       grp.rotation.order = 'YZX';
       grp.userData.front = front;
-      root.add(grp);
+      body.add(grp);
       wheels.push({ g: grp, tire, hub: cap, front });
     }
     const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 16), this.shadowMat);
@@ -564,8 +670,8 @@ export class WorldRenderer {
     this.scene.add(root, shadow, ring, refl);
     const wingMat = new THREE.MeshStandardMaterial({ vertexColors: true, color: new THREE.Color(CHARS[ch]?.kart ?? '#ffffff'), roughness: 0.5, metalness: 0.08 });
     if (ghost) { wingMat.transparent = true; wingMat.opacity = 0.42; wingMat.depthWrite = false; }
-    o = { root, body, headG, shadow, ring, refl, wheels, spin: 0, ch, ghost, bodyMesh: mesh, bodyOut: outline, headMesh: head, headOut, wingMesh: null, wingMat, deploy: 0, extCh: -1 };
-    this.applyExternal(o);
+    o = { root, body, headG, shadow, ring, refl, wheels, spin: 0, ch, ghost, bodyMesh: mesh, bodyOut: outline, headMesh: head, headOut, wingMesh: null, wingMat, deploy: 0, extCh: -1, model: 'voxel' };
+    this.applyModel(o);
     this.kartObjs.set(id, o);
     return o;
   }
@@ -713,6 +819,11 @@ export class WorldRenderer {
     // transient things
     this.thingUsed = 0;
     this.shroomUsed = 0;
+    this.shotUsed = 0;
+    if (!this.shotGeoTried) {
+      this.shotGeoTried = true;
+      try { this.shotGeo = buildShot(); } catch { this.shotGeo = null; } // fallback: sprite SHOT
+    }
     for (const th of things) {
       if (th.mesh === 'shroom' && this.shroomGeo) {
         let m = this.shroomPool[this.shroomUsed];
@@ -723,6 +834,16 @@ export class WorldRenderer {
         this.shroomUsed++;
         continue;
       }
+      if (th.mesh === 'shot' && this.shotGeo) {
+        let m = this.shotPool[this.shotUsed];
+        if (!m) { m = new THREE.Mesh(this.shotGeo, this.kartMat); m.castShadow = true; this.scene.add(m); this.shotPool[this.shotUsed] = m; }
+        m.visible = true;
+        m.position.set(th.x, th.z, th.y);
+        m.scale.setScalar(th.w / 5);
+        m.rotation.y = t * 9 + th.x; // peonza: gira en vuelo
+        this.shotUsed++;
+        continue;
+      }
       const o = this.thing(th.spr, th.flat);
       o.position.set(th.x, th.z, th.y);
       o.scale.set(th.w, th.h, 1);
@@ -730,6 +851,7 @@ export class WorldRenderer {
     }
     for (let i = this.thingUsed; i < this.thingPool.length; i++) this.thingPool[i]!.visible = false;
     for (let i = this.shroomUsed; i < this.shroomPool.length; i++) this.shroomPool[i]!.visible = false;
+    for (let i = this.shotUsed; i < this.shotPool.length; i++) this.shotPool[i]!.visible = false;
     this.particles.update(dt, this.camera);
   }
 

@@ -1,0 +1,9 @@
+backend=WebGL2
+{"fps":60.00774293457194,"sim":0.19999999995343387,"render":3.2000000001862645,"drawCalls":49,"backend":"WebGL2","state":"race","phase":"race","speed":133.4295385149784,"prog":90,"rank":7}
+[debug] [vite] connecting...
+[debug] [vite] connected.
+[warning] THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.
+[debug] [vite] connecting...
+[debug] [vite] connected.
+[warning] THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.
+[warning] THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.

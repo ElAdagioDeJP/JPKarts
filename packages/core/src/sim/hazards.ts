@@ -168,7 +168,7 @@ export const HAZARD_KINDS = {
   crosser: ['ola', 'tren', 'vaca', 'auto', 'pinguino'],
   sweeper: ['aspa'],
   eruption: ['geiser', 'laser', 'meteoro'],
-  roller: ['roca', 'pelota', 'bolanieve'],
+  roller: ['roca', 'bug', 'bolanieve'],
   trampoline: ['seta'],
   gate: ['compuerta'],
 } as const;

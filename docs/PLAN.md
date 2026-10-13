@@ -198,7 +198,7 @@ Las pistas legacy siguen jugables en la copa "Clásicas" hasta que su versión n
 
 | Lote | Pistas (GDD §6.4) | Mecánicas (backlog) |
 |---|---|---|
-| 8a — Copa Hoja | Pradera JP, Playa Coco (ya hecha), Club de Tenis JP, Bosque Encantado | #18 monedas, #22–#26 reworks + Turbo Bala + Turbo Triple |
+| 8a — Copa Hoja | Pradera JP, Playa Coco (ya hecha), Campus Kernel, Bosque Encantado | #18 monedas, #22–#26 reworks + Turbo Bala + Turbo Triple |
 | 8b — Copa Estrella | Valle Molino, Dunas Doradas, Bahía Atardecer, Glaciar Polar | #16 hielo y arena, #27 Triple Ciego, #28 Bumerán, #30 Imán, #40 clima, #41 día/noche |
 | 8c — Copa Rayo | Ciudad Neón, Selva Tropical, Pico Nevado, Estadio Central | #29 Cadena de Rayos, #31 Bloque de Hielo, #32 Cortina de Humo, compuertas |
 | 8d — Copa Fuego | Cañón Rojo, Autopista Láser, Volcán Rugiente, Cráter Ardiente | #33 Ráfaga, lava que avanza, meteoritos |

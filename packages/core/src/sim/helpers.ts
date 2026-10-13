@@ -57,6 +57,9 @@ export function hit(w: World, k: Kart, t: number, level = 1, src = -1): boolean 
   k.spinK = light ? 1 : T.driving.spinDecay;
   if (light) k.speed *= DH.lightKeep;
   k.drift = 0; k.dc = 0; k.dLvl = 0; k.boost = 0; k.hop = H.hop; k.trick = false; k.slip = 0;
+  // Parapente definitivo: cualquier golpe cierra el ala. Sigue en el aire
+  // (air=true) pero sin sustentación: cae con gravedad normal hasta aterrizar.
+  if (k.glide) k.glide = false;
   for (const f of [...k.fx]) if (effectDef(f.type)?.cancelOnHit) removeFx(k, f.type);
   ouch(k, H.ouch, w.rng.int(OUCH.length));
   emit(w, { type: 'hit', kart: k.id });

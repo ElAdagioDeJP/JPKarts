@@ -12,7 +12,7 @@ import { type NetSession } from './net/session';
 import { type CamTarget } from './feel/camera';
 import { Fx3d } from './feel/fx3d';
 import { BALLS } from './art/sprites';
-import { Audio } from './audio/audio';
+import { Audio, DRUM_BY_STYLE, motifForTrack } from './audio/audio';
 import { Input } from './input/input';
 import { buildMinimap } from './render/trackArt';
 import { WorldRenderer } from './render/world3d';
@@ -285,7 +285,11 @@ export class Game {
     if (MENUS.includes(this.state)) A.musicWant('menu');
     else if (this.state === 'loading' || (this.state === 'race' && this.world?.phase === 'countdown')) A.musicWant(null);
     else if (this.state === 'race' && this.local?.finished) A.musicWant(null);
-    else if (this.state === 'race' || this.state === 'replay') { const d = this.tr.def, lastLap = this.local!.prog >= ((this.world?.cfg.laps ?? LAPS) - 1) * this.tr.N; A.musicWant(d.song, d.mul * (lastLap ? 1.1 : 1), this.paused ? 0 : 1); }
+    else if (this.state === 'race' || this.state === 'replay') {
+      const d = this.tr.def, lastLap = this.local!.prog >= ((this.world?.cfg.laps ?? LAPS) - 1) * this.tr.N;
+      const motif = { ...motifForTrack(this.tr.def.id), drums: DRUM_BY_STYLE[this.tr.th.style] ?? 'base' as const };
+      A.musicWant(d.song, d.mul * (lastLap ? 1.06 : 1), this.paused ? 0 : 1, motif);
+    }
     else A.musicWant('menu', 1, 0.7);
     this.dbg.draw(ui, this.tr, this.world);
     if (this.toastMsg) { this.toastMsg.life -= dt; ui.txtS(this.toastMsg.t, 4, 4, '#9cff9c', 'left'); if (this.toastMsg.life <= 0) this.toastMsg = null; }

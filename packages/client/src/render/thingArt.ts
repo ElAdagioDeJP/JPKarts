@@ -3,12 +3,12 @@
 import type { Ent, Kart } from '@jpkart/core';
 import type { Spr } from '../art/pixel';
 import {
-  BIGBALL, BLADE, FLAG, balloonSprite, BOOM, BOOMER, CAR, COIN, D, FAKEBOX, GATE, GEYSER, ICE, ICONS, LASER, LAVA_GEYSER, METEOR, MINE, MUSHROOM, OLA, ROCK_BALL, SHOT, SMOKE,
+  BLADE, BUG, FLAG, balloonSprite, BOOM, BOOMER, CAR, COIN, D, FAKEBOX, GATE, GEYSER, ICE, ICONS, LASER, LAVA_GEYSER, METEOR, MINE, MUSHROOM, OLA, ROCK_BALL, SHOT, SMOKE,
   SNOWBALL, TARS, TRAIN, WARN_RING,
 } from '../art/sprites';
 
 /** One drawable: legacy world coordinates (x, y ground plane, z up), size in world units. `mesh` renders a 3D model instead of the sprite. */
-export interface ThingView { spr: Spr; flat: boolean; x: number; y: number; z: number; w: number; h: number; yaw?: number; mesh?: 'shroom' }
+export interface ThingView { spr: Spr; flat: boolean; x: number; y: number; z: number; w: number; h: number; yaw?: number; mesh?: 'shroom' | 'shot' }
 export interface ThingCtx {
   t: number;
   /** lap of the local kart (gates are drawn closed on the laps they close) */
@@ -36,7 +36,7 @@ export const THING_ART: Record<string, Art> = {
   // items
   fakebox: (e, c, o) => bb(o, FAKEBOX, e.x, e.y, e.z + 3 + Math.sin(c.t * 4) * 1.5, 11, 11),
   tar: (e, _c, o) => decal(o, TARS, e.x, e.y, e.z, 54, 54 * 0.3),
-  shot: (e, _c, o) => bb(o, SHOT, e.x, e.y, e.z - 3, 6, 6),
+  shot: (e, _c, o) => { o.push({ spr: SHOT, flat: false, x: e.x, y: e.y, z: e.z - 3, w: 6, h: 6, mesh: 'shot' }); },
   rocket: (e, _c, o) => bb(o, ICONS.dron!, e.x, e.y, e.z - 5, 11, 11),
   hole: (e, _c, o) => { const s = Math.sin(Math.min(1, e.t) * Math.PI) * 80; bb(o, ICONS.agujero!, e.x, e.y, e.z - 30 + s * 0.25, s, s); },
   mine: (e, c, o) => bb(o, MINE[e.age > 1 && ((c.t * 6) | 0) % 2 ? 1 : 0]!, e.x, e.y, e.z, 10, 7),
@@ -60,7 +60,7 @@ export const THING_ART: Record<string, Art> = {
   laser: eruption((e, _c, o) => { bb(o, LASER, e.x, e.y, e.z - 2, 6, 64); decal(o, WARN_RING, e.x, e.y, e.z, e.r * 2, e.r * 2); }),
   meteoro: eruption((e, _c, o) => bb(o, BOOM, e.x, e.y, e.z - 4, e.r * 2, e.r * 2)),
   roca: (e, _c, o) => bb(o, ROCK_BALL, e.x, e.y, e.z - 1, 16, 16),
-  pelota: (e, _c, o) => bb(o, BIGBALL, e.x, e.y, e.z - 1, 14, 14),
+  bug: (e, _c, o) => bb(o, BUG, e.x, e.y, e.z - 1, 14, 14),
   bolanieve: (e, _c, o) => bb(o, SNOWBALL, e.x, e.y, e.z - 1, 18, 18),
   seta: (e, _c, o) => { o.push({ spr: MUSHROOM, flat: false, x: e.x, y: e.y, z: e.z - 1, w: 26, h: 22, mesh: 'shroom' }); },
   flag: (e, c, o) => bb(o, FLAG, e.x, e.y, e.z + (e.target >= 0 ? 12 : 0) + Math.sin(c.t * 3) * 0.8, 12, 16),

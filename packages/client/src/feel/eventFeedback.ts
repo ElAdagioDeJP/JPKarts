@@ -63,7 +63,7 @@ export function onEvent(g: Game, e: GameEvent) {
     case 'alreadyFirst': if (me(e.kart)) g.banner = { t: 'Ya vas primero', life: 1 }; break;
     case 'hit': {
       const k = w.karts[e.kart]!, d = p ? Math.hypot(p.x - k.x, p.y - k.y) : 0;
-      if (me(e.kart)) { g.rig.addTrauma(0.55); g.hitStop = 0.06; g.held = w.karts.map((q) => g.pose(q)); }
+      if (me(e.kart)) { g.rig.addTrauma(0.55); g.hitStop = 0.06; g.held = w.karts.map((q) => g.pose(q)); A.duck(0.4); }
       else if (d < 80) g.rig.addTrauma(0.15);
       A.groan(CHARS[k.ch]!, me(e.kart) ? 0.5 : 0.45 * (1 - clamp(d / 380, 0, 1)), Math.random());
       break;
