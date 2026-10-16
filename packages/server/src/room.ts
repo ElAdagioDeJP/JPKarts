@@ -1,6 +1,6 @@
 // Authoritative race room, independent of the transport (WebSocket in main.ts, in-memory in tests).
 import {
-  ALL_TRACKS, ARENA_INDICES, CLASSES, CUPS, LAPS, PROTOCOL_VERSION, classCfg, cleanName, validPacked, ReplayRecorder, Rng, SNAPSHOT_EVERY, TrackCache, buildGrid, createWorld, diffJson, handshakeTunables, modeOf,
+  ALL_TRACKS, ARENA_INDICES, CLASSES, CUPS, LAPS, PROTOCOL_VERSION, classCfg, cleanName, validPacked, ReplayRecorder, Rng, SIM_DT, SNAPSHOT_EVERY, T, TrackCache, buildGrid, createWorld, diffJson, handshakeTunables, modeOf,
   newAiState, prepAuthored, serializeWorld, step, takeEvents, unpackInput,
   type ClientMsg, type Delta, type Input, type LobbyPlayer, type LobbySettings, type PackedInput, type ServerMsg, type World, type WorldState,
 } from '@jpkart/core';
@@ -24,7 +24,7 @@ const MAX_PLAYERS = 8, MAX_QUEUE = 6;
 
 export class Room {
   players = new Map<number, Player>();
-  settings: LobbySettings = { mode: 'free', trackIndex: CUPS[0]!.tracks[0]!, cup: 0, diff: 1, laps: LAPS };
+  settings: LobbySettings = { mode: 'cup', trackIndex: CUPS[0]!.tracks[0]!, cup: 0, diff: 1, laps: LAPS };
   phase: 'lobby' | 'race' | 'standings' = 'lobby';
   world: World | null = null;
   recorder: ReplayRecorder | null = null;
@@ -38,6 +38,8 @@ export class Room {
   code: string | undefined;
   /** last broadcast state: snapshots after the first one are deltas against it */
   private lastState: WorldState | null = null;
+  /** seconds until the next race starts by itself (standings phase) */
+  private nextIn = 0;
 
   constructor(seed = Date.now() & 0x7fffffff, public log: (m: string) => void = () => {}) {
     this.seed = seed;
@@ -55,7 +57,7 @@ export class Room {
 
   private lobbyMsg(): ServerMsg {
     const players: LobbyPlayer[] = [...this.players.entries()].map(([id, p]) => ({ id, name: p.name, ch: p.ch, ready: p.ready, host: p.host, seat: p.seat, conn: p.conn.id }));
-    return { t: 'lobby', players, settings: this.settings, phase: this.phase, cupRace: this.cupRace, cupPts: this.cupPts, room: this.code };
+    return { t: 'lobby', players, settings: this.settings, phase: this.phase, cupRace: this.cupRace, cupPts: this.cupPts, room: this.code, ...(this.phase === 'standings' ? { nextIn: Math.ceil(this.nextIn) } : {}) };
   }
 
   join(conn: Conn) {
@@ -148,12 +150,7 @@ export class Room {
         this.startRace();
         break;
       }
-      case 'next': {
-        if (!p.host || this.phase !== 'standings') return;
-        if (this.settings.mode === 'cup' && this.cupRace < CUPS[this.settings.cup]!.tracks.length - 1) { this.cupRace++; this.startRace(); }
-        else { this.phase = 'lobby'; for (const q of this.players.values()) q.ready = q.seat > 0; this.broadcast(this.lobbyMsg()); }
-        break;
-      }
+      case 'next': if (p.host) this.advance(); break;
       case 'in': {
         if (this.phase !== 'race') return;
         const lists: [Player | undefined, unknown][] = [[p, m.i], ...(Array.isArray(m.seats) ? m.seats.slice(0, 3).map((l, k) => [this.seatPlayer(conn, k + 1), l] as [Player | undefined, unknown]) : [])];
@@ -168,6 +165,13 @@ export class Room {
     }
   }
 
+  /** After the standings: next cup race, or back to the lobby. Runs by itself when `nextIn` runs out (the host can skip it). */
+  private advance() {
+    if (this.phase !== 'standings') return;
+    if (this.settings.mode === 'cup' && this.cupRace < CUPS[this.settings.cup]!.tracks.length - 1) { this.cupRace++; this.startRace(); }
+    else { this.phase = 'lobby'; for (const q of this.players.values()) q.ready = q.seat > 0; this.broadcast(this.lobbyMsg()); }
+  }
+
   private startRace() {
     const S = this.settings;
     const ti = S.mode === 'cup' ? CUPS[S.cup]!.tracks[this.cupRace]! : S.trackIndex;
@@ -179,7 +183,7 @@ export class Room {
     if (S.teams) grid = grid.map((g, i) => ({ ...g, team: i % 2 }));
     const mode = S.mode === 'free' ? 'race' : S.mode;
     const laps = modeOf({ cfg: { mode } } as World).laps?.(grid.length) ?? S.laps;
-    const cfg = { trackIndex: ti, diff: S.diff, seed, laps, grid, mode, cc: cc.cc, mirror, teams: !!S.teams };
+    const cfg = { trackIndex: ti, diff: S.diff, seed, laps, grid, mode, cc: cc.cc, mirror, teams: !!S.teams, lastCall: mode === 'race' || mode === 'cup' };
     this.world = createWorld(cfg, track);
     this.recorder = new ReplayRecorder(cfg);
     for (const p of this.players.values()) { p.kart = this.world.karts.findIndex((k) => k.ch === p.ch); p.queue = []; p.last = [0, 0, 0, 0, 0]; }
@@ -195,6 +199,13 @@ export class Room {
 
   /** One authoritative tick (60 Hz). */
   tick() {
+    if (this.phase === 'standings') {
+      const before = Math.ceil(this.nextIn);
+      this.nextIn -= SIM_DT;
+      if (this.nextIn <= 0) this.advance();
+      else if (Math.ceil(this.nextIn) !== before) this.broadcast(this.lobbyMsg());
+      return;
+    }
     const w = this.world;
     if (!w || this.phase !== 'race') return;
     const inputs: Input[] = [];
@@ -222,6 +233,7 @@ export class Room {
       for (const [kart, v] of pts) { const ch = w.karts[kart]!.ch; points[ch] = v; this.cupPts[ch] = (this.cupPts[ch] ?? 0) + v; }
       this.broadcast({ t: 'end', order: w.finalOrder, points });
       this.phase = 'standings';
+      this.nextIn = T.race.nextRaceDelay;
       this.broadcast(this.lobbyMsg());
     }
   }

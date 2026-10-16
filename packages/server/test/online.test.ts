@@ -56,7 +56,7 @@ test('online: el servidor no confía en el cliente (inputs inválidos, nombres, 
   a.say({ t: 'settings', s: { mode: 'free', trackIndex: 'x', cup: 0, diff: 1, laps: 3 } });
   a.say({ t: 'settings', s: { mode: 'hack', trackIndex: 18, cup: 0, diff: 1, laps: 3 } });
   const room = [...on.rooms.values()][0]!;
-  expect(room.settings).toMatchObject({ mode: 'free', trackIndex: 17 }); // both rejected: still the defaults
+  expect(room.settings).toMatchObject({ mode: 'cup', trackIndex: 17 }); // both rejected: still the defaults
   a.say({ t: 'start' });
   on.tick();
   const p = room.players.get(a.conn.id)!;
@@ -84,3 +84,27 @@ test('online: límite de mensajes por segundo y mensajes basura', () => {
   on.onMessage(a.conn, JSON.stringify({ t: 'pick', ch: 'x' }));
   expect(room.players.size).toBe(1);
 }, 60000);
+
+test('web: sirve el cliente, cae a index.html y no sale de la carpeta', async () => {
+  const { mkdtempSync, writeFileSync, mkdirSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { webHandler } = await import('../src/online');
+  const dir = mkdtempSync(join(tmpdir(), 'jpkart-web-'));
+  writeFileSync(join(dir, 'index.html'), '<h1>jp</h1>');
+  mkdirSync(join(dir, 'assets'));
+  writeFileSync(join(dir, 'assets', 'a.js'), 'x');
+  const h = webHandler(dir);
+  const call = (url: string, method = 'GET') => {
+    const out = { status: 0, headers: {} as Record<string, unknown>, body: '' };
+    const res = { writeHead: (s: number, hd: Record<string, unknown>) => { out.status = s; out.headers = hd; }, end: (b?: unknown) => { out.body = String(b ?? ''); } };
+    const handled = h({ url, method } as never, res as never);
+    return { handled, ...out };
+  };
+  expect(call('/')).toMatchObject({ handled: true, status: 200, body: '<h1>jp</h1>' });
+  expect(call('/sala/ABCDE').body).toBe('<h1>jp</h1>'); // SPA fallback
+  expect(call('/assets/a.js').headers['content-type']).toContain('javascript');
+  expect(call('/%2e%2e/%2e%2e/package.json').handled).toBe(false); // traversal is not served
+  expect(call('/', 'POST').handled).toBe(false);
+  expect(webHandler(undefined)({ url: '/', method: 'GET' } as never, {} as never)).toBe(false); // no WEB_DIR: only /health and WS
+});

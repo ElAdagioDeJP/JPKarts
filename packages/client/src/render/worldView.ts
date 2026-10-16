@@ -9,10 +9,11 @@ import { RW, type KartView, type ThingView } from './world3d';
 import { H, W } from '../ui/draw';
 import { CAM_H, TEAM_COL, UIK, ZMAX, uiRect } from '../app/types';
 import type { CamTarget } from '../feel/camera';
+import { spectated } from '../race/spectate';
 import type { Game } from '../game';
 
 export function camTarget(g: Game): CamTarget | null {
-  const p = g.local;
+  const p = spectated(g) ?? g.local;
   if (!p) return null;
   const ps = g.pose(p);
   return {

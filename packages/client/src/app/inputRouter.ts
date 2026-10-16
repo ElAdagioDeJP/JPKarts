@@ -4,6 +4,7 @@
 import { CHARS, CLASSES, CUPS, classUnlocked, cupUnlocked, recordCup } from '@jpkart/core';
 import { saveProgress } from '../meta/store';
 import { isArena, type Mode } from './types';
+import { spectateStep, spectating } from '../race/spectate';
 import type { Game } from '../game';
 
 /** Cup/track screens: X cycles the engine class (only unlocked ones), E toggles teams (race and cup). */
@@ -102,6 +103,7 @@ export function onPress(g: Game, code: string) {
       break;
     case 'race':
       if (g.net && back) { g.leaveNet(); return; }
+      if (g.net && spectating(g)) { if (L) spectateStep(g, -1); if (R) spectateStep(g, 1); }
       if (g.net) { if (g.views.length === 1 && I.is(code, 'objeto')) g.itemPressed = true; break; }
       if (I.is(code, 'pausa') || (back && !g.paused)) { g.paused = !g.paused; A.beep(440, 0.06); return; }
       if (g.paused && back) { g.paused = false; g.state = 'menu'; g.world = null; g.renderer.clearKarts(); A.engineSet(false, 0); return; }
@@ -109,7 +111,7 @@ export function onPress(g: Game, code: string) {
       if (!g.paused && g.views.length === 1 && I.is(code, 'objeto')) g.itemPressed = true;
       break;
     case 'results':
-      if (g.net) { if (ok && g.net.isHost) g.net.send({ t: 'next' }); if (back) g.leaveNet(); break; }
+      if (g.net) { if (ok && g.net.isHost) g.net.send({ t: 'next' }); if (back) g.leaveNet(); break; } // the server starts the next race by itself; the host's Enter only skips the wait
       if (code === 'KeyR' && g.lastReplay) { g.startReplayView(); break; }
       if (ok) {
         if (g.mode === 'cup') { g.commitPoints(); g.state = 'standings'; }

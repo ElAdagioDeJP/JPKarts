@@ -33,6 +33,13 @@ import * as NetRace from './net/netRace';
 import * as NetScreens from './screens/netScreens';
 import * as Menus from './screens/menus';
 import * as InputRouter from './app/inputRouter';
+import { drawNetOverlay } from './race/spectate';
+
+/** Served from the online server's own domain (https, not an IP/localhost): that same host is the server. */
+function sameOriginServer() {
+  if (typeof location === 'undefined' || !location.protocol.startsWith('http')) return '';
+  return /^(localhost|\d+\.\d+\.\d+\.\d+)$/.test(location.hostname) ? '' : location.host;
+}
 
 export class Game {
   state: State = 'title';
@@ -72,7 +79,7 @@ export class Game {
   lanAddr = typeof location !== 'undefined' && location.hostname && location.hostname !== '' ? location.hostname : 'localhost';
   optSel = 0;
   /** online: server address (remembered), room code and the selected field (0 name, 1 server, 2 code, 3 create, 4 join) */
-  onlineAddr = (() => { try { return localStorage.getItem('jpkart.online.server') ?? ((import.meta as { env?: Record<string, string> }).env?.VITE_ONLINE_SERVER ?? ''); } catch { return ''; } })();
+  onlineAddr = (() => { try { return localStorage.getItem('jpkart.online.server') ?? ((import.meta as { env?: Record<string, string> }).env?.VITE_ONLINE_SERVER || sameOriginServer()); } catch { return ''; } })();
   onlineCode = '';
   onlineField = 1;
   netOnline = false;
@@ -105,6 +112,9 @@ export class Game {
   hitStop = 0;
   stallBeep = -1;
   /** visual-only animation timers per kart */
+  /** online spectator: kart the camera follows after you finish (-1 = none) */
+  specId = -1;
+  specT = 0;
   trickAnim = new Map<number, number>();
   squash = new Map<number, number>();
   held: Pose[] | null = null;
@@ -273,7 +283,7 @@ export class Game {
           ui.txt(n > 0 ? String(n) : '', W / 2, H / 2 - 40, '#ffe45e', 40, 'center');
           ui.txt(this.tr.def.name, W / 2, 34, '#fff7e0', 8, 'center');
           ui.txtS('Truco: acelera justo en el 1 para salir con turbo', W / 2, H - 30);
-        } else this.drawHUDs(this.paused ? 0 : dt);
+        } else { this.drawHUDs(this.paused ? 0 : dt); if (this.net) drawNetOverlay(this); }
         A.engineSet(!this.paused, p.speed + (p.boost > 0 ? 40 : 0));
         this.audioFrame(w, p);
         if (this.paused) { ui.bg(0.7); ui.txt('Pausa', W / 2, 80, '#ffe45e', 24, 'center'); ui.txt('P para seguir', W / 2, 130, '#fff7e0', 8, 'center'); ui.txt('Esc para salir al menú', W / 2, 146, '#fff7e0', 8, 'center'); }

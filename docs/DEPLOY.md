@@ -12,6 +12,10 @@ El servidor online (`packages/server/src/online.ts`) usa la misma `Room` autorit
   - Los nombres se limpian y los ajustes de la sala se validan.
 - **`GET /health`** responde `ok N salas`, para el proxy y para el `HEALTHCHECK` de Docker.
 
+- **Cliente web:** el mismo proceso sirve el juego (`vite build`, carpeta `WEB_DIR`, en la imagen `/app/web`) en `/`. Con un dominio `https` el cliente usa ese mismo dominio como servidor online, así que entrar a `https://kart.tudominio.com` y pulsar *Crear sala nueva* basta.
+- **Final de carrera:** cuando el primer humano cruza la meta, los demás tienen `race.finishTimeout` (30 s) para terminar; los que no llegan quedan como «Sin meta». Tras los resultados, la siguiente carrera de la copa (o el regreso a la sala) arranca sola a los `race.nextRaceDelay` (10 s); Intro del anfitrión la adelanta. Quien termina antes pasa a modo espectador.
+- **Velocidad:** los 8 pilotos tienen la misma (`vel: 8`, la de Miguel) en `core/data/characters.json`.
+
 El TLS (`wss://`) lo pone el proxy inverso. El contenedor habla WebSocket plano en `$PORT` (por defecto 7777).
 
 ## Imagen Docker
@@ -36,7 +40,7 @@ La CI construye la imagen y la prueba con `tools/online-check.mjs` en cada push 
 3. **Aplicación en Dokploy:**
    - Crear la aplicación, origen *Git* (este repositorio, rama `main`) y *Build Type* `Dockerfile` (ruta `./Dockerfile`).
    - *Environment:* `PORT=7777`.
-   - *Domains:* `kart.tudominio.com`, puerto del contenedor `7777`, **HTTPS activado** (Let's Encrypt).
+   - *Domains:* `kart.tudominio.com`, puerto del contenedor **`7777`** (con otro puerto Traefik devuelve `404 page not found`), **HTTPS activado** (Let's Encrypt). Con una app de tipo *Compose*, el repositorio incluye `docker-compose.yml` (servicio `jpkart`).
    - Traefik ya hace el upgrade a WebSocket; no hace falta configurar nada más.
    - *Health check:* el `HEALTHCHECK` de la imagen (o la ruta `/health`).
 4. **Comprobar:** `bun tools/online-check.mjs wss://kart.tudominio.com`.

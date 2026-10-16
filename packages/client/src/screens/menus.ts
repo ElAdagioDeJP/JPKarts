@@ -165,7 +165,7 @@ export function drawResults(g: Game) {
   ui.txt('Resultados', W / 2, 20, '#fff7e0', 16, 'center');
   rowList(g, w.finalOrder.map((id) => w.karts[id]!.ch), (_ch, i, y) => {
     const k = w.karts[w.finalOrder[i]!]!;
-    const col = w.cfg.mode === 'battle' ? (k.out ? 'Fuera' : k.balloons + ' globo' + (k.balloons === 1 ? '' : 's')) : w.cfg.mode === 'capture' ? k.score.toFixed(1) + ' s' : k.out ? 'Eliminado' : k.finished ? fmtTime(k.time) : 'En pista';
+    const col = w.cfg.mode === 'battle' ? (k.out ? 'Fuera' : k.balloons + ' globo' + (k.balloons === 1 ? '' : 's')) : w.cfg.mode === 'capture' ? k.score.toFixed(1) + ' s' : k.out ? 'Eliminado' : k.finished ? fmtTime(k.time) : w.cfg.lastCall ? 'Sin meta' : 'En pista';
     ui.txt(col, ox + 320 - (g.mode === 'cup' ? 70 : 36), y + 4, '#fff7e0', 8, 'right');
     if (g.mode === 'cup') ui.txt('+' + (modeOf(w).scoring?.(w, w.finalOrder).get(w.finalOrder[i]!) ?? 0), ox + 284, y + 4, '#2ec46b', 8, 'right');
   });
@@ -178,7 +178,7 @@ export function drawResults(g: Game) {
   }
   g.resultNotes.forEach((n, i) => ui.txtS(n, W / 2, 206 - (g.resultNotes.length - 1 - i) * 9, '#ffe45e'));
   ui.txtS(g.net
-    ? (g.net.isHost ? 'Intro: siguiente (todos)    Esc: salir de la sala' : 'Esperando al anfitrión...    Esc: salir de la sala')
+    ? (g.net.nextIn > 0 ? (g.net.settings.mode === 'cup' && g.net.cupRace < CUPS[g.net.settings.cup]!.tracks.length - 1 ? 'Siguiente carrera en ' : 'Volviendo a la sala en ') + g.net.nextIn + ' s' : 'Esperando...') + (g.net.isHost ? '    Intro: saltar' : '') + '    Esc: salir'
     : g.mode === 'cup' ? 'Enter: ver clasificación    R: repetición'
     : g.mode === 'timetrial' ? 'Enter: otra vez    R: repetición    Esc: menú'
     : 'Enter: ver podio    R: repetición    Esc: menú', W / 2, 220, '#9c95d6');

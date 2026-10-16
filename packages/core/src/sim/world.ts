@@ -52,7 +52,7 @@ export function createWorld(cfg: RaceConfig, track: Track): World {
   const w: World = {
     cfg, track, rng: new Rng(cfg.seed), tick: 0, karts: [], ents: [], nextEnt: 1,
     boxes: track.boxes.map(() => ({ active: true, t: 0 })),
-    pairCD: [], raceT: 0, phase: 'countdown', cd: T.race.countdown, cdLast: 4, finishDelay: 0, ranked: [], finalOrder: [], events: [],
+    pairCD: [], raceT: 0, phase: 'countdown', cd: T.race.countdown, cdLast: 4, finishDelay: 0, lastCall: -1, ranked: [], finalOrder: [], events: [],
     water: track.water?.base ?? 0, highTierCD: 0, tideTarget: track.water?.base ?? 0, elimLap: 0,
   };
   w.karts = cfg.grid.map((g, i) => makeKart(w, i, g.ch, g.ctrl, i, g.aiDiff));
@@ -553,7 +553,12 @@ function updateRace(w: World, inputs: readonly Input[], dt: number) {
   modeOf(w).tick?.(w);
   // end of race: `finishDelay` seconds after the mode's end condition
   if (w.phase === 'race') {
-    if (w.finishDelay <= 0 && modeOf(w).endCondition(w)) w.finishDelay = T.race.finishDelay;
+    // last call (online): the first human across the line starts a clock for everybody else
+    if (w.cfg.lastCall && w.finishDelay <= 0) {
+      if (w.lastCall < 0 && w.karts.some((k) => isHuman(k) && k.finished)) w.lastCall = T.race.finishTimeout;
+      else if (w.lastCall > 0) w.lastCall = Math.max(0, w.lastCall - dt);
+    }
+    if (w.finishDelay <= 0 && (modeOf(w).endCondition(w) || (w.cfg.lastCall && w.lastCall === 0))) w.finishDelay = T.race.finishDelay;
     else if (w.finishDelay > 0) {
       w.finishDelay -= dt;
       if (w.finishDelay <= 0) {

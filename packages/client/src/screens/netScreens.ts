@@ -174,8 +174,16 @@ export function drawLobby(g: Game, t: number) {
     'IA: ' + DIFFS[S.diff]!.name + ' · ' + CLASS_NAMES[(S.cls ?? '100') as EngineClass] + (S.teams ? ' · Equipos' : '') +
     ' · ' + net.players.length + ' humano(s) + ' + (8 - net.players.length) + ' IA',
     ox + 6, 45, '#9c95d6', 'left');
+  if (S.mode === 'cup') {
+    const cw = 340 / CUPS.length;
+    CUPS.forEach((c, i) => {
+      const on = i === S.cup;
+      ui.panel(ox + i * cw, 54, cw - 2, 10, on ? '#3a3478' : '#241f55', on ? c.col : '#6d66b0');
+      ui.txtS(c.name.replace('Copa ', ''), ox + i * cw + (cw - 2) / 2, 56, on ? c.col : '#9c95d6', 'center');
+    });
+  }
   net.players.forEach((p, i) => {
-    const y = 60 + i * 18, me = p.id === net.id;
+    const y = 68 + i * 18, me = p.id === net.id;
     ui.panel(ox, y, 340, 15, me ? '#3a3478' : '#241f55', me ? '#ffe45e' : '#6d66b0');
     ui.img(FACES[p.ch]!.cv, ox + 4, y - 1, 16, 16);
     ui.txt(p.name + (p.host ? ' ★' : '') + (p.seat ? ' (pantalla de ' + (net.players.find((q) => q.conn === p.conn && !q.seat)?.name ?? '?') + ')' : ''),
@@ -184,7 +192,7 @@ export function drawLobby(g: Game, t: number) {
     ui.txt(p.host ? 'anfitrión' : p.ready ? 'listo ✓' : 'no listo', ox + 334, y + 4, p.ready || p.host ? '#9cff9c' : '#ff8a9a', 8, 'right');
   });
   const help = net.isHost
-    ? '←→ piloto · ↑↓ modo · Q/E pista · F IA · X clase · T equipos · Intro'
+    ? '←→ piloto · Q/E copa o pista · ↑↓ modo · F IA · X clase · T equipos · Intro'
     : '←→ personaje · Intro o R: listo · J: otro jugador aquí';
   ui.txtS(help, W / 2, 214, '#9c95d6');
   ui.txtS('Esc: salir de la sala', W / 2, 226, '#9c95d6');

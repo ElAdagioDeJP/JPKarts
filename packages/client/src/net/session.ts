@@ -21,10 +21,12 @@ export class NetSession {
   status: NetStatus = 'connecting';
   id = -1;
   players: LobbyPlayer[] = [];
-  settings: LobbySettings = { mode: 'free', trackIndex: 0, cup: 0, diff: 1, laps: 3 };
+  settings: LobbySettings = { mode: 'cup', trackIndex: 0, cup: 0, diff: 1, laps: 3 };
   phase: 'lobby' | 'race' | 'standings' = 'lobby';
   cupRace = 0;
   cupPts: Record<number, number> = {};
+  /** seconds until the server starts the next race by itself (standings) */
+  nextIn = 0;
   race: PredictedRace | null = null;
   error = '';
   lastEnd: { order: number[]; points: Record<number, number> } | null = null;
@@ -70,7 +72,7 @@ export class NetSession {
       case 'welcome': this.id = m.id; this.status = 'lobby'; this.room = m.room ?? ''; break;
       case 'reject': this.error = m.reason; this.status = 'closed'; this.ws?.close(); break;
       case 'lobby':
-        this.players = m.players; this.settings = m.settings; this.phase = m.phase; this.cupRace = m.cupRace; this.cupPts = m.cupPts;
+        this.players = m.players; this.settings = m.settings; this.phase = m.phase; this.cupRace = m.cupRace; this.cupPts = m.cupPts; this.nextIn = m.nextIn ?? 0;
         if (m.phase !== 'race' && this.status === 'race') this.status = 'lobby';
         break;
       case 'start':

@@ -5,7 +5,7 @@ import { tunablesHash } from '../tunables';
 import type { Track } from '../track/track';
 import type { Ctrl, GameEvent, Input, RaceConfig, World } from '../sim/types';
 
-export const PROTOCOL_VERSION = 2; // 2: coins, item charges, Phase 8 items and hazards
+export const PROTOCOL_VERSION = 3; // 3: auto next race (`nextIn`), last call; 2: coins, item charges, Phase 8 items and hazards
 export const LAN_PORT = 7777;
 export const DISCOVERY_PORT = 7778;
 export const SNAPSHOT_EVERY = 3; // server ticks per snapshot (60 Hz / 3 = 20 Hz): clients predict everything, so 20 Hz is plenty
@@ -49,7 +49,7 @@ export type ClientMsg =
 export type ServerMsg =
   | { t: 'welcome'; id: number; proto: number; room?: string }
   | { t: 'reject'; reason: string }
-  | { t: 'lobby'; players: LobbyPlayer[]; settings: LobbySettings; phase: 'lobby' | 'race' | 'standings'; cupRace: number; cupPts: Record<number, number>; room?: string }
+  | { t: 'lobby'; players: LobbyPlayer[]; settings: LobbySettings; phase: 'lobby' | 'race' | 'standings'; cupRace: number; cupPts: Record<number, number>; room?: string; /** seconds until the next race starts by itself (standings only) */ nextIn?: number }
   /** `seats`: the karts of the extra local seats, in seat order */
   | { t: 'start'; cfg: RaceConfig; kart: number; seats?: number[] }
   | { t: 'snap'; tick: number; ack: number; state?: WorldState; delta?: Delta; last: Record<number, PackedInput> }

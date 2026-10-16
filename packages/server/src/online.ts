@@ -2,6 +2,8 @@
 // Same authoritative Room as the LAN server; this layer adds room codes, limits and a health check for the proxy.
 // Run: `bun packages/server/src/online.ts` (PORT env, default 7777). Behind Traefik the clients use wss://.
 import http from 'node:http';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { extname, join, normalize, resolve, sep } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { LAN_PORT, ROOM_ALPHABET, SIM_DT, cleanRoomCode, type ClientMsg } from '@jpkart/core';
 import { Room, type Conn } from './room';
@@ -16,6 +18,29 @@ export const ONLINE_LIMITS = {
   /** a connection that never says hello is closed after this many ms */
   helloTimeout: 10_000,
 };
+
+const MIME: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.glb': 'model/gltf-binary', '.wasm': 'application/wasm', '.map': 'application/json',
+};
+
+/** Static web client (vite build) served next to the WebSocket: the same domain gives the game and the rooms. */
+export function webHandler(dir: string | undefined) {
+  const root = dir && existsSync(join(dir, 'index.html')) ? resolve(dir) : null;
+  return (req: http.IncomingMessage, res: http.ServerResponse): boolean => {
+    if (!root || (req.method !== 'GET' && req.method !== 'HEAD')) return false;
+    let path: string;
+    try { path = decodeURIComponent((req.url ?? '/').split('?')[0]!); } catch { return false; }
+    let file = normalize(join(root, path));
+    if (file !== root && !file.startsWith(root + sep)) return false; // path traversal
+    if (!existsSync(file) || statSync(file).isDirectory()) file = join(root, 'index.html');
+    const ext = extname(file), body = readFileSync(file);
+    // hashed vite assets never change; index.html always revalidates
+    res.writeHead(200, { 'content-type': MIME[ext] ?? 'application/octet-stream', 'cache-control': file.includes(sep + 'assets' + sep) ? 'public, max-age=31536000, immutable' : 'no-cache' });
+    res.end(req.method === 'HEAD' ? undefined : body);
+    return true;
+  };
+}
 
 export interface OnlineHandle { port: number; rooms: Map<string, Room>; close(): void; onMessage(conn: Conn, raw: string): void; onClose(conn: Conn): void }
 
@@ -79,8 +104,10 @@ export function createOnline(log: (m: string) => void = console.log, limits = ON
 
 export function startOnlineServer(port = Number(process.env.PORT ?? LAN_PORT), log: (m: string) => void = console.log, limits = ONLINE_LIMITS): OnlineHandle {
   const core = createOnline(log, limits);
+  const web = webHandler(process.env.WEB_DIR);
   const server = http.createServer((req, res) => {
     if (req.url === '/health') { res.writeHead(200, { 'content-type': 'text/plain' }); res.end(`ok ${core.rooms.size} salas`); return; }
+    if (web(req, res)) return;
     res.writeHead(404); res.end();
   });
   const wss = new WebSocketServer({ server, maxPayload: limits.maxPayload, perMessageDeflate: { threshold: 256, zlibDeflateOptions: { level: 3 } } });

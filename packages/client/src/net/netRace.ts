@@ -7,6 +7,7 @@ import type { Mode } from '../app/types';
 import { assignSources, PlayerInput } from '../input/players';
 import { NetSession, desktop } from './session';
 import { localInput } from '../race/localRace';
+import { updateSpectate } from '../race/spectate';
 import type { Game } from '../game';
 
 export function connectLan(
@@ -58,6 +59,7 @@ export function startNetRace(g: Game) {
   g.mode = r.cfg.mode === 'race' || !r.cfg.mode ? 'free' : (r.cfg.mode as Mode);
   for (const v of g.views) { g.v = v; g.rig.cut(g.camTarget()!, g.tr); }
   g.v = g.views[0]!;
+  g.specId = -1; g.specT = 0;
   g.acc = 0; g.banner = null; g.flashT = 0; g.parts = []; g.paused = false; g.incoming = null;
   g.state = 'race';
 }
@@ -88,6 +90,7 @@ export function simulateNet(g: Game, dt: number) {
     g.tickAnims(SIM_DT);
     g.acc -= SIM_DT;
   }
+  updateSpectate(g, dt);
   net.smooth(dt);
   g.simMs = performance.now() - t0;
 }

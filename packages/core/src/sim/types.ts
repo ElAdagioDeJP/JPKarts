@@ -167,6 +167,8 @@ export interface RaceConfig {
   mirror?: boolean;
   /** two teams, no friendly fire (modifier over race/cup) */
   teams?: boolean;
+  /** online: once the first human finishes, the rest have `T.race.finishTimeout` seconds (then they are left unfinished) */
+  lastCall?: boolean;
 }
 
 export interface World {
@@ -184,6 +186,8 @@ export interface World {
   cd: number;
   cdLast: number;
   finishDelay: number;
+  /** seconds left for the stragglers after the first human finished (-1 = not running) */
+  lastCall: number;
   ranked: KartId[];
   finalOrder: KartId[];
   events: GameEvent[];
