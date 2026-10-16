@@ -1,0 +1,10 @@
+services:
+  jpkart:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: "7777"
+    expose:
+      - "7777"

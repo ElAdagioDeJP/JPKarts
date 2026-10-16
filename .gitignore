@@ -10,3 +10,4 @@ shots/
 packages/core/tools/tmp/
 .claude/
 backup-local-v1/
+.env
