@@ -1,8 +1,8 @@
 // Authoritative race room, independent of the transport (WebSocket in main.ts, in-memory in tests).
 import {
-  ALL_TRACKS, ARENA_INDICES, CLASSES, CUPS, LAPS, PROTOCOL_VERSION, classCfg, cleanName, validPacked, ReplayRecorder, Rng, SIM_DT, SNAPSHOT_EVERY, T, TrackCache, buildGrid, createWorld, diffJson, handshakeTunables, modeOf,
+  ALL_TRACKS, ARENA_INDICES, CLASSES, CUPS, LAPS, PROTOCOL_VERSION, classCfg, cleanName, cleanPid, validPacked, ReplayRecorder, Rng, SIM_DT, SNAPSHOT_EVERY, T, TrackCache, buildGrid, createWorld, diffJson, handshakeTunables, modeOf,
   newAiState, prepAuthored, serializeWorld, step, takeEvents, unpackInput,
-  type ClientMsg, type Delta, type Input, type LobbyPlayer, type LobbySettings, type PackedInput, type ServerMsg, type World, type WorldState,
+  type ClientMsg, type Delta, type Input, type LobbyPlayer, type LobbySettings, type PackedInput, type RaceConfig, type ServerMsg, type World, type WorldState,
 } from '@jpkart/core';
 
 export interface Conn { id: number; send(m: ServerMsg): void; close(): void }
@@ -18,6 +18,10 @@ interface Player {
   queue: PackedInput[];
   last: PackedInput;
   kart: number;
+  /** profile id: a dropped player comes back to the same kart with it */
+  pid?: string;
+  /** next snapshot goes out whole (a player that just came back has no base to patch) */
+  needFull?: boolean;
 }
 
 const MAX_PLAYERS = 8, MAX_QUEUE = 6;
@@ -40,6 +44,15 @@ export class Room {
   private lastState: WorldState | null = null;
   /** seconds until the next race starts by itself (standings phase) */
   private nextIn = 0;
+  /** race counter: every start/snap/end carries it, so a client ignores what belongs to another race */
+  rid = 0;
+  /** connections that have not built the track yet; the countdown starts when it empties (or after `loadTimeout`) */
+  private loading: Set<number> | null = null;
+  private loadTotal = 0;
+  private loadT = 0;
+  /** humans that dropped mid-race (their kart runs on AI): profile id -> kart, to give it back if they return */
+  private away = new Map<string, { kart: number; name: string; ch: number; ttl: number }>();
+  private cfg: RaceConfig | null = null;
 
   constructor(seed = Date.now() & 0x7fffffff, public log: (m: string) => void = () => {}) {
     this.seed = seed;
@@ -57,7 +70,7 @@ export class Room {
 
   private lobbyMsg(): ServerMsg {
     const players: LobbyPlayer[] = [...this.players.entries()].map(([id, p]) => ({ id, name: p.name, ch: p.ch, ready: p.ready, host: p.host, seat: p.seat, conn: p.conn.id }));
-    return { t: 'lobby', players, settings: this.settings, phase: this.phase, cupRace: this.cupRace, cupPts: this.cupPts, room: this.code, ...(this.phase === 'standings' ? { nextIn: Math.ceil(this.nextIn) } : {}) };
+    return { t: 'lobby', players, settings: this.settings, phase: this.phase, cupRace: this.cupRace, cupPts: this.cupPts, room: this.code, ...(this.phase === 'standings' ? { nextIn: Math.ceil(this.nextIn) } : {}), ...(this.loading ? { loading: { done: this.loadTotal - this.loading.size, total: this.loadTotal } } : {}) };
   }
 
   join(conn: Conn) {
@@ -71,9 +84,11 @@ export class Room {
     for (const q of this.seatsOf(p.conn.id)) if (q !== p) { this.players.delete(this.idOf(q)); this.dropKart(q); }
     this.players.delete(id);
     this.log(`${p.name} salió`);
+    this.loading?.delete(p.conn.id);
+    if (p.pid && p.seat === 0 && p.kart >= 0 && this.world && this.phase === 'race') this.away.set(p.pid, { kart: p.kart, name: p.name, ch: p.ch, ttl: T.race.awayKeep });
     if (p.host) { const next = this.players.values().next().value as Player | undefined; if (next) next.host = true; }
     this.dropKart(p);
-    if (!this.players.size) { this.phase = 'lobby'; this.world = null; }
+    if (!this.players.size) { this.phase = 'lobby'; this.world = null; this.loading = null; this.away.clear(); }
     this.broadcast(this.lobbyMsg());
   }
 
@@ -96,13 +111,19 @@ export class Room {
     if (m.t === 'hello') {
       if (m.proto !== PROTOCOL_VERSION) { conn.send({ t: 'reject', reason: `Versión distinta (servidor ${PROTOCOL_VERSION}, cliente ${m.proto}). Actualiza el juego.` }); return; }
       if (m.tun !== handshakeTunables()) { conn.send({ t: 'reject', reason: 'Las reglas del juego no coinciden con las del anfitrión (tunables distintos).' }); return; }
+      const pid = cleanPid(m.pid);
+      // the same profile again (a half-dead old connection may still be listed): the old one goes away first
+      const stale = pid ? [...this.players.values()].find((q) => q.seat === 0 && q.pid === pid) : undefined;
+      if (stale) this.leave(stale.conn.id);
+      const gone = pid ? this.away.get(pid) : undefined;
+      if (gone && pid && this.phase === 'race' && this.world) { this.rejoin(conn, pid, gone); return; }
       if (this.players.size >= MAX_PLAYERS) { conn.send({ t: 'reject', reason: 'La sala está llena (8 jugadores).' }); return; }
       if (this.phase !== 'lobby') { conn.send({ t: 'reject', reason: 'La carrera ya empezó. Espera a que termine.' }); return; }
       const taken = new Set([...this.players.values()].map((q) => q.ch));
       let ch = 0;
       while (taken.has(ch)) ch++;
       const name = cleanName(m.name);
-      this.players.set(conn.id, { conn, seat: 0, name, ch, ready: false, host: this.players.size === 0, queue: [], last: [0, 0, 0, 0, 0], kart: -1 });
+      this.players.set(conn.id, { conn, seat: 0, name, ch, ready: false, host: this.players.size === 0, queue: [], last: [0, 0, 0, 0, 0], kart: -1, pid });
       conn.send({ t: 'welcome', id: conn.id, proto: PROTOCOL_VERSION, room: this.code });
       this.log(`${name} entró` + (this.code ? ` en la sala ${this.code}` : ''));
       this.broadcast(this.lobbyMsg());
@@ -151,8 +172,9 @@ export class Room {
         break;
       }
       case 'next': if (p.host) this.advance(); break;
+      case 'loaded': if (m.rid === this.rid && this.loading?.delete(conn.id)) this.broadcast(this.lobbyMsg()); break;
       case 'in': {
-        if (this.phase !== 'race') return;
+        if (this.phase !== 'race' || this.loading) return;
         const lists: [Player | undefined, unknown][] = [[p, m.i], ...(Array.isArray(m.seats) ? m.seats.slice(0, 3).map((l, k) => [this.seatPlayer(conn, k + 1), l] as [Player | undefined, unknown]) : [])];
         for (const [q, list] of lists) {
           if (!q || !Array.isArray(list) || list.length > 12) continue;
@@ -163,6 +185,32 @@ export class Room {
       }
       case 'leave': this.leave(conn.id); break;
     }
+  }
+
+  /** A player that dropped mid-race is back: same kart, the race goes on (no barrier unless the race is still loading). */
+  private rejoin(conn: Conn, pid: string, gone: { kart: number; name: string; ch: number }) {
+    const w = this.world!, k = w.karts[gone.kart]!;
+    this.away.delete(pid);
+    k.ctrl = 'remote'; k.ai = null;
+    const p: Player = { conn, seat: 0, name: gone.name, ch: gone.ch, ready: true, host: [...this.players.values()].every((q) => !q.host), queue: [], last: [0, 0, 0, 0, 0], kart: gone.kart, pid, needFull: true };
+    this.players.set(conn.id, p);
+    conn.send({ t: 'welcome', id: conn.id, proto: PROTOCOL_VERSION, room: this.code });
+    const resume = !this.loading;
+    if (this.loading) { this.loading.add(conn.id); this.loadTotal++; }
+    this.send(p, { t: 'start', cfg: this.cfg!, kart: p.kart, rid: this.rid, ...(resume ? { resume: true } : {}) });
+    this.log(`${p.name} volvió a la carrera`);
+    this.broadcast(this.lobbyMsg());
+  }
+
+  /** The countdown starts: everybody built the track (or the slow ones are left to the AI). */
+  private go() {
+    for (const id of this.loading ?? []) {
+      const p = this.players.get(id);
+      if (p) { this.log(`${p.name} tardó demasiado en cargar`); this.dropKart(p); if (p.pid) this.away.set(p.pid, { kart: p.kart, name: p.name, ch: p.ch, ttl: T.race.awayKeep }); }
+    }
+    this.loading = null;
+    this.broadcast({ t: 'go', rid: this.rid });
+    this.broadcast(this.lobbyMsg());
   }
 
   /** After the standings: next cup race, or back to the lobby. Runs by itself when `nextIn` runs out (the host can skip it). */
@@ -183,15 +231,21 @@ export class Room {
     if (S.teams) grid = grid.map((g, i) => ({ ...g, team: i % 2 }));
     const mode = S.mode === 'free' ? 'race' : S.mode;
     const laps = modeOf({ cfg: { mode } } as World).laps?.(grid.length) ?? S.laps;
-    const cfg = { trackIndex: ti, diff: S.diff, seed, laps, grid, mode, cc: cc.cc, mirror, teams: !!S.teams, lastCall: mode === 'race' || mode === 'cup' };
+    const cfg: RaceConfig = { trackIndex: ti, diff: S.diff, seed, laps, grid, mode, cc: cc.cc, mirror, teams: !!S.teams, lastCall: mode === 'race' || mode === 'cup' };
     this.world = createWorld(cfg, track);
+    this.cfg = cfg;
+    this.rid++;
+    this.away.clear();
     this.recorder = new ReplayRecorder(cfg);
-    for (const p of this.players.values()) { p.kart = this.world.karts.findIndex((k) => k.ch === p.ch); p.queue = []; p.last = [0, 0, 0, 0, 0]; }
+    for (const p of this.players.values()) { p.kart = this.world.karts.findIndex((k) => k.ch === p.ch); p.queue = []; p.last = [0, 0, 0, 0, 0]; p.needFull = false; }
     for (const p of this.players.values()) {
       if (p.seat !== 0) continue;
       const extra = this.seatsOf(p.conn.id).filter((q) => q.seat > 0).map((q) => q.kart);
-      this.send(p, extra.length ? { t: 'start', cfg, kart: p.kart, seats: extra } : { t: 'start', cfg, kart: p.kart });
+      this.send(p, extra.length ? { t: 'start', cfg, kart: p.kart, seats: extra, rid: this.rid } : { t: 'start', cfg, kart: p.kart, rid: this.rid });
     }
+    this.loading = new Set([...this.players.values()].filter((q) => q.seat === 0).map((q) => q.conn.id));
+    this.loadTotal = this.loading.size;
+    this.loadT = 0;
     this.lastState = null;
     this.phase = 'race';
     this.log(`Carrera en ${track.def.name} con ${this.players.size} humano(s)`);
@@ -208,6 +262,12 @@ export class Room {
     }
     const w = this.world;
     if (!w || this.phase !== 'race') return;
+    if (this.loading) {
+      this.loadT += SIM_DT;
+      if (!this.loading.size || this.loadT >= T.race.loadTimeout) this.go();
+      return;
+    }
+    for (const [pid, a] of this.away) if ((a.ttl -= SIM_DT) <= 0) this.away.delete(pid);
     const inputs: Input[] = [];
     for (const p of this.players.values()) {
       const next = p.queue.shift();
@@ -224,14 +284,19 @@ export class Room {
       const last: Record<number, PackedInput> = {};
       for (const p of this.players.values()) last[p.kart] = p.last;
       const delta = this.lastState ? (diffJson(this.lastState, state) as Delta | undefined) ?? {} : undefined;
-      for (const p of this.players.values()) if (p.seat === 0) this.send(p, delta ? { t: 'snap', tick: w.tick, ack: p.last[0], delta, last } : { t: 'snap', tick: w.tick, ack: p.last[0], state, last });
+      for (const p of this.players.values()) {
+        if (p.seat !== 0) continue;
+        const whole = !delta || p.needFull;
+        p.needFull = false;
+        this.send(p, whole ? { t: 'snap', rid: this.rid, tick: w.tick, ack: p.last[0], state, last } : { t: 'snap', rid: this.rid, tick: w.tick, ack: p.last[0], delta, last });
+      }
       this.lastState = state;
     }
     if (ended) {
       const pts = modeOf(w).scoring?.(w, w.finalOrder) ?? new Map<number, number>();
       const points: Record<number, number> = {};
       for (const [kart, v] of pts) { const ch = w.karts[kart]!.ch; points[ch] = v; this.cupPts[ch] = (this.cupPts[ch] ?? 0) + v; }
-      this.broadcast({ t: 'end', order: w.finalOrder, points });
+      this.broadcast({ t: 'end', rid: this.rid, order: w.finalOrder, points });
       this.phase = 'standings';
       this.nextIn = T.race.nextRaceDelay;
       this.broadcast(this.lobbyMsg());

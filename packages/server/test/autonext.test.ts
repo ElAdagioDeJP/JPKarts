@@ -10,6 +10,8 @@ function setup() {
   room.onMessage(conns[1]!, { t: 'ready', ready: true });
   return { room, conns, got };
 }
+/** the clients build the track and report it: the countdown can start */
+const load = (room: Room, conns: Conn[]) => { for (const c of conns) room.onMessage(c, { t: 'loaded', rid: room.rid }); };
 const ticks = (room: Room, s: number) => { for (let i = 0; i < Math.round(s * 60); i++) room.tick(); };
 
 test('todos los personajes tienen la misma velocidad (la de Miguel)', () => {
@@ -25,6 +27,7 @@ test('el primero cruza la meta: a los 30 s se acaba la carrera, y la siguiente d
   const { room, conns, got } = setup();
   room.onMessage(conns[0]!, { t: 'start' });
   expect(room.phase).toBe('race');
+  load(room, conns);
   expect(room.world!.cfg.lastCall).toBe(true);
   ticks(room, T.race.countdown + 1); // salida
   const human = room.world!.karts.find((k) => k.ctrl === 'remote')!;
@@ -43,6 +46,7 @@ test('el primero cruza la meta: a los 30 s se acaba la carrera, y la siguiente d
   // sin que nadie pulse nada
   ticks(room, T.race.nextRaceDelay + 0.5);
   expect(room.phase).toBe('race');
+  load(room, conns);
   expect(room.cupRace).toBe(1);
   expect(got[0]!.filter((m) => m.t === 'start').length).toBe(2);
 }, 120_000);
@@ -50,6 +54,7 @@ test('el primero cruza la meta: a los 30 s se acaba la carrera, y la siguiente d
 test('tras la última carrera de la copa se vuelve al lobby solo', () => {
   const { room, conns } = setup();
   room.onMessage(conns[0]!, { t: 'start' });
+  load(room, conns);
   room.cupRace = CUPS[0]!.tracks.length - 1;
   ticks(room, T.race.countdown + 1);
   const human = room.world!.karts.find((k) => k.ctrl === 'remote')!;

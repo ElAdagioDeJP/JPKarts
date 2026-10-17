@@ -43,7 +43,7 @@ function runNetworkRace(latency: number, loss: number, seconds: number, extra: P
   const net = new Net(latency, loss, lcg(42));
   const room = new Room(1234);
   const tracks = new TrackCache(ALL_TRACKS, prepAuthored);
-  const clients = [1, 2].map((id) => ({ id, race: null as PredictedRace | null, bytes: 0, gz: 0, rejected: '' }));
+  const clients = [1, 2].map((id) => ({ id, race: null as PredictedRace | null, go: false, bytes: 0, gz: 0, rejected: '' }));
   const conns: Conn[] = clients.map((c) => ({
     id: c.id,
     close() {},
@@ -53,7 +53,8 @@ function runNetworkRace(latency: number, loss: number, seconds: number, extra: P
       if (m.t === 'snap') c.gz += gzipSync(s).length;
       net.send('s' + c.id, () => {
         if (m.t === 'reject') c.rejected = m.reason;
-        if (m.t === 'start') c.race = new PredictedRace(m.cfg, tracks.ensureBuilt(m.cfg.trackIndex, [], !!m.cfg.mirror), m.kart);
+        if (m.t === 'start') { c.race = new PredictedRace(m.cfg, tracks.ensureBuilt(m.cfg.trackIndex, [], !!m.cfg.mirror), m.kart); toServer(c.id - 1, { t: 'loaded', rid: m.rid }); }
+        if (m.t === 'go') c.go = true;
         if (m.t === 'snap') c.race?.onSnapshot(m);
       });
     },
@@ -72,7 +73,7 @@ function runNetworkRace(latency: number, loss: number, seconds: number, extra: P
     net.now += dt;
     net.flush();
     clients.forEach((c, i) => {
-      if (!c.race) return;
+      if (!c.race || !c.go) return; // the real client waits for `go` before predicting
       const { packed } = c.race.tick(pilot(c.race.world, c.race.kart, f + i * 37));
       toServer(i, { t: 'in', i: [packed] });
     });
@@ -158,9 +159,10 @@ test('red: pantalla dividida en red — un cliente con 2 jugadores locales y otr
   const room = new Room(99);
   const tracks = new TrackCache(ALL_TRACKS, prepAuthored);
   const races: (PredictedRace | null)[] = [null, null];
+  const go = [false, false];
   const conns: Conn[] = [0, 1].map((i) => ({
     id: i + 1, close() {},
-    send(m: ServerMsg) { net.send('s' + i, () => { if (m.t === 'start') races[i] = new PredictedRace(m.cfg, tracks.ensureBuilt(m.cfg.trackIndex, [], !!m.cfg.mirror), m.kart, m.seats ?? []); if (m.t === 'snap') races[i]?.onSnapshot(m); }); },
+    send(m: ServerMsg) { net.send('s' + i, () => { if (m.t === 'start') { races[i] = new PredictedRace(m.cfg, tracks.ensureBuilt(m.cfg.trackIndex, [], !!m.cfg.mirror), m.kart, m.seats ?? []); toServer(i, { t: 'loaded', rid: m.rid }); } if (m.t === 'go') go[i] = true; if (m.t === 'snap') races[i]?.onSnapshot(m); }); },
   }));
   const toServer = (i: number, m: ClientMsg) => net.send('c' + i, () => room.onMessage(conns[i]!, m));
   conns.forEach((_, i) => toServer(i, { t: 'hello', proto: PROTOCOL_VERSION, name: 'J' + i, tun: handshakeTunables() }));
@@ -177,7 +179,7 @@ test('red: pantalla dividida en red — un cliente con 2 jugadores locales y otr
     net.now += 1 / 60;
     net.flush();
     races.forEach((r, i) => {
-      if (!r) return;
+      if (!r || !go[i]) return;
       const extra = r.seats.map((k) => pilot(r.world, k, f + 11));
       const { packed, seats } = r.tick(pilot(r.world, r.kart, f + i * 37), extra);
       toServer(i, seats.length ? { t: 'in', i: [packed], seats: seats.map((x) => [x]) } : { t: 'in', i: [packed] });

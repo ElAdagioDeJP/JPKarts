@@ -7,7 +7,7 @@ import { W, H } from '../ui/draw';
 import { CameraRig } from '../feel/camera';
 
 export type State =
-  | 'title' | 'menu' | 'options' | 'controls' | 'lan' | 'online' | 'lobby'
+  | 'title' | 'welcome' | 'menu' | 'options' | 'controls' | 'lan' | 'online' | 'lobby'
   | 'select' | 'cup' | 'track' | 'loading' | 'race' | 'results'
   | 'podium' | 'standings' | 'final' | 'replay';
 
@@ -53,7 +53,7 @@ export const TEAM_COL = ['#ff5a6a', '#5aa8ff'];
 export const TEAM_NAME = ['Rojo', 'Azul'];
 
 export const MENUS: State[] = [
-  'title', 'menu', 'options', 'controls', 'lan', 'online', 'lobby', 'select', 'cup', 'track',
+  'title', 'welcome', 'menu', 'options', 'controls', 'lan', 'online', 'lobby', 'select', 'cup', 'track',
 ];
 
 export const CAM_H = 15, CAM_BACK = 34, ZMAX = 1000;

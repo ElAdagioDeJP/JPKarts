@@ -3,6 +3,8 @@
   "finishDelay": 3,
   "finishTimeout": 30,
   "nextRaceDelay": 10,
+  "loadTimeout": 15,
+  "awayKeep": 120,
   "bump": {
     "size": 12,
     "zTolerance": 10,

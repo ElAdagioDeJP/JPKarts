@@ -33,10 +33,18 @@ export class NetSession {
   /** visual smoothing of reconciliation jumps of the local kart */
   visOff = { x: 0, y: 0 };
   bytesIn = 0;
+  /** race id of the race this session is playing (stale messages of another race are ignored) */
+  rid = 0;
+  /** the countdown may run: every human built the track (the server said `go`) */
+  go = false;
+  /** the server waits for slow clients: how many are ready */
+  loading: { done: number; total: number } | null = null;
+  /** when the last snapshot arrived (ms): a silent line while racing means the connection is dead */
+  lastSnapAt = 0;
 
   /** online room code (shown in the lobby so the host can share it) */
   room = '';
-  constructor(public url: string, public name: string, private trackFor: (index: number, mirror: boolean) => Track, private onStart: () => void, private onEnd: () => void, private opts: { room?: string; create?: boolean } = {}) {}
+  constructor(public url: string, public name: string, private trackFor: (index: number, mirror: boolean) => Track, private onStart: () => void, private onEnd: () => void, private opts: { room?: string; create?: boolean; pid?: string } = {}) {}
 
   /** Online server address: wss:// for a domain (TLS at the proxy), ws:// for localhost or an IP with a port. */
   static onlineUrl(addr: string) {
@@ -59,6 +67,9 @@ export class NetSession {
     this.ws.onerror = () => { if (!this.error) this.error = `No se pudo conectar a ${this.url}`; };
   }
 
+  /** The line went quiet: give up on this socket (the game tries to come back). */
+  abandon() { if (this.status !== 'closed') { this.status = 'closed'; if (!this.error) this.error = 'Se perdió la conexión con el servidor'; } try { this.ws?.close(); } catch { /* already closed */ } }
+
   send(m: ClientMsg) { if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(m)); }
   close() { this.send({ t: 'leave' }); this.status = 'closed'; this.ws?.close(); }
 
@@ -72,24 +83,29 @@ export class NetSession {
       case 'welcome': this.id = m.id; this.status = 'lobby'; this.room = m.room ?? ''; break;
       case 'reject': this.error = m.reason; this.status = 'closed'; this.ws?.close(); break;
       case 'lobby':
-        this.players = m.players; this.settings = m.settings; this.phase = m.phase; this.cupRace = m.cupRace; this.cupPts = m.cupPts; this.nextIn = m.nextIn ?? 0;
+        this.players = m.players; this.settings = m.settings; this.phase = m.phase; this.cupRace = m.cupRace; this.cupPts = m.cupPts; this.nextIn = m.nextIn ?? 0; this.loading = m.loading ?? null;
         if (m.phase !== 'race' && this.status === 'race') this.status = 'lobby';
         break;
       case 'start':
         this.race = new PredictedRace(m.cfg, this.trackFor(m.cfg.trackIndex, !!m.cfg.mirror), m.kart, m.seats ?? []);
         this.status = 'race'; this.lastEnd = null; this.visOff = { x: 0, y: 0 };
+        this.rid = m.rid; this.go = !!m.resume; this.lastSnapAt = performance.now();
         this.onStart();
+        // the track is built: tell the server (the countdown waits for everybody)
+        if (!m.resume) this.send({ t: 'loaded', rid: m.rid });
         break;
+      case 'go': if (m.rid === this.rid) { this.go = true; this.lastSnapAt = performance.now(); } break;
       case 'snap': {
         const r = this.race;
-        if (!r) break;
+        if (!r || m.rid !== this.rid) break;
+        this.lastSnapAt = performance.now();
         const k0 = r.world.karts[r.kart], bx = k0?.x ?? 0, by = k0?.y ?? 0;
         r.onSnapshot(m);
         const k1 = r.world.karts[r.kart];
         if (k1) { this.visOff.x += bx - k1.x; this.visOff.y += by - k1.y; }
         break;
       }
-      case 'end': this.lastEnd = { order: m.order, points: m.points }; this.onEnd(); break;
+      case 'end': if (m.rid !== this.rid) break; this.lastEnd = { order: m.order, points: m.points }; this.onEnd(); break;
     }
   }
 

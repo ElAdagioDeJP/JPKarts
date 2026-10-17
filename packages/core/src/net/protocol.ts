@@ -5,7 +5,7 @@ import { tunablesHash } from '../tunables';
 import type { Track } from '../track/track';
 import type { Ctrl, GameEvent, Input, RaceConfig, World } from '../sim/types';
 
-export const PROTOCOL_VERSION = 3; // 3: auto next race (`nextIn`), last call; 2: coins, item charges, Phase 8 items and hazards
+export const PROTOCOL_VERSION = 4; // 4: load barrier (`loaded`/`go`), race ids, rejoin by `pid`; 3: auto next race (`nextIn`), last call; 2: coins, item charges, Phase 8 items and hazards
 export const LAN_PORT = 7777;
 export const DISCOVERY_PORT = 7778;
 export const SNAPSHOT_EVERY = 3; // server ticks per snapshot (60 Hz / 3 = 20 Hz): clients predict everything, so 20 Hz is plenty
@@ -19,6 +19,8 @@ export const validPacked = (p: unknown): p is PackedInput =>
   Array.isArray(p) && p.length === 5 && p.every((v) => Number.isInteger(v)) && p[0] >= 0 && Math.abs(p[1]) <= 127 && Math.abs(p[2]) <= 127 && (p[3] === 0 || p[3] === 1) && (p[4] === 0 || p[4] === 1);
 /** Player names: printable characters only, trimmed, 12 at most. */
 export const cleanName = (n: unknown) => (typeof n === 'string' ? n.replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, 12).trim() : '') || 'Jugador';
+/** Profile id (random, kept on the player's device): lets a dropped player come back to the same kart. */
+export const cleanPid = (p: unknown) => (typeof p === 'string' && /^[A-Za-z0-9-]{8,40}$/.test(p) ? p : undefined);
 /** Online room codes: 5 characters without look-alikes (no I, O, 0, 1). */
 export const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const cleanRoomCode = (c: unknown) => (typeof c === 'string' ? c.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5) : '');
@@ -34,13 +36,15 @@ export interface LobbySettings {
 }
 
 export type ClientMsg =
-  | { t: 'hello'; proto: number; name: string; tun: string; room?: string; create?: boolean }
+  | { t: 'hello'; proto: number; name: string; tun: string; room?: string; create?: boolean; /** profile id (see cleanPid) */ pid?: string }
   | { t: 'pick'; ch: number; seat?: number }
   | { t: 'ready'; ready: boolean }
   /** split screen over the network: one more local player on this connection (seat 1, 2, 3) */
   | { t: 'addSeat'; name: string }
   | { t: 'settings'; s: LobbySettings }
   | { t: 'start' }
+  /** this client built the track of race `rid`: the countdown waits until every human sent it */
+  | { t: 'loaded'; rid: number }
   | { t: 'next' }
   /** `seats[k]`: the inputs of local seat k + 1 (same seq numbers as `i`) */
   | { t: 'in'; i: PackedInput[]; seats?: PackedInput[][] }
@@ -49,11 +53,13 @@ export type ClientMsg =
 export type ServerMsg =
   | { t: 'welcome'; id: number; proto: number; room?: string }
   | { t: 'reject'; reason: string }
-  | { t: 'lobby'; players: LobbyPlayer[]; settings: LobbySettings; phase: 'lobby' | 'race' | 'standings'; cupRace: number; cupPts: Record<number, number>; room?: string; /** seconds until the next race starts by itself (standings only) */ nextIn?: number }
+  | { t: 'lobby'; players: LobbyPlayer[]; settings: LobbySettings; phase: 'lobby' | 'race' | 'standings'; cupRace: number; cupPts: Record<number, number>; room?: string; /** seconds until the next race starts by itself (standings only) */ nextIn?: number; /** while the race waits for the slow clients */ loading?: { done: number; total: number } }
   /** `seats`: the karts of the extra local seats, in seat order */
-  | { t: 'start'; cfg: RaceConfig; kart: number; seats?: number[] }
-  | { t: 'snap'; tick: number; ack: number; state?: WorldState; delta?: Delta; last: Record<number, PackedInput> }
-  | { t: 'end'; order: number[]; points: Record<number, number> };
+  | { t: 'start'; cfg: RaceConfig; kart: number; seats?: number[]; /** race id: stale messages of another race are ignored */ rid: number; /** a dropped player coming back to a race already running: no load barrier */ resume?: boolean }
+  /** every human is ready: the countdown starts now */
+  | { t: 'go'; rid: number }
+  | { t: 'snap'; rid: number; tick: number; ack: number; state?: WorldState; delta?: Delta; last: Record<number, PackedInput> }
+  | { t: 'end'; rid: number; order: number[]; points: Record<number, number> };
 
 /** Everything needed to rebuild a World on a peer (the track is rebuilt locally from cfg.trackIndex). */
 export type WorldState = Omit<World, 'track' | 'rng' | 'events'> & { rng: number };

@@ -2,6 +2,7 @@ import { Audio } from './audio/audio';
 import { installHotTunables } from './dev/hotTunables';
 import { loadDesktopSettings } from './settings';
 import { loadDesktopProgress } from './meta/store';
+import { loadDesktopProfile } from './meta/profile';
 import { Game } from './game';
 import { Input } from './input/input';
 import { WorldRenderer } from './render/world3d';
@@ -23,6 +24,9 @@ async function boot() {
   if (ds) { game.settings = ds; game.applySettings(); }
   const dp = await loadDesktopProgress();
   if (dp) game.progress = dp;
+  const dprof = await loadDesktopProfile();
+  if (dprof) { game.profile = dprof; game.lanName = dprof.name || game.lanName; }
+  if (!game.profile.id || !game.profile.name) game.openWelcome(true); // first run: welcome, tutorial and name
   (window as any).__jpkart = game;
   installHotTunables((msg) => { console.info(msg); game.toast(msg); });
   const toUi = (e: PointerEvent): [number, number] => { const r = uiCv.getBoundingClientRect(); return [((e.clientX - r.left) / r.width) * 426, ((e.clientY - r.top) / r.height) * 240]; };

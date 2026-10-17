@@ -4,7 +4,7 @@
 import {
   ALL_TRACKS, ARENA_INDICES, CLASSIC_CUPS, CUPS, LAPS, ReplayPlayer, ReplayRecorder, TrackCache, prepAuthored,
   SIM_DT, clamp, hAt, hashWorld, lerp, recordRace, wrapA,
-  type EngineClass, type GameEvent, type Input as SimInput, type Kart, type Progress, type Replay, type StatKey, type Track, type World,
+  type EngineClass, type GameEvent, type Input as SimInput, type Kart, type Profile, type Progress, type Replay, type StatKey, type Track, type World,
 } from '@jpkart/core';
 import { DebugOverlay } from './dev/debugOverlay';
 import { loadSettings, type Settings } from './settings';
@@ -18,6 +18,7 @@ import { buildMinimap } from './render/trackArt';
 import { WorldRenderer } from './render/world3d';
 import { H, Ui, W } from './ui/draw';
 import { loadProgress, saveGhost, saveProgress } from './meta/store';
+import { loadProfile } from './meta/profile';
 import {
   CAM_H, MENUS, isArena, newView,
   type CupState, type Mode, type Particle, type PlayerView, type Pose, type State,
@@ -33,6 +34,7 @@ import * as NetRace from './net/netRace';
 import * as NetScreens from './screens/netScreens';
 import * as Menus from './screens/menus';
 import * as InputRouter from './app/inputRouter';
+import * as Welcome from './screens/welcome';
 import { drawNetOverlay } from './race/spectate';
 
 /** Served from the online server's own domain (https, not an IP/localhost): that same host is the server. */
@@ -47,6 +49,9 @@ export class Game {
   mode: Mode = 'free';
   /** progression (GDD §9): unlocks and records, saved with versions and migrations */
   progress: Progress = loadProgress();
+  /** who is playing on this device (name + id for rejoining online races), see screens/welcome.ts */
+  profile: Profile = loadProfile();
+  welcome: { page: number; name: string; first: boolean } | null = null;
   /** `?desbloquear` in the URL (or the LAN host option) opens everything */
   allUnlocked = typeof location !== 'undefined' && new URLSearchParams(location.search).has('desbloquear');
   cls: EngineClass = '100';
@@ -75,7 +80,7 @@ export class Game {
   lanField = 0;
   lanFound: { name: string; address: string; port: number; players: number }[] = [];
   lanHosting: string[] | null = null;
-  lanName = 'Jugador';
+  lanName = loadProfile().name || 'Jugador';
   lanAddr = typeof location !== 'undefined' && location.hostname && location.hostname !== '' ? location.hostname : 'localhost';
   optSel = 0;
   /** online: server address (remembered), room code and the selected field (0 name, 1 server, 2 code, 3 create, 4 join) */
@@ -114,6 +119,8 @@ export class Game {
   /** visual-only animation timers per kart */
   /** online spectator: kart the camera follows after you finish (-1 = none) */
   specId = -1;
+  /** online: the connection dropped mid-race and we are trying to come back (seconds lost, seconds to the next try) */
+  recon: { t: number; next: number } | null = null;
   specT = 0;
   trickAnim = new Map<number, number>();
   squash = new Map<number, number>();
@@ -253,7 +260,7 @@ export class Game {
       const i = Math.floor(this.attract) % tr.N, x = tr.x[i]!, y = tr.y[i]!;
       this.updateCam(dt, x, y, tr.ang[i]!, hAt(tr, x, y));
       this.renderWorld(t, []);
-      ({ title: () => this.drawTitle(t), menu: () => this.drawMenu(t), options: () => this.drawOptions(), controls: () => this.drawControls(), lan: () => this.drawLan(t), online: () => this.drawOnline(t), lobby: () => this.drawLobby(t), select: () => this.drawSelect(t), cup: () => this.drawCupSel(t), track: () => this.drawTrackSel() } as Record<string, () => void>)[this.state]!();
+      ({ title: () => this.drawTitle(t), welcome: () => Welcome.drawWelcome(this, t), menu: () => this.drawMenu(t), options: () => this.drawOptions(), controls: () => this.drawControls(), lan: () => this.drawLan(t), online: () => this.drawOnline(t), lobby: () => this.drawLobby(t), select: () => this.drawSelect(t), cup: () => this.drawCupSel(t), track: () => this.drawTrackSel() } as Record<string, () => void>)[this.state]!();
       A.engineSet(false, 0);
     } else if (this.world) {
       const w = this.world, p = this.local!;
@@ -283,7 +290,8 @@ export class Game {
           ui.txt(n > 0 ? String(n) : '', W / 2, H / 2 - 40, '#ffe45e', 40, 'center');
           ui.txt(this.tr.def.name, W / 2, 34, '#fff7e0', 8, 'center');
           ui.txtS('Truco: acelera justo en el 1 para salir con turbo', W / 2, H - 30);
-        } else { this.drawHUDs(this.paused ? 0 : dt); if (this.net) drawNetOverlay(this); }
+        } else this.drawHUDs(this.paused ? 0 : dt);
+        if (this.net) drawNetOverlay(this);
         A.engineSet(!this.paused, p.speed + (p.boost > 0 ? 40 : 0));
         this.audioFrame(w, p);
         if (this.paused) { ui.bg(0.7); ui.txt('Pausa', W / 2, 80, '#ffe45e', 24, 'center'); ui.txt('P para seguir', W / 2, 130, '#fff7e0', 8, 'center'); ui.txt('Esc para salir al menú', W / 2, 146, '#fff7e0', 8, 'center'); }
@@ -360,6 +368,7 @@ export class Game {
     Options.controlsInput(this, code, ok, back, U, D);
   }
   keyName(code: string) { return Options.keyName(code); }
+  openWelcome(first: boolean) { Welcome.openWelcome(this, first); }
   private drawOptions() { Options.drawOptions(this); }
   private drawControls() { Options.drawControls(this); }
 

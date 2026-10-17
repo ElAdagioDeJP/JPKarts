@@ -1,7 +1,7 @@
 // Network race lifecycle: LAN + online (WebSocket to the authoritative server).
 // Transport details stay in net/session.ts; this module wires a NetSession to a Game.
 // Game delegates here so LAN/online changes don't touch the orchestrator.
-import { SIM_DT } from '@jpkart/core';
+import { SIM_DT, T } from '@jpkart/core';
 import { newView } from '../app/types';
 import type { Mode } from '../app/types';
 import { assignSources, PlayerInput } from '../input/players';
@@ -9,6 +9,18 @@ import { NetSession, desktop } from './session';
 import { localInput } from '../race/localRace';
 import { updateSpectate } from '../race/spectate';
 import type { Game } from '../game';
+
+/** A session wired to the game: when the server starts a race the game switches to it, when it ends the results show. */
+function makeSession(g: Game, url: string, name: string, opts?: { room?: string; create?: boolean; pid?: string }) {
+  return new NetSession(
+    url,
+    name || 'Jugador',
+    (i, mirror) => g.tracks.ensureBuilt(i, [g.tr], mirror),
+    () => startNetRace(g),
+    () => { g.state = 'results'; },
+    opts,
+  );
+}
 
 export function connectLan(
   g: Game,
@@ -18,17 +30,32 @@ export function connectLan(
 ) {
   g.net?.close();
   g.netOnline = !!online;
-  const net = new NetSession(
-    online ? NetSession.onlineUrl(addr) : NetSession.urlFrom(addr),
-    name || 'Jugador',
-    (i, mirror) => g.tracks.ensureBuilt(i, [g.tr], mirror),
-    () => startNetRace(g),
-    () => { g.state = 'results'; },
-    online,
-  );
+  g.recon = null;
+  // the profile id lets the server give our kart back if the connection drops mid-race
+  const opts = { ...(online ?? {}), pid: g.profile.id || undefined };
+  const net = makeSession(g, online ? NetSession.onlineUrl(addr) : NetSession.urlFrom(addr), name, opts);
   g.net = net;
   net.connect();
   g.state = 'lobby';
+}
+
+/** The connection dropped (or went silent) mid-race: try again every 2 s, same room and profile, for `T.race.awayKeep` s at most. */
+function reconnectTick(g: Game, dt: number) {
+  const old = g.net!, rc = (g.recon ??= { t: 0, next: 0 });
+  rc.t += dt; rc.next -= dt;
+  if (rc.t > Math.min(40, T.race.awayKeep)) {
+    g.recon = null;
+    g.toast('No se pudo volver a la carrera: ' + (old.error || 'sin conexión'));
+    leaveNet(g);
+    return;
+  }
+  if (old.status === 'closed' && rc.next <= 0) {
+    rc.next = 2;
+    old.ws?.close();
+    const net = makeSession(g, old.url, old.name, { ...(old.room ? { room: old.room } : {}), pid: g.profile.id || undefined });
+    g.net = net;
+    net.connect();
+  }
 }
 
 export function leaveNet(g: Game) {
@@ -59,13 +86,17 @@ export function startNetRace(g: Game) {
   g.mode = r.cfg.mode === 'race' || !r.cfg.mode ? 'free' : (r.cfg.mode as Mode);
   for (const v of g.views) { g.v = v; g.rig.cut(g.camTarget()!, g.tr); }
   g.v = g.views[0]!;
-  g.specId = -1; g.specT = 0;
+  g.specId = -1; g.specT = 0; g.recon = null;
   g.acc = 0; g.banner = null; g.flashT = 0; g.parts = []; g.paused = false; g.incoming = null;
   g.state = 'race';
 }
 
 export function simulateNet(g: Game, dt: number) {
-  const net = g.net!, r = net.race!;
+  const net = g.net!, r = net.race;
+  // dropped line or silent server: show it and try to come back (the server keeps our kart on AI meanwhile)
+  if (net.status === 'race' && net.go && net.lastSnapAt && performance.now() - net.lastSnapAt > 4000) net.abandon();
+  if (!r || net.status !== 'race') { g.acc = 0; reconnectTick(g, dt); return; }
+  if (!net.go) { g.acc = 0; return; } // waiting for the other players to finish loading
   g.acc = Math.min(g.acc + dt, SIM_DT * 5);
   const t0 = performance.now();
   while (g.acc >= SIM_DT) {

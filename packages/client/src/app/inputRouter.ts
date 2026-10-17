@@ -3,6 +3,7 @@
 // New states register a case here without touching race/render code.
 import { CHARS, CLASSES, CUPS, classUnlocked, cupUnlocked, recordCup } from '@jpkart/core';
 import { saveProgress } from '../meta/store';
+import { welcomeInput } from '../screens/welcome';
 import { isArena, type Mode } from './types';
 import { spectateStep, spectating } from '../race/spectate';
 import type { Game } from '../game';
@@ -31,7 +32,7 @@ export function onPress(g: Game, code: string) {
   const I = g.input, A = g.audio;
   const ok = I.is(code, 'aceptar'), back = I.is(code, 'atras');
   const L = I.is(code, 'izquierda'), R = I.is(code, 'derecha'), U = I.is(code, 'arriba'), D = I.is(code, 'abajo');
-  if (I.is(code, 'sonido')) A.muted = !A.muted;
+  if (I.is(code, 'sonido') && !I.textMode) A.muted = !A.muted;
   if (code === 'F2') g.showPerf = !g.showPerf;
   if (code === 'F3') g.dbg.track = !g.dbg.track;
   if (code === 'F4') g.dbg.ai = !g.dbg.ai;
@@ -41,6 +42,7 @@ export function onPress(g: Game, code: string) {
   if (code === 'PageDown' && g.dbg.track && g.tr.authored && g.dbg.bumpHeight(g.tr, -1)) g.rebuildAuthored();
   switch (g.state) {
     case 'title': if (ok) { g.state = 'menu'; A.blip(); } break;
+    case 'welcome': welcomeInput(g, code, ok, back, L, R); break;
     case 'menu':
       if (U) { g.menuSel = (g.menuSel + 8) % 9; A.blip(); }
       if (D) { g.menuSel = (g.menuSel + 1) % 9; A.blip(); }

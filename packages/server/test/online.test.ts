@@ -39,7 +39,7 @@ test('online: las salas están aisladas y una sala vacía se cierra', () => {
   expect(on.rooms.size).toBe(2);
   expect(a.last('lobby')!.players.length).toBe(1);
   expect(b.last('lobby')!.players.length).toBe(1);
-  a.say({ t: 'start' });
+  a.say({ t: 'start' }); a.say({ t: 'loaded', rid: 1 });
   for (let i = 0; i < 120; i++) on.tick();
   const [ra, rb] = [...on.rooms.values()];
   expect(ra!.phase).toBe('race');
@@ -57,7 +57,7 @@ test('online: el servidor no confía en el cliente (inputs inválidos, nombres, 
   a.say({ t: 'settings', s: { mode: 'hack', trackIndex: 18, cup: 0, diff: 1, laps: 3 } });
   const room = [...on.rooms.values()][0]!;
   expect(room.settings).toMatchObject({ mode: 'cup', trackIndex: 17 }); // both rejected: still the defaults
-  a.say({ t: 'start' });
+  a.say({ t: 'start' }); a.say({ t: 'loaded', rid: 1 });
   on.tick();
   const p = room.players.get(a.conn.id)!;
   a.say({ t: 'in', i: [[1, NaN, 0, 0, 0], [2, 9999, 0, 0, 0], [3, 127, 0, 2, 0], 'x', [4, 1.5, 0, 0, 0]] });
@@ -73,7 +73,7 @@ test('online: límite de mensajes por segundo y mensajes basura', () => {
   const a = client();
   a.say({ ...hello, name: 'A', create: true });
   const room = [...on.rooms.values()][0]!;
-  a.say({ t: 'start' });
+  a.say({ t: 'start' }); a.say({ t: 'loaded', rid: 1 });
   on.tick();
   const p = room.players.get(a.conn.id)!;
   for (let i = 0; i < 1000; i++) a.say({ t: 'in', i: [[10 + i, 127, 0, 0, 0]] });

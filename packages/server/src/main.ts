@@ -18,7 +18,10 @@ export function startServer(port = LAN_PORT, log: (m: string) => void = console.
       try { m = JSON.parse(String(data)); } catch { return; }
       room.onMessage(conn, m);
     });
-    ws.on('close', () => room.leave(conn.id));
+    let alive = true;
+    ws.on('pong', () => { alive = true; });
+    const beat = setInterval(() => { if (!alive) { ws.terminate(); return; } alive = false; ws.ping(); }, 10_000);
+    ws.on('close', () => { clearInterval(beat); room.leave(conn.id); });
   });
   // fixed 60 Hz loop with an accumulator (catches up after hiccups, at most 5 ticks)
   let last = performance.now(), acc = 0;

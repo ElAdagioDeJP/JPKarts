@@ -53,7 +53,20 @@ export function spectateStep(g: Game, dir: 1 | -1) {
 
 /** Banner for the spectator + the stragglers' clock (visible to everybody once the first human finished). */
 export function drawNetOverlay(g: Game) {
-  const w = g.world!, ui = g.ui;
+  const w = g.world!, ui = g.ui, net = g.net;
+  if (g.recon) {
+    ui.bg(0.6);
+    ui.txt('Conexión perdida', W / 2, H / 2 - 22, '#ff6a6a', 16, 'center');
+    ui.txt('Volviendo a la carrera… ' + Math.floor(g.recon.t) + ' s', W / 2, H / 2 + 4, '#fff7e0', 8, 'center');
+    ui.txtS('Esc: salir', W / 2, H / 2 + 22, '#9c95d6');
+    return;
+  }
+  if (net && net.status === 'race' && !net.go) {
+    ui.bg(0.55);
+    ui.txt('Esperando a los demás jugadores…', W / 2, H / 2 - 12, '#ffe45e', 8, 'center');
+    if (net.loading) ui.txt(net.loading.done + ' / ' + net.loading.total + ' listos', W / 2, H / 2 + 6, '#fff7e0', 8, 'center');
+    return;
+  }
   if (w.cfg.lastCall && w.lastCall >= 0 && w.finishDelay <= 0) {
     const s = Math.ceil(w.lastCall), urgent = s <= 10;
     ui.txt('¡Termina la carrera!', W / 2, 50, '#ffe45e', 8, 'center');

@@ -1,5 +1,4 @@
 // Item registry. Definitions live in core/src/items/<id>.ts (one file per item).
-import { dpow } from '../dmath';
 import { T } from '../tunables';
 import { emit, isHuman } from './helpers';
 import type { Kart, World } from './types';
@@ -9,7 +8,7 @@ export type ItemRole = 'ataque' | 'defensa' | 'movilidad' | 'caos' | 'trampa';
 export interface ItemDef {
   id: string;
   name: string;
-  /** base weight (relative probability) */
+  /** legacy base weight; the odds that rule are the per-zone weights in items.json (`zones`) */
   w: number;
   role: ItemRole;
   /** AI: do not use while first */
@@ -46,14 +45,18 @@ export const itemDef = (id: string) => {
 };
 export const itemList = (): readonly (ItemDef & { tier: number })[] => REG;
 
-/** Probability of each item: base weight × position (Mario-style: further back = stronger items). None ever reaches 0. */
+/** Position zone: the field is split in three (0 front, 1 middle, 2 back); 8 karts → ranks 1-3, 4-6, 7-8. */
+export function itemZone(rank: number, n: number): 0 | 1 | 2 {
+  return n > 1 ? (Math.min(2, Math.floor((rank * 3) / n)) as 0 | 1 | 2) : 0;
+}
+
+/**
+ * Weight of each item for a kart at `rank` of `n`: one weight per zone (items.json `zones`, [front, middle, back]).
+ * 0 = never comes out there: the strong items only appear at the back, the basic ones never reach the last zone.
+ */
 export function itemWeights(rank: number, n: number): number[] {
-  const W = T.items.weights, b = n > 1 ? rank / (n - 1) : 0, R = REG.filter((it) => !it.noRoll).length;
-  return REG.map((it, i) => {
-    if (it.noRoll) return 0;
-    const t = (2 * i) / (R - 1);
-    return it.w * dpow(W.posBase + W.posRange * b, t);
-  });
+  const z = itemZone(rank, n), Z = T.items.zones as Record<string, number[]>;
+  return REG.map((it) => (it.noRoll ? 0 : Z[it.id]?.[z] ?? 0));
 }
 
 /**

@@ -39,6 +39,7 @@ export function optionRows(g: Game): [string, string][] {
     ['Derrape', S.driftToggle ? 'Alternar' : 'Mantener'],
     ['Controles…', ''],
     ['Restaurar valores', ''],
+    ['Tutorial y nombre: ' + g.profile.name, ''],
     ['Volver', ''],
   ];
 }
@@ -62,7 +63,8 @@ export function optionsInput(g: Game, _code: string, ok: boolean, back: boolean,
     case 7: S.driftToggle = !S.driftToggle; break;
     case 8: if (ok) { g.state = 'controls'; g.ctlSel = 0; } break;
     case 9: if (ok) { g.settings = structuredClone(DEFAULT_SETTINGS); g.input.resetBindings(); g.toast('Valores restaurados'); } break;
-    case 10: if (ok) { storeSettings(g); g.state = 'menu'; return; } break;
+    case 10: if (ok) { storeSettings(g); g.openWelcome(false); return; } break;
+    case 11: if (ok) { storeSettings(g); g.state = 'menu'; return; } break;
   }
   A.blip();
   storeSettings(g);

@@ -17,6 +17,8 @@ export const ONLINE_LIMITS = {
   maxPayload: 8 * 1024,
   /** a connection that never says hello is closed after this many ms */
   helloTimeout: 10_000,
+  /** ping every this many ms; a connection that never answers is dropped (keeps proxies from closing idle sockets, frees dead players) */
+  heartbeat: 10_000,
 };
 
 const MIME: Record<string, string> = {
@@ -116,7 +118,10 @@ export function startOnlineServer(port = Number(process.env.PORT ?? LAN_PORT), l
     const conn: Conn = { id: nextId++, send: (m) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m)); }, close: () => ws.close() };
     const hello = setTimeout(() => { if (!core.rooms.size || ![...core.rooms.values()].some((r) => r.players.has(conn.id))) ws.close(); }, limits.helloTimeout);
     ws.on('message', (data) => core.onMessage(conn, String(data)));
-    ws.on('close', () => { clearTimeout(hello); core.onClose(conn); });
+    let alive = true;
+    ws.on('pong', () => { alive = true; });
+    const beat = setInterval(() => { if (!alive) { ws.terminate(); return; } alive = false; ws.ping(); }, limits.heartbeat);
+    ws.on('close', () => { clearTimeout(hello); clearInterval(beat); core.onClose(conn); });
     ws.on('error', () => ws.close());
   });
   let last = performance.now(), acc = 0;
