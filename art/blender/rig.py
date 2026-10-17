@@ -14,13 +14,13 @@ BONE_NAMES = ['root', 'spine', 'chest', 'neck', 'head',
 
 
 def bone_table(s_x=0.17, shoulder_z=0.335, elbow=(0.205, 0.13, 0.255), wrist=(0.105, 0.30, 0.30), hand_tip=(0.095, 0.40, 0.30),
-               head_z=0.53, top_z=0.95):
+               head_z=0.53, top_z=0.95, chest_top=0.42):
     """(name, parent, head, tail) for the 11 mandatory bones. Arms follow the shoulder/elbow/wrist points of the model."""
     rows = [
         ('root', None, (0, 0, 0), (0, 0, 0.08)),
         ('spine', 'root', (0, 0, 0.08), (0, 0, 0.20)),
-        ('chest', 'spine', (0, 0, 0.20), (0, 0, 0.42)),
-        ('neck', 'chest', (0, 0, 0.42), (0, 0, head_z)),
+        ('chest', 'spine', (0, 0, 0.20), (0, 0, chest_top)),
+        ('neck', 'chest', (0, 0, chest_top), (0, 0, head_z)),
         ('head', 'neck', (0, 0, head_z), (0, 0, top_z)),
     ]
     for s, side in ((-1, 'L'), (1, 'R')):

@@ -71,6 +71,17 @@ def ellipsoid(name, center, radii, mat, segs=24, rings=14, rot=(0, 0, 0)):
     return _finish(obj, mat)
 
 
+def clamp_z(obj, lo=None, hi=None):
+    """Flattens the mesh of `obj` (local Z) at lo / hi: a dome or a chin cap from a whole ellipsoid (the cut stays closed)."""
+    for v in obj.data.vertices:
+        if lo is not None and v.co.z < lo:
+            v.co.z = lo
+        if hi is not None and v.co.z > hi:
+            v.co.z = hi
+    obj.data.update()
+    return obj
+
+
 def capsule(name, p0, p1, r0, r1, mat, segs=10):
     """A tapered capsule from p0 to p1 (radius r0 -> r1), built from a cylinder + two end spheres merged into one mesh."""
     p0, p1 = Vector(p0), Vector(p1)
