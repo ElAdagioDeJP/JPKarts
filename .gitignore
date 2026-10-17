@@ -14,3 +14,14 @@ backup-local-v1/
 shots-ui/
 shots-perf/
 shots-ref/
+
+# Blender (V3-6a): only the review sheets are tracked, not every intermediate render
+art/blender/__pycache__/
+art/blender/*.blend1
+art/blender/renders/*
+!art/blender/renders/*_sheet.png
+!art/blender/renders/*_turnaround.png
+!art/blender/renders/jp_front.png
+!art/blender/renders/jp_back.png
+!art/blender/renders/jp_34.png
+!art/blender/renders/jp_side.png
