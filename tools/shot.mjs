@@ -1,5 +1,5 @@
 // Smoke test in a real browser: boots the client, drives menus, takes screenshots.
-// Usage: node tools/shot.mjs [outDir] [--webgl] [--race-seconds=N] [--mobile] [--track-slot=N]
+// Usage: node tools/shot.mjs [outDir] [--webgl] [--race-seconds=N] [--mobile] [--track-slot=N] [--port=N]
 // M5 móvil: --mobile emula 844×390 táctil (isMobile + touch) y vuelca el estado táctil.
 import { chromium } from 'playwright';
 import fs from 'node:fs';
@@ -11,6 +11,8 @@ const raceArg = process.argv.find((a) => a.startsWith('--race-seconds='));
 const raceSeconds = raceArg ? Number(raceArg.split('=')[1]) : 6;
 const slotArg = process.argv.find((a) => a.startsWith('--track-slot='));
 const trackSlot = slotArg ? Number(slotArg.split('=')[1]) : 0;
+const portArg = process.argv.find((a) => a.startsWith('--port='));
+const port = portArg ? Number(portArg.split('=')[1]) : 5173;
 fs.mkdirSync(out, { recursive: true });
 
 const launchOpts = { headless: true, args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-angle=d3d11', '--ignore-gpu-blocklist'] };
@@ -25,7 +27,7 @@ const logs = [];
 page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`));
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
 const qs = [webgl ? 'webgl' : '', mobile ? 'mobile' : ''].filter(Boolean).join('&');
-await page.goto('http://localhost:5173/' + (qs ? '?' + qs : ''));
+await page.goto(`http://localhost:${port}/` + (qs ? '?' + qs : ''));
 await page.waitForFunction(() => !!window.__jpkart, null, { timeout: 30000 });
 const backend = await page.evaluate(() => window.__jpkart.renderer.backend);
 const mobileState = mobile ? await page.evaluate(() => ({
@@ -37,16 +39,39 @@ const mobileState = mobile ? await page.evaluate(() => ({
 if (mobileState) console.log('mobile', JSON.stringify(mobileState));
 await page.waitForTimeout(1500);
 await page.screenshot({ path: `${out}/01-title.png` });
-const key = async (k, n = 1) => { for (let i = 0; i < n; i++) { await page.keyboard.press(k); await page.waitForTimeout(120); } };
-await key('Enter'); // title → menu
-await key('ArrowDown'); // carrera libre
-await key('Enter'); // → select
+const key = async (k, n = 1) => { for (let i = 0; i < n; i++) { await page.keyboard.press(k); await page.waitForTimeout(150); } };
+const cur = () => page.evaluate(() => window.__jpkart.state);
+// Sin GPU los primeros frames compilan shaders y el input va con retardo:
+// se pulsa hasta llegar al estado querido en vez de contar teclas a ciegas.
+const pressUntil = async (k, want, tries = 40) => {
+  for (let i = 0; i < tries; i++) {
+    if ((await cur()) === want) return true;
+    await key(k);
+  }
+  return (await cur()) === want;
+};
+// Primera ejecución (perfil fresco): saltar el tutorial y poner nombre.
+if ((await cur()) === 'welcome') {
+  await key('Escape'); // tutorial → página de nombre
+  await page.waitForTimeout(400);
+  await page.keyboard.type('Movil');
+  await pressUntil('Enter', 'title');
+  await page.waitForTimeout(300);
+}
+await pressUntil('Enter', 'menu'); // title → menu
+// Carrera libre (menuSel 1): se verifica, no se supone.
+for (let i = 0; i < 10; i++) {
+  const sel = await page.evaluate(() => window.__jpkart.menuSel);
+  if (sel === 1) break;
+  await key(sel > 1 ? 'ArrowUp' : 'ArrowDown');
+}
+await pressUntil('Enter', 'select'); // menu → pilotos
 await page.screenshot({ path: `${out}/02-select.png` });
-await key('Enter'); // → track
+await pressUntil('Enter', 'track'); // pilotos → pista
 await key('ArrowRight', trackSlot);
 await page.screenshot({ path: `${out}/03-track.png` });
-await key('Enter'); // start race
-await page.waitForFunction(() => window.__jpkart.state === 'race', null, { timeout: 60000 });
+await key('Enter'); // start race (loading → race; la pista compila shaders)
+await page.waitForFunction(() => window.__jpkart.state === 'race', null, { timeout: 180000 });
 await page.waitForTimeout(1500);
 await page.screenshot({ path: `${out}/04-countdown.png` });
 await page.keyboard.down('ArrowUp');

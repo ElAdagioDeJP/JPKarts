@@ -1,0 +1,4 @@
+backend=WebGPU
+{"fps":56.25606207565468,"sim":0.40000000037252903,"render":2.199999999254942,"drawCalls":60,"backend":"WebGPU","state":"race","phase":"race","speed":154.86728649981941,"prog":-55,"rank":7}
+[debug] [vite] connecting...
+[debug] [vite] connected.

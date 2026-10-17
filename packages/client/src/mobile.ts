@@ -8,7 +8,12 @@ export function isMobileDevice(): boolean {
     if (typeof navigator === 'undefined') return false;
     const nav = navigator as Navigator & { maxTouchPoints?: number; userAgent?: string };
     if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-      try { if (window.matchMedia('(pointer: coarse)').matches) return true; } catch { /* noop */ }
+      try {
+        if (window.matchMedia('(pointer: coarse)').matches) {
+          // Móvil real o emulación táctil: basta el puntero grueso (con o sin UA móvil).
+          if (((nav.maxTouchPoints ?? 0) > 0) || /Android|iPhone|iPad|iPod|Mobile/i.test(nav.userAgent ?? '')) return true;
+        }
+      } catch { /* noop */ }
     }
     if ((nav.maxTouchPoints ?? 0) > 0 && /Android|iPhone|iPad|iPod|Mobile/i.test(nav.userAgent ?? '')) return true;
     return /Android|iPhone|iPad|iPod/i.test(nav.userAgent ?? '');
