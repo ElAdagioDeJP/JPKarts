@@ -45,3 +45,116 @@ body {
 .help span { white-space: nowrap; }
 kbd { font-family: inherit; font-size: 7px; display: inline-block; padding: 3px 5px; margin-right: 5px; background: var(--key); color: var(--ink); border: 2px solid var(--keyedge); border-bottom-width: 4px; }
 body.fullscreen .help { display: none; }
+
+/* ---- M0 móvil: shell landscape fullscreen + safe-area ---- */
+body.mobile {
+  gap: 0;
+}
+body.mobile #stage {
+  width: 100dvw;
+  height: 100dvh;
+  aspect-ratio: auto;
+  border: 0;
+  box-shadow: none;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+body.mobile .help { display: none; }
+#rotate-tip {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  font-size: 14px;
+  line-height: 2;
+  background: var(--bg);
+}
+@media (orientation: portrait) {
+  body.mobile #rotate-tip { display: flex; }
+  body.mobile #stage { visibility: hidden; }
+}
+/* Entrada de texto oculta: solo convoca el teclado virtual en iOS/Android. */
+#mobile-text {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  pointer-events: none;
+}
+body.mobile.typing #mobile-text { pointer-events: auto; }
+/* Botón de sonido visible en móvil (no hay tecla M). */
+#mute-btn {
+  display: none;
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  right: calc(env(safe-area-inset-right, 0px) + 8px);
+  z-index: 30;
+  min-width: 48px;
+  min-height: 48px;
+  font: inherit;
+  font-size: 8px;
+  color: var(--ink);
+  background: rgba(27, 23, 64, 0.8);
+  border: 2px solid var(--keyedge);
+}
+body.mobile #mute-btn { display: block; }
+/* ---- M1 táctil: overlay de controles (solo visible en carrera) ---- */
+#touch {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+body.mobile.racing #touch { display: block; }
+#touch .joy-base {
+  position: absolute;
+  width: 112px;
+  height: 112px;
+  margin: -56px 0 0 -56px;
+  border: 2px solid rgba(255, 247, 224, 0.6);
+  border-radius: 50%;
+  background: rgba(27, 23, 64, 0.35);
+  pointer-events: none;
+}
+#touch .joy-knob {
+  position: absolute;
+  width: 52px;
+  height: 52px;
+  margin: -26px 0 0 -26px;
+  border-radius: 50%;
+  background: rgba(255, 228, 94, 0.85);
+  pointer-events: none;
+}
+#touch .tbtn {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  min-height: 56px;
+  font: inherit;
+  font-size: 8px;
+  color: var(--ink);
+  background: rgba(47, 42, 107, 0.78);
+  border: 2px solid var(--keyedge);
+  border-radius: 12px;
+  touch-action: none;
+  pointer-events: auto;
+}
+#touch .tbtn:active { transform: scale(0.92); }
+#touch .tbtn.gas {
+  width: 84px;
+  height: 84px;
+  background: rgba(60, 120, 60, 0.8);
+}
+#touch .tbtn.item { background: rgba(150, 90, 10, 0.85); }

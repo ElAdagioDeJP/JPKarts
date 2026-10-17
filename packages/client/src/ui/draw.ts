@@ -3,6 +3,12 @@ import { OUT } from '../art/pixel';
 
 export const W = 426, H = 240, UI_SCALE = 3;
 export const FONT = '"Press Start 2P", ui-monospace, monospace';
+/**
+ * M2 táctil: el dedo tapa ~40 px, así que el tap-target mínimo es 56 px CSS.
+ * Las hitboxes táctiles van separadas de las visuales: lo que se ve puede ser
+ * pequeño (icono 24px) pero su zona de toque es ≥56px (ver TouchControls).
+ */
+export const TAP_MIN_PX = 56;
 
 export class Ui {
   ctx: CanvasRenderingContext2D;

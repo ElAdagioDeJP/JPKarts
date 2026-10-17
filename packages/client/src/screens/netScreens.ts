@@ -8,7 +8,27 @@ import { FACES } from '../art/sprites';
 import { isArena, type Mode } from '../app/types';
 import { W } from '../ui/draw';
 import { desktop } from '../net/session';
+import { copyText, isMobileDevice, pasteText } from '../mobile';
 import type { Game } from '../game';
+
+/** M1: copia el código de sala al portapapeles (botón "copiar" del lobby). */
+export async function copyRoomCode(g: Game): Promise<boolean> {
+  const room = g.net?.room;
+  if (!room) { g.toast('Aún no hay sala'); return false; }
+  const ok = await copyText(room);
+  g.toast(ok ? 'Código ' + room + ' copiado' : 'No se pudo copiar');
+  return ok;
+}
+
+/** M1: pega el código desde el portapapeles al campo (botón "Pegar"). */
+export async function pasteRoomCode(g: Game): Promise<boolean> {
+  const raw = (await pasteText()).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+  if (!raw) { g.toast('Portapapeles vacío'); return false; }
+  g.onlineCode = raw;
+  g.onlineField = 4;
+  g.toast('Código pegado: ' + raw);
+  return true;
+}
 
 /** LAN menu fields: 0 name, 1 address, then (desktop app) 2 create game, 3 search, 4.. found games. */
 export function lanFieldCount(g: Game) { return desktop() ? 4 + g.lanFound.length : 2; }
@@ -43,6 +63,9 @@ export function lanInput(g: Game, code: string, back: boolean, U: boolean, D: bo
 
 export function onlineInput(g: Game, code: string, back: boolean, U: boolean, D: boolean) {
   if (back) { g.input.textMode = false; g.state = 'menu'; return; }
+  // M1 móvil: C copia el servidor/código, V pega el código desde el portapapeles.
+  if (code === 'KeyC' && g.onlineCode) { void copyText(g.onlineCode).then((ok) => g.toast(ok ? 'Código copiado' : 'No se pudo copiar')); return; }
+  if (code === 'KeyV') { void pasteRoomCode(g); return; }
   if (U) g.onlineField = (g.onlineField + 4) % 5;
   if (D || code === 'Tab') g.onlineField = (g.onlineField + 1) % 5;
   g.input.textMode = g.onlineField < 3;
@@ -69,6 +92,8 @@ export function lobbyInput(g: Game, _code: string, ok: boolean, back: boolean, L
   const net = g.net;
   if (!net) { g.state = 'menu'; return; }
   if (back) { g.leaveNet(); return; }
+  // M1: C copia el código de sala para pasarlo al otro dispositivo.
+  if (_code === 'KeyC' && net.room) { void copyRoomCode(g); return; }
   if (net.status === 'closed') {
     if (ok) { g.state = net.url.startsWith('wss') || g.netOnline ? 'online' : 'lan'; g.input.textMode = true; }
     return;
@@ -107,23 +132,27 @@ export function lobbyInput(g: Game, _code: string, ok: boolean, back: boolean, L
 
 export function drawOnline(g: Game, t: number) {
   const ui = g.ui, ox = (W - 300) / 2, caret = ((t * 2) | 0) % 2 ? '_' : ' ';
+  // M2 móvil: campos más altos (filas dedo-grande) y ayuda de copiar/pegar.
+  const mob = (() => { try { return isMobileDevice(); } catch { return false; } })();
+  const fh = mob ? 26 : 18, gap = mob ? 44 : 36, y0 = mob ? 40 : 36;
   typeInto(g);
   ui.bg(0.85);
   ui.txt('Online', W / 2, 10, '#ffe45e', 16, 'center');
   ([['Tu nombre', g.lanName], ['Servidor (dominio o IP:puerto)', g.onlineAddr], ['Código de sala (para unirte)', g.onlineCode]] as const)
     .forEach(([k, v], i) => {
-      const y = 36 + i * 36, on = i === g.onlineField;
+      const y = y0 + i * gap, on = i === g.onlineField;
       ui.txtS(k, ox, y, '#9c95d6', 'left');
-      ui.panel(ox, y + 10, 300, 18, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
-      ui.txt(v + (on ? caret : ''), ox + 6, y + 15, '#fff7e0');
+      ui.panel(ox, y + 10, 300, fh, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
+      // M1: el código se lee grande (el lobby lo muestra a 24px).
+      ui.txt(v + (on ? caret : ''), ox + 6, y + 15, '#fff7e0', i === 2 && mob ? 12 : 8);
     });
   ['Crear sala nueva', 'Unirse con el código'].forEach((r, i) => {
-    const y = 150 + i * 18, on = g.onlineField === 3 + i;
-    ui.panel(ox, y, 300, 15, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
+    const y = (mob ? 176 : 150) + i * (mob ? 24 : 18), on = g.onlineField === 3 + i;
+    ui.panel(ox, y, 300, mob ? 21 : 15, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
     ui.txt(r, W / 2, y + 4, on ? '#ffe45e' : '#fff7e0', 8, 'center');
   });
-  ui.txtS('Crea la sala y pasa el código a tus amigos. La conexión va cifrada (wss).', W / 2, 202, '#fff7e0');
-  ui.txtS('Intro: crear o unirse · ↑↓ cambia de campo · Esc vuelve', W / 2, 226, '#9c95d6');
+  ui.txtS('Crea la sala y pasa el código a tus amigos. La conexión va cifrada (wss).', W / 2, mob ? 208 : 202, '#fff7e0');
+  ui.txtS(mob ? 'Intro: crear o unirse · C copiar · V pegar · Esc vuelve' : 'Intro: crear o unirse · ↑↓ cambia de campo · Esc vuelve', W / 2, 226, '#9c95d6');
 }
 
 export function drawLan(g: Game, t: number) {
@@ -153,8 +182,16 @@ export function drawLan(g: Game, t: number) {
 
 export function drawLobby(g: Game, t: number) {
   const ui = g.ui, net = g.net, ox = (W - 340) / 2;
+  const mob = (() => { try { return isMobileDevice(); } catch { return false; } })();
   ui.bg(0.85);
-  ui.txt(net?.room ? 'Sala online ' + net.room : 'Sala LAN', W / 2, 8, '#ffe45e', 16, 'center');
+  if (mob && net?.room) {
+    // M2: el código se lee a 30 cm (24px) + copiar con C.
+    ui.txt('Sala online', W / 2, 6, '#ffe45e', 16, 'center');
+    ui.txt(net.room, W / 2, 24, '#fff7e0', 24, 'center');
+    ui.txtS('C: copiar código para el otro dispositivo', W / 2, 50, '#9c95d6');
+  } else {
+    ui.txt(net?.room ? 'Sala online ' + net.room : 'Sala LAN', W / 2, 8, '#ffe45e', 16, 'center');
+  }
   if (!net) return;
   if (net.status === 'connecting') { ui.txt('Conectando a ' + net.url + '...', W / 2, 100, '#fff7e0', 8, 'center'); return; }
   if (net.status === 'closed') {
@@ -166,24 +203,26 @@ export function drawLobby(g: Game, t: number) {
   const what = S.mode === 'cup'
     ? CUPS[S.cup]!.name + (net.phase !== 'lobby' ? ` · carrera ${net.cupRace + 1}` : '')
     : g.tracks.get(S.trackIndex).def.name;
-  ui.panel(ox, 30, 340, 22, '#1b1740', '#6d66b0');
+  // En móvil el código ocupa las filas 6-50: se desplaza el resto +34.
+  const dy = mob && net.room ? 34 : 0;
+  ui.panel(ox, 30 + dy, 340, 22, '#1b1740', '#6d66b0');
   ui.txt(
     ({ cup: 'Copa: ', elimination: 'Eliminación: ', battle: 'Globos: ', capture: 'Captura: ', free: 'Carrera: ' } as Record<string, string>)[S.mode]! + what,
-    ox + 6, 34, '#fff7e0');
+    ox + 6, 34 + dy, '#fff7e0');
   ui.txtS(
     'IA: ' + DIFFS[S.diff]!.name + ' · ' + CLASS_NAMES[(S.cls ?? '100') as EngineClass] + (S.teams ? ' · Equipos' : '') +
     ' · ' + net.players.length + ' humano(s) + ' + (8 - net.players.length) + ' IA',
-    ox + 6, 45, '#9c95d6', 'left');
+    ox + 6, 45 + dy, '#9c95d6', 'left');
   if (S.mode === 'cup') {
     const cw = 340 / CUPS.length;
     CUPS.forEach((c, i) => {
       const on = i === S.cup;
-      ui.panel(ox + i * cw, 54, cw - 2, 10, on ? '#3a3478' : '#241f55', on ? c.col : '#6d66b0');
-      ui.txtS(c.name.replace('Copa ', ''), ox + i * cw + (cw - 2) / 2, 56, on ? c.col : '#9c95d6', 'center');
+      ui.panel(ox + i * cw, 54 + dy, cw - 2, 10, on ? '#3a3478' : '#241f55', on ? c.col : '#6d66b0');
+      ui.txtS(c.name.replace('Copa ', ''), ox + i * cw + (cw - 2) / 2, 56 + dy, on ? c.col : '#9c95d6', 'center');
     });
   }
   net.players.forEach((p, i) => {
-    const y = 68 + i * 18, me = p.id === net.id;
+    const y = 68 + dy + i * 18, me = p.id === net.id;
     ui.panel(ox, y, 340, 15, me ? '#3a3478' : '#241f55', me ? '#ffe45e' : '#6d66b0');
     ui.img(FACES[p.ch]!.cv, ox + 4, y - 1, 16, 16);
     ui.txt(p.name + (p.host ? ' ★' : '') + (p.seat ? ' (pantalla de ' + (net.players.find((q) => q.conn === p.conn && !q.seat)?.name ?? '?') + ')' : ''),

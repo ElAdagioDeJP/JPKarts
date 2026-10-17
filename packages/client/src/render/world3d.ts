@@ -15,6 +15,7 @@ import wingUrl from '../assets/models/wing.glb?inline';
 import shroomUrl from '../assets/models/shroom.glb?inline';
 import { GRADES, Post, type Grade } from './post';
 import { Particles } from './particles';
+import type { QualityTier } from '../mobile';
 import { F, buildGroundTexture, buildScenery, buildSkyGradient, buildSkyStrip, type SceneryItem } from './trackArt';
 
 export const RW = 960, RH = 540; // internal world resolution (16:9, modern smooth HD)
@@ -208,6 +209,9 @@ export class WorldRenderer {
   private waterTex: THREE.CanvasTexture | null = null;
   private baseGrade: Grade = GRADES.grass!;
   private atm = { night: -1, fog: -1 };
+  /** M3: tier de calidad (auto = ahorro en móvil). Por defecto alta = comportamiento PC intacto. */
+  tier: QualityTier = 'alta';
+  private lowFpsT = 0;
 
   /** Weather/time of day (visual only): `night` 0..1 blends the biome grade towards night, `fog` 0..1 pulls the fog in. */
   setAtmosphere(night: number, fog: number) {
@@ -225,8 +229,9 @@ export class WorldRenderer {
     if (f instanceof THREE.Fog) f.color.copy(this.dayBg).multiplyScalar(1 - night * 0.7);
   }
 
-  async init(canvas: HTMLCanvasElement, forceWebGL = false) {
-    this.renderer = new THREE.WebGPURenderer({ canvas, antialias: true, forceWebGL });
+  async init(canvas: HTMLCanvasElement, forceWebGL = false, opts?: { tier?: QualityTier; antialias?: boolean }) {
+    this.tier = opts?.tier ?? 'alta';
+    this.renderer = new THREE.WebGPURenderer({ canvas, antialias: opts?.antialias ?? true, forceWebGL });
     await this.renderer.init();
     this.renderer.setPixelRatio(1);
     this.renderer.setSize(RW, RH, false);
@@ -253,6 +258,61 @@ export class WorldRenderer {
     this.camera.rotation.order = 'YXZ';
     this.post = new Post(this.renderer, this.scene, this.camera);
     this.particles = new Particles(this.scene);
+    this.applyTier(this.tier);
+  }
+
+  /** M3: aplica un tier de calidad sin tocar la sim. Alta = PC intacto. */
+  applyTier(t: QualityTier) {
+    this.tier = t;
+    const r = this.renderer;
+    try {
+      const dpr = typeof window !== 'undefined' && window.devicePixelRatio ? window.devicePixelRatio : 1;
+      r.setPixelRatio(t === 'ahorro' ? Math.min(dpr, 1.5) : Math.min(dpr, 2));
+    } catch { r.setPixelRatio(1); }
+    const saving = t === 'ahorro';
+    // Sombras: 2048 (PC legacy) → 1024 en alta, OFF en ahorro.
+    try {
+      this.sun.castShadow = !saving;
+      r.shadowMap.enabled = !saving;
+      this.sun.shadow.mapSize.set(saving ? 512 : 1024, saving ? 512 : 1024);
+      const m = this.sun.shadow.map as { dispose?: () => void } | null;
+      if (m && typeof m.dispose === 'function') { m.dispose(); (this.sun.shadow as { map: unknown }).map = null; }
+      this.scene.traverse((o) => {
+        const mm = o as THREE.Mesh;
+        const mats = (mm as { material?: { needsUpdate?: boolean } | { needsUpdate?: boolean }[] }).material;
+        if (mats) for (const x of Array.isArray(mats) ? mats : [mats]) x.needsUpdate = true;
+      });
+    } catch { /* sombras opcionales */ }
+    try {
+      r.toneMapping = saving ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
+      r.toneMappingExposure = saving ? 1 : 1.1;
+    } catch { /* noop */ }
+    try {
+      if (this.particles) this.particles.cap = saving ? 256 : 1024;
+      if (this.post) {
+        if (saving) { this.post.setBloom(0); this.post.setVignette(0.12); }
+        else if (this.track) this.post.setBloom(this.track.th.style === 'grid' || this.track.th.style === 'rock' ? 0.45 : 0.15);
+        else this.post.setBloom(0.15);
+      }
+    } catch { /* noop */ }
+  }
+
+  /** M3: auto-downgrade si fps<40 durante 3 s seguidos. Devuelve true al bajar. */
+  noteFps(fps: number, dt: number): boolean {
+    if (this.tier !== 'alta') { this.lowFpsT = 0; return false; }
+    if (fps < 40 && fps > 0) this.lowFpsT += dt;
+    else this.lowFpsT = 0;
+    if (this.lowFpsT >= 3) {
+      this.lowFpsT = 0;
+      this.applyTier('ahorro');
+      return true;
+    }
+    return false;
+  }
+
+  /** M0: reafirma el tamaño interno tras un resize del viewport virtual. */
+  assertSize() {
+    try { this.renderer.setSize(RW, RH, false); } catch { /* noop */ }
   }
 
   /** Rebuild every track-dependent object. */
@@ -270,7 +330,7 @@ export class WorldRenderer {
     this.baseGrade = GRADES[tr.th.style] ?? GRADES.grass!;
     this.atm = { night: -1, fog: -1 };
     this.post.setGrade(this.baseGrade);
-    this.post.setBloom(tr.th.style === 'grid' || tr.th.style === 'rock' ? 0.45 : 0.15);
+    this.post.setBloom(this.tier === 'ahorro' ? 0 : tr.th.style === 'grid' || tr.th.style === 'rock' ? 0.45 : 0.15);
     this.particles.clear();
     this.buildTerrain(tr);
     this.buildWalls(tr);

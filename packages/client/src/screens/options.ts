@@ -5,6 +5,7 @@ import { ACTION_NAMES, REMAPPABLE } from '../input/input';
 import { PAD_NAMES } from '../input/gamepad';
 import { DEFAULT_SETTINGS } from '../settings';
 import { saveSettings } from '../settings';
+import { initialTier } from '../mobile';
 import { W } from '../ui/draw';
 import type { Game } from '../game';
 
@@ -14,6 +15,11 @@ export function applySettings(g: Game) {
   g.rig.shakeScale = S.shake;
   g.fx.colorblind = S.colorblind;
   g.renderer.post.enabled = S.post;
+  // M3: la calidad manual fuerza tier; `auto` = ahorro en móvil, alta en PC.
+  try {
+    g.renderer.applyTier(S.quality === 'alta' || S.quality === 'ahorro' ? S.quality : initialTier('auto'));
+    g.renderer.post.enabled = S.post;
+  } catch { /* render opcional en tests */ }
   for (const [a, ks] of Object.entries(S.keys)) if (ks?.length) (g.input.bindings as any)[a] = [...ks];
   for (const [a, bs] of Object.entries(S.pad)) if (bs) (g.input.pad.bindings as any)[a] = [...bs];
 }
@@ -37,6 +43,8 @@ export function optionRows(g: Game): [string, string][] {
     ['Tamaño del HUD', S.hudScale > 1 ? '1,5×' : '1×'],
     ['Post-proceso', onoff(S.post)],
     ['Derrape', S.driftToggle ? 'Alternar' : 'Mantener'],
+    ['Gas automático (táctil)', onoff(S.touch.autoGas)],
+    ['Calidad', S.quality === 'auto' ? 'Auto' : S.quality === 'alta' ? 'Alta' : 'Ahorro'],
     ['Controles…', ''],
     ['Restaurar valores', ''],
     ['Tutorial y nombre: ' + g.profile.name, ''],
@@ -61,10 +69,12 @@ export function optionsInput(g: Game, _code: string, ok: boolean, back: boolean,
     case 5: S.hudScale = S.hudScale > 1 ? 1 : 1.5; break;
     case 6: S.post = !S.post; break;
     case 7: S.driftToggle = !S.driftToggle; break;
-    case 8: if (ok) { g.state = 'controls'; g.ctlSel = 0; } break;
-    case 9: if (ok) { g.settings = structuredClone(DEFAULT_SETTINGS); g.input.resetBindings(); g.toast('Valores restaurados'); } break;
-    case 10: if (ok) { storeSettings(g); g.openWelcome(false); return; } break;
-    case 11: if (ok) { storeSettings(g); g.state = 'menu'; return; } break;
+    case 8: S.touch.autoGas = !S.touch.autoGas; break;
+    case 9: S.quality = S.quality === 'auto' ? 'alta' : S.quality === 'alta' ? 'ahorro' : 'auto'; break;
+    case 10: if (ok) { g.state = 'controls'; g.ctlSel = 0; } break;
+    case 11: if (ok) { g.settings = structuredClone(DEFAULT_SETTINGS); g.input.resetBindings(); g.toast('Valores restaurados'); } break;
+    case 12: if (ok) { storeSettings(g); g.openWelcome(false); return; } break;
+    case 13: if (ok) { storeSettings(g); g.state = 'menu'; return; } break;
   }
   A.blip();
   storeSettings(g);

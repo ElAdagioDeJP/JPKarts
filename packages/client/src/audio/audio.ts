@@ -1,5 +1,6 @@
 // Synthesized chiptune audio (ported from legacy). Buses: master ← music, sfx, engine, voice.
 import type { Character, SongId } from '@jpkart/core';
+import { isMobileDevice } from '../mobile';
 
 /** Per-track identity: biome drum stems + the track's own leitmotiv (ART_BIBLE §8). */
 export type DrumKitId = 'base' | 'dunes' | 'snow' | 'grid' | 'rock';
@@ -81,6 +82,13 @@ export class Audio {
   }
   blip() { this.beep(620, 0.06); }
 
+  /** M4 iOS: reanuda el contexto tras el gesto táctil (Audio.init cuelga de onFirstGesture). */
+  resume() {
+    try {
+      if (this.AC && this.AC.state === 'suspended') void this.AC.resume();
+    } catch { /* noop */ }
+  }
+
   engineSet(on: boolean, speed: number) {
     if (!this.eng || !this.AC) return;
     const t = this.AC.currentTime;
@@ -93,9 +101,12 @@ export class Audio {
     this.volumes.music = music * music;
     this.volumes.sfx = sfx;
     if (!this.AC) return;
-    this.sfx.gain.setTargetAtTime(sfx * sfx, this.AC.currentTime, 0.05);
-    this.voice.gain.setTargetAtTime(sfx * sfx, this.AC.currentTime, 0.05);
-    this.engBus.gain.setTargetAtTime(sfx * sfx, this.AC.currentTime, 0.05);
+    // M4: en altavoz móvil se baja un 20% para evitar saturación (ducking intacto).
+    const mob = (() => { try { return isMobileDevice(); } catch { return false; } })();
+    const k = mob ? 0.8 : 1;
+    this.sfx.gain.setTargetAtTime(sfx * sfx * k, this.AC.currentTime, 0.05);
+    this.voice.gain.setTargetAtTime(sfx * sfx * k, this.AC.currentTime, 0.05);
+    this.engBus.gain.setTargetAtTime(sfx * sfx * k, this.AC.currentTime, 0.05);
   }
 
   /** Nearest rivals' engines: distance attenuation and stereo pan by angle (audio-design). */

@@ -68,4 +68,10 @@ export class Particles {
   }
 
   clear() { for (const p of this.ps) p.alive = false; this.mesh.count = 0; }
+
+  /** M3: pool por tier (alta 1024, ahorro 256). Nunca crece sobre MAX. */
+  setTierCap(n: number) {
+    this.cap = Math.max(1, Math.min(MAX, Math.floor(n)));
+    this.next = this.next % this.cap;
+  }
 }

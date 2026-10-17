@@ -7,6 +7,7 @@ import { COIN, FACES, ICONS } from '../art/sprites';
 import { hudLines } from '../feel/effectView';
 import { DRIFT_COL as DCOL, DRIFT_COL_CB } from '../feel/fx3d';
 import { TEAM_COL, uiRect } from '../app/types';
+import { effectiveHudScale, isMobileDevice } from '../mobile';
 import { W } from '../ui/draw';
 import type { Game } from '../game';
 
@@ -48,7 +49,8 @@ export function drawHUDs(g: Game, dt: number) {
 }
 
 export function drawHUD(g: Game, dt: number) {
-  const sc = g.settings.hudScale;
+  // M2: en móvil la escala efectiva nunca baja de 1.5× (legible a 30 cm).
+  const sc = (() => { try { return effectiveHudScale(g.settings.hudScale); } catch { return g.settings.hudScale; } })();
   g.ui.ctx.save();
   g.ui.ctx.scale(sc, sc);
   try { drawHUDScaled(g, dt, W / sc, 240 / sc); } finally { g.ui.ctx.restore(); }
@@ -101,9 +103,11 @@ export function drawHUDScaled(g: Game, dt: number, Wv: number, Hv: number) {
   if (p.glide) st.push(['¡Volando!', '#8fe0ff']);
   st.forEach(([s, c], i) => ui.txtS(s, Wv / 2, by + 46 + i * 9, c));
   if (hasFx(p, 'inv') && ((w.raceT * 4) | 0) % 2 === 0) ui.txt('¡Controles invertidos!', Wv / 2, Hv / 2 - 40, '#ff6ad0', 8, 'center');
-  const m = g.mini(tr), mx = Wv - 62, my = Hv - 62;
-  ui.panel(mx - 2, my - 2, 60, 60, 'rgba(27,23,64,0.55)', '#6d66b0');
-  ui.img(m.cv, mx, my);
+  const m = g.mini(tr), mob = (() => { try { return isMobileDevice(); } catch { return false; } })();
+  // M2: minimapa un 20% más grande y abajo-centro en móvil (fuera de los pulgares).
+  const ms = mob ? 72 : 60, mx = mob ? Wv / 2 - ms / 2 : Wv - 62, my = mob ? Hv - ms - 8 : Hv - 62;
+  ui.panel(mx - 2, my - 2, ms, ms, 'rgba(27,23,64,0.55)', '#6d66b0');
+  ui.img(m.cv, mx, my, ms, ms);
   for (const k of w.karts) {
     const x = mx + k.x * m.k, y = my + k.y * m.k, r = k.id === g.localId ? 3 : 2;
     ctx.fillStyle = OUT; ctx.fillRect(x - r, y - r, r * 2, r * 2);

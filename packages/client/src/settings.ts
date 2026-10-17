@@ -2,7 +2,15 @@
 // Browser: localStorage. Electron (Phase 7) swaps the storage for files in userData.
 import type { Action } from './input/input';
 
-export const SETTINGS_VERSION = 1;
+export const SETTINGS_VERSION = 2;
+
+export type QualitySetting = 'auto' | 'alta' | 'ahorro';
+
+export interface TouchSettings {
+  /** gas a fondo sin pulsar (defecto ON en móvil) */
+  autoGas: boolean;
+  layout: 'default';
+}
 
 export interface Settings {
   version: number;
@@ -18,6 +26,10 @@ export interface Settings {
   post: boolean;
   /** drift: hold (default) or toggle */
   driftToggle: boolean;
+  /** M0 móvil: controles táctiles */
+  touch: TouchSettings;
+  /** M3 móvil: tier de calidad (auto = ahorro en móvil, alta en PC) */
+  quality: QualitySetting;
   keys: Partial<Record<Action, string[]>>;
   pad: Partial<Record<Action, number[]>>;
 }
@@ -31,13 +43,22 @@ export const DEFAULT_SETTINGS: Settings = {
   hudScale: 1,
   post: true,
   driftToggle: false,
+  touch: { autoGas: true, layout: 'default' },
+  quality: 'auto',
   keys: {},
   pad: {},
 };
 
-/** Migrations v → v+1 (none yet; the chain grows with each schema change). */
+/** Migrations v → v+1 (the chain grows with each schema change). */
 const MIGRATIONS: Record<number, (s: any) => any> = {
   0: (s) => ({ ...DEFAULT_SETTINGS, ...s, version: 1 }),
+  1: (s) => ({
+    ...DEFAULT_SETTINGS,
+    ...s,
+    touch: { ...DEFAULT_SETTINGS.touch, ...(s.touch ?? {}) },
+    quality: s.quality === 'alta' || s.quality === 'ahorro' || s.quality === 'auto' ? s.quality : 'auto',
+    version: 2,
+  }),
 };
 
 export interface Storage { read(key: string): string | null; write(key: string, value: string): void }
@@ -56,8 +77,15 @@ export function parseSettings(raw: string | null): Settings | null {
     if (v > SETTINGS_VERSION) return null; // from a newer build
     while (v < SETTINGS_VERSION) { s = MIGRATIONS[v]!(s); v++; }
     // validate shape against the defaults
-    const out = { ...DEFAULT_SETTINGS, ...s, volume: { ...DEFAULT_SETTINGS.volume, ...s.volume } } as Settings;
+    const out = {
+      ...DEFAULT_SETTINGS,
+      ...s,
+      volume: { ...DEFAULT_SETTINGS.volume, ...s.volume },
+      touch: { ...DEFAULT_SETTINGS.touch, ...(s.touch ?? {}) },
+    } as Settings;
     if (typeof out.shake !== 'number' || typeof out.post !== 'boolean') return null;
+    if (typeof out.touch.autoGas !== 'boolean') out.touch.autoGas = true;
+    if (out.quality !== 'auto' && out.quality !== 'alta' && out.quality !== 'ahorro') out.quality = 'auto';
     return out;
   } catch { return null; }
 }

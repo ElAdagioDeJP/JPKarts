@@ -31,6 +31,13 @@ export class Input {
   bindings: Record<Action, string[]> = structuredClone(DEFAULT_KEYS);
   pad = new Gamepads();
   private pressedQ: string[] = [];
+  /** M1 táctil: analógico del joystick + botones (lo alimenta TouchControls). */
+  touchSteer = 0;
+  touchGas = 0;
+  touchBrake = 0;
+  touchDrift = false;
+  touchActive = false;
+  private touchItemQ = false;
   onFirstGesture: (() => void) | null = null;
   /** when set, the next key/button press is captured for remapping instead of being dispatched */
   capture: ((code: string) => void) | null = null;
@@ -61,15 +68,25 @@ export class Input {
   }
 
   held(a: Action): boolean {
+    if (a === 'derrapar' && this.touchDrift) return true;
+    if (a === 'acelerar' && this.touchActive && this.touchGas > 0) return true;
+    if (a === 'frenar' && this.touchActive && this.touchBrake > 0) return true;
+    if (a === 'izquierda' && this.touchSteer < -0.05) return true;
+    if (a === 'derecha' && this.touchSteer > 0.05) return true;
     return this.bindings[a].some((k) => this.keys.has(k)) || this.pad.held(a);
   }
   /** Analog steering −1..1 (keyboard gives −1/0/1). */
   steer(): number {
+    if (this.touchActive && Math.abs(this.touchSteer) > 0.05) return this.touchSteer;
     const k = (this.held('derecha') ? 1 : 0) - (this.held('izquierda') ? 1 : 0);
     return k !== 0 ? k : this.pad.steer;
   }
   /** Analog throttle −1..1. */
   throttle(): number {
+    if (this.touchActive) {
+      const t = this.touchGas - this.touchBrake;
+      if (t !== 0) return Math.max(-1, Math.min(1, t));
+    }
     const k = (this.held('acelerar') ? 1 : 0) - (this.held('frenar') ? 1 : 0);
     return k !== 0 ? k : this.pad.throttle;
   }
@@ -78,10 +95,28 @@ export class Input {
     const q = this.pressedQ;
     this.pressedQ = [];
     if (this.capture && q.length) { const c = this.capture; this.capture = null; c(q[0]!); return []; }
+    // M1: el botón táctil OBJETO entra como Space virtual para que
+    // localInput() y onPress funcionen sin cambios.
+    if (this.touchItemQ) { this.touchItemQ = false; if (!this.capture) q.push('TouchItem'); }
     return q;
   }
   is(code: string, a: Action) {
+    if (code === 'TouchItem') return a === 'objeto' || a === 'aceptar';
     return this.bindings[a].includes(code) || this.pad.actionsOf(code).includes(a);
+  }
+
+  /** M1: alimenta el estado táctil desde TouchControls (autoGas ya resuelto en el layer). */
+  setTouchAnalog(s: { steer: number; gas: number; brake: number; drift: boolean }) {
+    this.touchSteer = Math.max(-1, Math.min(1, s.steer));
+    this.touchGas = s.gas ? 1 : 0;
+    this.touchBrake = s.brake ? 1 : 0;
+    this.touchDrift = s.drift;
+    this.touchActive = true;
+  }
+  /** M1: flanco de subida del botón OBJETO táctil. */
+  pressTouchItem() {
+    this.touchItemQ = true;
+    this.onFirstGesture?.();
   }
 
   /** Bind `code` (a key code or 'PadN') to `action`. A conflicting gameplay action loses that code. Returns it. */

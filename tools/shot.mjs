@@ -1,9 +1,11 @@
 // Smoke test in a real browser: boots the client, drives menus, takes screenshots.
-// Usage: node tools/shot.mjs [outDir] [--webgl] [--race-seconds=N]
+// Usage: node tools/shot.mjs [outDir] [--webgl] [--race-seconds=N] [--mobile] [--track-slot=N]
+// M5 móvil: --mobile emula 844×390 táctil (isMobile + touch) y vuelca el estado táctil.
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 
-const out = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : 'shots';
+const mobile = process.argv.includes('--mobile');
+const out = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : mobile ? 'shots-mobile' : 'shots';
 const webgl = process.argv.includes('--webgl');
 const raceArg = process.argv.find((a) => a.startsWith('--race-seconds='));
 const raceSeconds = raceArg ? Number(raceArg.split('=')[1]) : 6;
@@ -15,13 +17,24 @@ const launchOpts = { headless: true, args: ['--enable-unsafe-webgpu', '--enable-
 let browser;
 try { browser = await chromium.launch({ ...launchOpts, channel: 'msedge' }); }
 catch { browser = await chromium.launch(launchOpts); }
-const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+const context = await browser.newContext(mobile
+  ? { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }
+  : { viewport: { width: 1280, height: 800 } });
+const page = await context.newPage();
 const logs = [];
 page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`));
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
-await page.goto('http://localhost:5173/' + (webgl ? '?webgl' : ''));
+const qs = [webgl ? 'webgl' : '', mobile ? 'mobile' : ''].filter(Boolean).join('&');
+await page.goto('http://localhost:5173/' + (qs ? '?' + qs : ''));
 await page.waitForFunction(() => !!window.__jpkart, null, { timeout: 30000 });
 const backend = await page.evaluate(() => window.__jpkart.renderer.backend);
+const mobileState = mobile ? await page.evaluate(() => ({
+  bodyMobile: document.body.classList.contains('mobile'),
+  touchEl: !!document.querySelector('#touch'),
+  tier: window.__jpkart.renderer.tier,
+  hudScale: window.__jpkart.settings.hudScale,
+})) : null;
+if (mobileState) console.log('mobile', JSON.stringify(mobileState));
 await page.waitForTimeout(1500);
 await page.screenshot({ path: `${out}/01-title.png` });
 const key = async (k, n = 1) => { for (let i = 0; i < n; i++) { await page.keyboard.press(k); await page.waitForTimeout(120); } };
@@ -39,6 +52,12 @@ await page.screenshot({ path: `${out}/04-countdown.png` });
 await page.keyboard.down('ArrowUp');
 await page.waitForTimeout(raceSeconds * 1000);
 await page.screenshot({ path: `${out}/05-race.png` });
+if (mobile) {
+  // M1: un tap en la zona del joystick ejercita la ruta pointer (sin romper el teclado).
+  try { await page.touchscreen.tap(150, 280); } catch { /* ratón en su lugar */ }
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `${out}/05b-touch.png` });
+}
 await page.keyboard.down('ArrowRight');
 await page.keyboard.down('ShiftLeft');
 await page.waitForTimeout(1200);

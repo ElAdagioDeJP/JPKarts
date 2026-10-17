@@ -9,6 +9,7 @@ import {
 import { loadGhost } from '../meta/store';
 import { MODE_ID } from '../app/types';
 import { newView } from '../app/types';
+import { isMobileDevice } from '../mobile';
 import { assignSources, PlayerInput } from '../input/players';
 import type { Game } from '../game';
 
@@ -23,7 +24,9 @@ export function startRace(g: Game, ti: number) {
   g.renderer.clearKarts();
   const seed = (Math.random() * 2 ** 31) | 0;
   const rng = new Rng(seed ^ 0x5bd1e995);
-  const n = g.mode === 'timetrial' ? 1 : g.players;
+  // M3 móvil: pantalla dividida deshabilitada (1 jugador por teléfono).
+  const mobile1 = (() => { try { return isMobileDevice(); } catch { return false; } })();
+  const n = g.mode === 'timetrial' ? 1 : mobile1 ? 1 : g.players;
   const humans = [g.sel, ...CHARS.map((_, i) => (g.sel + i) % CHARS.length).slice(1, n)].map((ch) => ({ ch, ctrl: 'local' as const }));
   let grid = g.mode === 'timetrial' ? humans
     : g.mode === 'cup' && g.cup && g.cup.race > 0
@@ -86,7 +89,9 @@ export function simulate(g: Game, dt: number) {
   if (g.net?.race) { g.simulateNet(dt); return; }
   if (g.replayView) { g.simulateReplay(dt); return; }
   const w = g.world!;
-  g.acc = Math.min(g.acc + dt, SIM_DT * 5);
+  // M3: en móvil máx. 4 sub-pasos (no 5) para no espiralar en jank.
+  const mobCap = (() => { try { return isMobileDevice(); } catch { return false; } })();
+  g.acc = Math.min(g.acc + dt, SIM_DT * (mobCap ? 4 : 5));
   const t0 = performance.now();
   while (g.acc >= SIM_DT) {
     g.prev = w.karts.map((k) => ({ x: k.x, y: k.y, z: k.z, a: k.a }));

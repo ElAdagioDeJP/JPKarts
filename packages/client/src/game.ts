@@ -35,6 +35,7 @@ import * as NetScreens from './screens/netScreens';
 import * as Menus from './screens/menus';
 import * as InputRouter from './app/inputRouter';
 import * as Welcome from './screens/welcome';
+import { buzz, isMobileDevice } from './mobile';
 import { drawNetOverlay } from './race/spectate';
 
 /** Served from the online server's own domain (https, not an IP/localhost): that same host is the server. */
@@ -135,6 +136,8 @@ export class Game {
   fps = 0; private fpsAcc = 0; private fpsN = 0;
   showPerf = false;
   simMs = 0; renderMs = 0;
+  private tierToast = false;
+  private batteryToast = false;
 
   constructor(public renderer: WorldRenderer, public ui: Ui, public input: Input, public audio: Audio) {
     this.tr = this.tracks.ensureBuilt(0);
@@ -222,7 +225,23 @@ export class Game {
   }
 
   // ---------------- events → feedback (see feel/eventFeedback.ts) ----------------
-  onEvent(e: GameEvent) { Feedback.onEvent(this, e); }
+  onEvent(e: GameEvent) {
+    Feedback.onEvent(this, e);
+    // M4 haptics: leve 10 ms (roces), medio 20 ms (golpes), 30 ms (objeto/incoming).
+    // Solo con vibración disponible y sacudida activada.
+    try {
+      if (this.settings.shake > 0 && isMobileDevice()) {
+        const me = (id: unknown) => typeof id === 'number' && id === this.localId;
+        const r = e as Record<string, unknown>;
+        if (e.type === 'incoming' && me(r['kart'])) buzz(30);
+        else if (e.type === 'itemGet' && me(r['kart'])) buzz(30);
+        else if (e.type === 'hit' && me(r['kart'])) buzz(20);
+        else if (e.type === 'wallBump' && me(r['kart'])) buzz(r['hard'] ? 20 : 10);
+        else if (e.type === 'bump' && (me(r['a']) || me(r['b']))) buzz(10);
+        else if (e.type === 'explode') buzz(20);
+      }
+    } catch { /* haptics opcional */ }
+  }
   itemSound(id: string, me: boolean, near: boolean, targetMe: boolean, ok: boolean) {
     Feedback.itemSound(this, id, me, near, targetMe, ok);
   }
@@ -241,6 +260,23 @@ export class Game {
     this.last = now;
     this.fpsAcc += rawDt; this.fpsN++;
     if (this.fpsAcc > 0.5) { this.fps = this.fpsN / this.fpsAcc; this.fpsAcc = 0; this.fpsN = 0; }
+    // M3: auto-downgrade a ahorro si <40fps 3 s + aviso de batería baja (una vez).
+    try {
+      if (this.renderer.noteFps(this.fps, rawDt)) {
+        if (!this.tierToast) { this.tierToast = true; this.toast('Modo ahorro: calidad reducida'); }
+        if (this.settings.quality === 'auto') { /* el tier auto ya bajó */ }
+      }
+      if (!this.batteryToast) {
+        // M3: se comprueba una sola vez por sesión (sin spam de promesas).
+        this.batteryToast = true;
+        const gb = (navigator as Navigator & { getBattery?: () => Promise<{ level: number }> }).getBattery;
+        if (typeof gb === 'function') {
+          void gb.call(navigator).then((b) => {
+            if (b && b.level < 0.2 && this.renderer.tier === 'alta') this.toast('Batería baja: prueba el modo ahorro en Opciones');
+          }).catch(() => {});
+        }
+      }
+    } catch { /* telemetría opcional */ }
     const t = now / 1000;
     this.input.poll();
     for (const code of this.input.drainPressed()) this.onPress(code);
