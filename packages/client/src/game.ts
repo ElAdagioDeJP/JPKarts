@@ -13,6 +13,7 @@ import { type CamTarget } from './feel/camera';
 import { Fx3d } from './feel/fx3d';
 import { BALLS } from './art/sprites';
 import { Audio, DRUM_BY_STYLE, motifForTrack } from './audio/audio';
+import { songFile } from './audio/songs';
 import { Input } from './input/input';
 import { buildMinimap } from './render/trackArt';
 import { WorldRenderer } from './render/world3d';
@@ -242,9 +243,6 @@ export class Game {
       }
     } catch { /* haptics opcional */ }
   }
-  itemSound(id: string, me: boolean, near: boolean, targetMe: boolean, ok: boolean) {
-    Feedback.itemSound(this, id, me, near, targetMe, ok);
-  }
 
   /** Is the local kart within `frac` of a lap before track position `at` (0..1)? */
   nearSample(at: number, frac: number) { return Feedback.nearSample(this, at, frac); }
@@ -336,8 +334,11 @@ export class Game {
         A.engineSet(false, 0);
       }
     }
-    // music by state
-    if (MENUS.includes(this.state)) A.musicWant('menu');
+    // music by state: the recorded song when there is one, else the synth below
+    const song = this.songPick();
+    if (song.preload) A.musicPreload(song.preload);
+    if (A.musicFile(song.file, song.rate, song.vol, song.loop)) A.musicWant(null);
+    else if (MENUS.includes(this.state)) A.musicWant('menu');
     else if (this.state === 'loading' || (this.state === 'race' && this.world?.phase === 'countdown')) A.musicWant(null);
     else if (this.state === 'race' && this.local?.finished) A.musicWant(null);
     else if (this.state === 'race' || this.state === 'replay') {
@@ -419,6 +420,22 @@ export class Game {
   drawCupSel(t: number) { Menus.drawCupSel(this, t); }
   drawTrackSel() { Menus.drawTrackSel(this); }
   rowList(list: number[], extra: (ch: number, i: number, y: number) => void) { Menus.rowList(this, list, extra); }
+  /** Recorded song for the current state (file null = silence or synth fallback). */
+  private songPick(): { file: string | null; preload?: string; rate: number; vol: number; loop: boolean } {
+    const st = this.state, ui = { rate: 1, vol: 1, loop: true };
+    if (st === 'welcome') return { file: 'tutorial', ...ui };
+    if (MENUS.includes(st)) return { file: 'menu', ...ui };
+    if (st === 'loading') return { file: null, ...ui };
+    if (st === 'race' && this.world?.phase === 'countdown') return { file: null, preload: songFile(this.tr.def.id), ...ui };
+    if (st === 'race' && this.local?.finished) return { file: null, ...ui };
+    if (st === 'race' || st === 'replay') {
+      const lastLap = this.local!.prog >= ((this.world?.cfg.laps ?? LAPS) - 1) * this.tr.N;
+      return { file: songFile(this.tr.def.id), ...ui, rate: lastLap ? 1.06 : 1, vol: this.paused ? 0 : 1 };
+    }
+    if (st === 'results' || st === 'standings') return { file: 'results', ...ui, vol: 0.8 };
+    const won = st === 'final' ? this.standingsList().indexOf(this.sel) < 3 : (this.local?.rank ?? 9) < 3;
+    return { file: won ? 'victory' : 'defeat', ...ui, loop: false };
+  }
   drawResults() { Menus.drawResults(this); }
   standingsList() { return Menus.standingsList(this); }
   drawStandings() { Menus.drawStandings(this); }

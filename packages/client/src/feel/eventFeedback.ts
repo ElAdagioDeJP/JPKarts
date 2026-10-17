@@ -5,35 +5,7 @@ import { CHARS, T, clamp, modeOf } from '@jpkart/core';
 import type { GameEvent, Kart, World } from '@jpkart/core';
 import { HAZARD_WARN } from '../app/types';
 import type { Game } from '../game';
-
-export function itemSound(g: Game, id: string, me: boolean, near: boolean, targetMe: boolean, ok: boolean) {
-  const A = g.audio;
-  switch (id) {
-    case 'bocina': if (me || near) { A.beep(330, 0.4, 'sawtooth', 0.07); A.beep(415, 0.4, 'sawtooth', 0.05); } break;
-    case 'falsa': if (me) A.beep(200, 0.1, 'triangle', 0.05); break;
-    case 'turbo3': if (me) A.beep(300, 0.3, 'sawtooth', 0.05, 600); break;
-    case 'ciego3': if (me) A.beep(700, 0.1, 'square', 0.05, -300); break;
-    case 'bumeran': case 'bumeranR': if (me) A.beep(520, 0.25, 'triangle', 0.05, 260); break;
-    case 'iman': if (me) A.beep(440, 0.4, 'sine', 0.05, 440); break;
-    case 'cadena': if (me) A.beep(1600, 0.2, 'sawtooth', 0.05, -1200); break;
-    case 'hielo': if (me) A.beep(1400, 0.15, 'sine', 0.04, -300); break;
-    case 'humo': if (me) A.beep(150, 0.4, 'triangle', 0.05, -60); break;
-    case 'rafaga': break;
-    case 'bala': if (ok) A.beep(220, 0.6, 'sawtooth', 0.07, 900); break;
-    case 'goma': if (me) A.beep(500, 0.15, 'sine', 0.05, -200); break;
-    case 'ciego': if (me) A.beep(700, 0.1, 'square', 0.05, -300); break;
-    case 'burbuja': if (me) A.beep(900, 0.2, 'sine', 0.05, 300); break;
-    case 'nitro': if (me) A.beep(300, 0.35, 'sawtooth', 0.05, 600); break;
-    case 'alquitran': if (me) A.beep(120, 0.25, 'triangle', 0.06, -40); break;
-    case 'dron': if (me || targetMe) A.beep(880, 0.3, 'square', 0.04, -300); break;
-    case 'gancho': if (ok && (me || targetMe)) A.beep(250, 0.4, 'sawtooth', 0.05, 400); break;
-    case 'inversor': A.beep(600, 0.4, 'square', 0.05, -400); break;
-    case 'pem': A.beep(90, 0.6, 'sawtooth', 0.08, 300); break;
-    case 'jugger': if (me) A.beep(200, 0.5, 'square', 0.06, 300); break;
-    case 'agujero': A.beep(60, 0.8, 'sawtooth', 0.08, -20); break;
-    case 'cuantico': if (ok) A.beep(1200, 0.25, 'sine', 0.05, -800); break;
-  }
-}
+import { hitImpact, itemSfx } from './itemSfx';
 
 /** Is the local kart within `frac` of a lap before track position `at` (0..1)? */
 export function nearSample(g: Game, at: number, frac: number) {
@@ -45,6 +17,13 @@ export function nearSample(g: Game, at: number, frac: number) {
 export function onEvent(g: Game, e: GameEvent) {
   const A = g.audio, w = g.world!, me = (id: number) => id === g.localId;
   const p = g.local;
+  /** distance and stereo pan of a kart as heard from the local one */
+  const hear = (id: number) => {
+    const k = w.karts[id];
+    if (!p || !k || id === g.localId) return { dist: 0, pan: 0 };
+    const dx = k.x - p.x, dy = k.y - p.y;
+    return { dist: Math.hypot(dx, dy), pan: Math.sin(Math.atan2(dy, dx) - g.cam.a) };
+  };
   const near = (id: number, r: number) => { const k = w.karts[id]; return !!(p && k && Math.hypot(p.x - k.x, p.y - k.y) < r); };
   switch (e.type) {
     case 'countdown': A.beep(440, 0.12); break;
@@ -59,13 +38,14 @@ export function onEvent(g: Game, e: GameEvent) {
     case 'pad': if (me(e.kart)) A.beep(640, 0.2, 'sawtooth', 0.05, 500); break;
     case 'itemRoll': if (me(e.kart)) { A.beep(1100, 0.05, 'square', 0.05); A.beep(600, 0.08, 'square', 0.04, 300); } break;
     case 'itemGet': if (me(e.kart)) A.beep(880, 0.08); break;
-    case 'itemUse': itemSound(g, e.item, me(e.kart), near(e.kart, 260), e.target != null && me(e.target), e.ok); break;
+    case 'itemUse': { const h = hear(e.kart); itemSfx(A, e.item, h.dist, h.pan, e.ok); break; }
     case 'alreadyFirst': if (me(e.kart)) g.banner = { t: 'Ya vas primero', life: 1 }; break;
     case 'hit': {
       const k = w.karts[e.kart]!, d = p ? Math.hypot(p.x - k.x, p.y - k.y) : 0;
       if (me(e.kart)) { g.rig.addTrauma(0.55); g.hitStop = 0.06; g.held = w.karts.map((q) => g.pose(q)); A.duck(0.4); }
       else if (d < 80) g.rig.addTrauma(0.15);
       A.groan(CHARS[k.ch]!, me(e.kart) ? 0.5 : 0.45 * (1 - clamp(d / 380, 0, 1)), Math.random());
+      { const h = hear(e.kart); hitImpact(A, h.dist, h.pan); }
       break;
     }
     case 'bump': if (me(e.a) || me(e.b)) { A.beep(120, 0.06, 'square', 0.04); g.rig.addTrauma(0.08); } break;

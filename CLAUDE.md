@@ -59,4 +59,5 @@ TypeScript estricto, Bun (workspaces, `bun test`), Vite (client), **Three.js con
 - `bun run dist:win`: genera el `.exe` portable en `apps/desktop/release/`
 - `node tools/shot.mjs`, `tools/lan-check.mjs` (`--online=host:puerto`), `tools/desktop-check.mjs`, `tools/modes-check.mjs`, `tools/split-check.mjs`, `tools/hazard-shots.mjs`, `tools/items-shots.mjs`: pruebas en navegador y en Electron con capturas
 - `bun tools/online-check.mjs <ws|wss>`: comprueba un servidor online (health, crear sala, unirse)
+- `python tools/music/build.py [id]` (con el venv de nobu): regenera la banda sonora en `packages/client/public/music/` · `node tools/songs-check.mjs`: comprueba qué canción suena · ver `docs/MUSIC.md`
 - `bun packages/core/tools/ai-balance.ts`: balance de la IA · `bun packages/core/tools/track-info.ts <json>`: métricas de una pista · `bun packages/core/tools/item-odds.ts`: probabilidad de cada objeto por zona de posición (`core/data/tunables/items.json` → `zones`) · `bun tools/nextrace-check.mjs`: online completo en navegador (bienvenida, espectador, siguiente carrera, reconexión)

@@ -1,9 +1,10 @@
 // Banda sonora por pista: cada pista suena distinta en 10 s (firma de eventos del
-// secuenciador puro), determinista, tempo ×1.06 en última vuelta, sin assets binarios.
+// secuenciador puro), determinista, tempo ×1.06 en última vuelta, la banda grabada se comprueba en el último test.
 import { expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { DRUM_BY_STYLE, SONGS, motifForTrack, scoreStep, type DrumKitId, type Motif } from '../src/audio/audio';
 import { ALL_TRACKS, AUTHORED } from '../../core/src/index';
+import { songFile } from '../src/audio/songs';
 
 interface TrackSong { id: string; song: keyof typeof SONGS; mul: number; drums: DrumKitId }
 function trackSongs(): TrackSong[] {
@@ -92,9 +93,16 @@ test('última vuelta: mismos eventos, tempo ×1.06', () => {
   expect(ratio).toBeLessThan(1.08);
 });
 
-test('síntesis 100%: el motor no carga audio binario', () => {
-  const src = readFileSync(new URL('../src/audio/audio.ts', import.meta.url), 'utf8');
-  for (const banned of ['fetch(', '.mp3', '.wav', '.ogg', '.flac', 'decodeAudioData', 'data:audio']) {
-    expect(src.includes(banned)).toBe(false);
+test('banda grabada: cada pista y pantalla tiene su canción (ogg + m4a) y la síntesis queda de respaldo', () => {
+  const dir = new URL('../public/music/', import.meta.url);
+  const index = JSON.parse(readFileSync(new URL('index.json', dir), 'utf8')) as Record<string, { ogg: number; m4a: number; loop: boolean }>;
+  const need = new Set<string>(['menu', 'tutorial', 'results', 'victory', 'defeat']);
+  for (const t of ALL_TRACKS as unknown as { id: string }[]) need.add(songFile(t.id));
+  for (const id of need) {
+    expect(index[id], id).toBeDefined();
+    expect(existsSync(new URL(id + '.ogg', dir)) && existsSync(new URL(id + '.m4a', dir)), id).toBe(true);
+    expect(index[id]!.ogg).toBeLessThan(1.5 * 1024 * 1024);
   }
+  expect(index['victory']!.loop || index['defeat']!.loop).toBe(false);
+  expect(typeof SONGS.sol.bpm).toBe('number'); // el secuenciador sintético sigue ahí como respaldo
 });

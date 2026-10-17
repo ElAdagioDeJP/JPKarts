@@ -39,6 +39,9 @@ export class Audio {
   intensity = 0.5;
   private rivals: { o: OscillatorNode; g: GainNode; p: StereoPannerNode }[] = [];
   private duckUntil = 0;
+  /** recorded soundtrack: decoded buffers (null = failed to load → synth fallback) and the source now playing */
+  private files = new Map<string, AudioBuffer | null | undefined>();
+  private fileSrc: { name: string; src: AudioBufferSourceNode; g: GainNode } | null = null;
 
   init() {
     if (this.AC) return;
@@ -218,6 +221,62 @@ export class Audio {
   /** QA: qué suena ahora (canción, transposición, tempo). */
   musicState(): { song: SongId | null; transpose: number; drums: DrumKitId; mul: number } {
     return { song: this.mus.id, transpose: this.mus.motif?.transpose ?? 0, drums: this.mus.motif?.drums ?? 'base', mul: this.mus.mul };
+  }
+  // ---------- recorded soundtrack (public/music) ----------
+  private async loadFile(name: string) {
+    const AC = this.AC;
+    if (!AC || this.files.has(name)) return;
+    this.files.set(name, undefined); // pending: has() is true, get() undefined
+    try {
+      const ext = document.createElement('audio').canPlayType('audio/ogg; codecs="vorbis"') ? 'ogg' : 'm4a';
+      const url = `${import.meta.env.BASE_URL}music/${name}.${ext}`;
+      const store = 'caches' in self ? await caches.open('jpkart-music-v1').catch(() => null) : null;
+      let res = await store?.match(url);
+      if (!res) {
+        res = await fetch(url);
+        if (!res.ok || (res.headers.get('content-type') ?? '').includes('text/html')) throw new Error('no song');
+        void store?.put(url, res.clone()).catch(() => {});
+      }
+      this.files.set(name, await AC.decodeAudioData(await res.arrayBuffer()));
+      for (const k of this.files.keys()) { // keep the last few decoded songs only
+        if (this.files.size <= 6) break;
+        if (k !== name && k !== this.fileSrc?.name && this.files.get(k)) this.files.delete(k);
+      }
+    } catch { this.files.set(name, null); }
+  }
+  /** Start fetching a song ahead of time (countdown / loading). */
+  musicPreload(name: string) { void this.loadFile(name); }
+  /**
+   * Play the recorded song `name` (null = stop). Returns false when the caller must use the synth
+   * (no AudioContext, or the file is missing); true while loading (silence) or playing.
+   * `rate` > 1 pitches the song up (final lap).
+   */
+  musicFile(name: string | null, rate = 1, vol = 1, loop = true): boolean {
+    const AC = this.AC;
+    if (!AC) return false;
+    const cur = this.fileSrc;
+    if (cur && cur.name !== name) {
+      const t = AC.currentTime;
+      cur.g.gain.cancelScheduledValues(t); cur.g.gain.setTargetAtTime(0, t, 0.08);
+      cur.src.stop(t + 0.5); this.fileSrc = null;
+    }
+    if (!name) return false;
+    this.musicInit();
+    void this.loadFile(name);
+    const buf = this.files.get(name);
+    if (buf === null) return false;
+    if (buf === undefined) return true;
+    const t = AC.currentTime;
+    if (!this.fileSrc) {
+      const src = AC.createBufferSource(), g = AC.createGain();
+      src.buffer = buf; src.loop = loop;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(1, t + 0.15);
+      src.connect(g); g.connect(this.mus.bus!); src.start(t);
+      this.fileSrc = { name, src, g };
+    }
+    this.fileSrc.src.playbackRate.setTargetAtTime(rate, t, 0.35);
+    if (t > this.duckUntil) this.mus.bus!.gain.setTargetAtTime(this.muted ? 0 : vol * this.volumes.music, t, 0.08);
+    return true;
   }
   jingle() {
     const AC = this.AC;
