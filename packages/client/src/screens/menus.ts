@@ -32,7 +32,6 @@ export function drawTitle(g: Game, t: number) {
   ctx.fillStyle = '#ffe45e'; ctx.fillText('JP KART', W / 2, y + 1);
   ctx.fillStyle = '#ff8a1f'; ctx.fillRect(W / 2 - 128, y + 46, 256, 2);
   ui.txt('Gran Premio Pixel', W / 2, y + 56, '#fff7e0', 8, 'center');
-  ui.txt('</> Edición NexTec.plus', W / 2, y + 74, '#5de6c8', 8, 'center');
   const b = Math.round(Math.abs(Math.sin(t * 3)) * 14);
   ui.img(BUG.cv, W / 2 + 104, y - 14 - b, 20, 20);
   CHARS.forEach((_, i) => {
