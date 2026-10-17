@@ -82,6 +82,11 @@ const RECIPES: Record<string, (ok: boolean) => Layer[]> = {
   pem: () => [o('noise', 0, 0, 0.5, 0.09, { lp: 3000 }), o('sawtooth', 70, 40, 0.6, 0.08), o('square', 1800, 200, 0.15, 0.05)],
   jugger: () => [o('square', 110, 60, 0.6, 0.07), o('sawtooth', 55, 50, 0.6, 0.07), o('noise', 0, 0, 0.4, 0.05, { lp: 600 })],
   agujero: () => [o('sawtooth', 400, 40, 0.9, 0.08, { vib: [6, 20] }), o('noise', 0, 0, 0.8, 0.05, { lp: 300 })],
+  // V3-4: Modo Dios = a rising major arpeggio over a bright saw sweep; Overclock ∞ = a CPU spin-up with ticks;
+  // Piloto Automático = a servo whirr and two confirm beeps
+  dios: () => [o('sawtooth', 130, 1300, 0.9, 0.05), ...[523, 659, 784, 1047, 1319].map((f, i) => o('square', f, f, 0.11, 0.055, { at: i * 0.07 })), o('sine', 65, 55, 0.7, 0.09)],
+  infinito: () => [o('sawtooth', 90, 1500, 0.55, 0.05), o('noise', 0, 0, 0.5, 0.03, { bp: 2400, q: 3 }), ...[880, 1320, 880, 1760].map((f, i) => o('triangle', f, f, 0.06, 0.06, { at: 0.08 + i * 0.06 }))],
+  piloto: () => [o('sine', 180, 520, 0.5, 0.06, { vib: [22, 30] }), o('square', 1200, 1200, 0.07, 0.04, { at: 0.18 }), o('square', 1600, 1600, 0.09, 0.04, { at: 0.3 }), o('noise', 0, 0, 0.4, 0.03, { bp: 900, q: 2 })],
   overclock: () => [o('sawtooth', 100, 1200, 0.6, 0.05), ...[440, 660, 880].map((f, i) => o('triangle', f, f, 0.08, 0.06, { at: i * 0.06 }))],
   forkbomb: () => Array.from({ length: 6 }, (_, i) => o('square', 200 * 1.25 ** i, 200 * 1.25 ** i, 0.06, 0.05, { at: i * 0.05 })),
   antivirus: () => [o('sine', 660, 990, 0.3, 0.06), o('sine', 1320, 1320, 0.3, 0.04, { at: 0.08 })],
@@ -97,6 +102,11 @@ export function itemSfx(A: Audio, id: string, dist: number, pan: number, ok: boo
   const gain = Math.max(0, 1 - dist / 300) ** 2;
   const make = RECIPES[id];
   playSfx(A, make ? make(ok) : [o('square', 440, 440, 0.1, 0.05)], gain, pan);
+}
+
+/** Every press of the Overclock ∞ button: a short zap. */
+export function boostSfx(A: Audio, dist: number, pan: number) {
+  playSfx(A, [o('sawtooth', 300, 1500, 0.16, 0.06), o('noise', 0, 0, 0.1, 0.04, { bp: 3000, q: 3 }), o('triangle', 1320, 1320, 0.05, 0.05, { at: 0.05 })], Math.max(0, 1 - dist / 300) ** 2, pan);
 }
 
 /** Same sound on every map: a dull thud + crack under the character's groan. */

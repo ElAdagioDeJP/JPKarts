@@ -41,6 +41,15 @@ export class Fx3d {
       }
       if (hasFx(k, 'bala')) for (let i = 0; i < 3; i++) { const [x, y] = rear(0); this.p.emit(x, y, ps.z + 3, -ca * 70 + (r() - 0.5) * 20, -sa * 70 + (r() - 0.5) * 20, 10 + r() * 10, 0.3, 2, r() < 0.5 ? '#ffd23a' : '#3a3848'); }
       if (hasFx(k, 'magnet') && r() < 0.4) { const a = r() * Math.PI * 2; this.p.emit(ps.x + Math.cos(a) * 30, ps.y + Math.sin(a) * 30, ps.z + 4, -Math.cos(a) * 60, -Math.sin(a) * 60, 0, 0.45, 1, '#ff8a9a'); }
+      if (hasFx(k, 'god')) {
+        // golden sparkle halo + a rainbow-ish trail behind
+        const a = r() * Math.PI * 2;
+        this.p.emit(ps.x + Math.cos(a) * 11, ps.y + Math.sin(a) * 11, ps.z + 4 + r() * 12, 0, 0, 14, 0.35, 1.3, r() < 0.5 ? '#ffe45e' : '#ffffff');
+        const [x, y] = rear(0);
+        this.p.emit(x, y, ps.z + 3, -ca * 45 + (r() - 0.5) * 12, -sa * 45 + (r() - 0.5) * 12, 8, 0.3, 1.8, ['#ff6ad0', '#3df0ff', '#ffe45e', '#9cff9c'][(r() * 4) | 0]!);
+      }
+      if (hasFx(k, 'auto')) for (let i = 0; i < 2; i++) { const [x, y] = rear(i ? -1 : 1); this.p.emit(x, y, ps.z + 2, -ca * 80 + (r() - 0.5) * 12, -sa * 80 + (r() - 0.5) * 12, 6 + r() * 6, 0.3, 1.6, r() < 0.6 ? '#3df0ff' : '#ffffff'); }
+      if (hasFx(k, 'ocinf') && r() < 0.5) { const [x, y] = rear(0); this.p.emit(x, y, ps.z + 5 + r() * 6, (r() - 0.5) * 20, (r() - 0.5) * 20, 12, 0.3, 1.1, r() < 0.5 ? '#5de6c8' : '#ffd54a'); }
       if (hasFx(k, 'jug') && r() < 0.5) this.p.emit(ps.x + (r() - 0.5) * 12, ps.y + (r() - 0.5) * 12, ps.z + 4 + r() * 10, 0, 0, 10, 0.3, 1.2, r() < 0.5 ? '#ffd23a' : '#ffffff');
     }
     for (const e of w.ents) {
@@ -62,6 +71,9 @@ export class Fx3d {
       case 'fall': if (k) this.p.burst(k.x, k.y, k.z + 1, 24, 70, 0.6, 1.8, w.track.def.liquid ? [w.track.def.liquid.col3, '#ffffff', w.track.def.liquid.col] : ['#888'], 160); break;
       case 'trick': if (k) this.p.burst(k.x, k.y, k.z + 8, 10, 40, 0.4, 1.2, ['#ffffff', '#ffe45e', '#3df0ff']); break;
       case 'miniTurbo': if (k) this.p.burst(k.x - Math.cos(k.a) * 6, k.y - Math.sin(k.a) * 6, k.z + 2, 8 + e.level * 4, 50, 0.3, 1.4, [DRIFT_COL[e.level]!, '#ffffff']); break;
+      case 'godStart': if (k) this.p.burst(k.x, k.y, k.z + 8, 30, 90, 0.6, 1.8, ['#ffe45e', '#ffffff', '#ff6ad0', '#3df0ff'], 80); break;
+      case 'autoStart': if (k) this.p.burst(k.x, k.y, k.z + 6, 20, 70, 0.5, 1.5, ['#3df0ff', '#ffffff'], 60); break;
+      case 'boost': if (k) this.p.burst(k.x - Math.cos(k.a) * 6, k.y - Math.sin(k.a) * 6, k.z + 3, 12, 60, 0.3, 1.4, ['#5de6c8', '#ffd54a', '#ffffff']); break;
       case 'shieldPop': if (k) this.p.burst(k.x, k.y, k.z + 7, 16, 50, 0.4, 1.4, ['#8fe0ff', '#ffffff']); break;
       case 'land': if (k && e.hard) this.p.burst(k.x, k.y, k.z, 10, 40, 0.35, 1.4, [w.track.th.ground[0]], 120); break;
       case 'reflect': if (k) this.p.burst(k.x, k.y, k.z + 7, 18, 60, 0.4, 1.4, ['#ffd23a', '#fff7b0']); break;

@@ -180,7 +180,7 @@ const ZONE_ORDER = 30;
 
 function updateKart(w: World, k: Kart, input: Input, dt: number) {
   const st = k.st, tr = w.track, th = tr.th, N = tr.N, human = isHuman(k), D = T.driving;
-  tickFx(k, dt);
+  tickFx(k, dt, w);
   if (k.invuln > 0) k.invuln -= dt;
   if (k.wallT > 0) k.wallT -= dt;
   if (k.wallCD > 0) k.wallCD -= dt;
@@ -243,7 +243,7 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
     if (k.spin <= 0) { k.invuln = D.hit.invuln; if (st.weightClass === 'pesado') k.heavyT = D.hit.heavyAccelTime; }
   }
   let noBoost = false;
-  eachFx(k, (fd, f) => { fd.input?.(k, inp, f, human); if (fd.noBoost) noBoost = true; });
+  eachFx(k, (fd, f) => { fd.input?.(k, inp, f, human, w); if (fd.noBoost) noBoost = true; });
   if (k.wallT > 0) inp.s = 0;
   if (k.burnout > 0) inp.t = 0;
   // speed pipeline: boost, effects with order < 30, zones + surfaces, effects with order ≥ 30

@@ -119,9 +119,13 @@
 | 65 | Fork Bomb | Objeto · trampa | Should | 20 | S | B bajo · R bajo | 8a | §3.3 |
 | 66 | Antivirus | Objeto · defensa | Should | 5 | S | B bajo · R bajo | 8a | §3.3 |
 | 67 | Pico de Latencia | Objeto · ataque | Should | 5 | S | B medio · R bajo | 8a | §3.3 |
+| 68 | Modo Dios (`dios`): 6 s invencible, +15 % de punta, golpea al contacto, ignora el fuera de pista; zonas 5-6 | Objeto · movilidad | Should | 5 | S | B medio · R bajo | V3-4 | V3_PLAN §2.5 |
+| 69 | Overclock Infinito (`infinito`): 6 s, cada pulsación del objeto da un turbo de 0.6 s; zonas 4-6 | Objeto · movilidad | Should | 5 | S | B bajo · R bajo | V3-4 | V3_PLAN §2.5 |
+| 70 | Piloto Automático (`piloto`): 5 s por la línea a 1.6×, invulnerable, 0.5 s de invulnerabilidad al acabar; solo zona 6 | Objeto · movilidad | Should | 43 | S | B medio · R bajo | V3-4 | V3_PLAN §2.5 |
+| 71 | Objetos por 6 zonas: zona = máx(puesto, distancia al líder), 12 karts | Objetos · reparto | Must | 5 | M | B alto · R medio | V3-4 | V3_PLAN §2.5 |
 
-**Total: 67 entradas.**
-- Must: 40 · Should: 13 · Could: 10.
+**Total: 71 entradas.**
+- Must: 41 · Should: 16 · Could: 10.
 - La numeración es estable para referenciarla en commits (`backlog #20`). Las entradas nuevas se añaden al final (64, 65…); no se renumera.
 
 ## Orden de ataque recomendado dentro del vertical slice (Fase 4)

@@ -5,7 +5,7 @@ import { CHARS, T, clamp, modeOf } from '@jpkart/core';
 import type { GameEvent, Kart, World } from '@jpkart/core';
 import { HAZARD_WARN } from '../app/types';
 import type { Game } from '../game';
-import { hitImpact, itemSfx } from './itemSfx';
+import { boostSfx, hitImpact, itemSfx } from './itemSfx';
 
 /** Is the local kart within `frac` of a lap before track position `at` (0..1)? */
 export function nearSample(g: Game, at: number, frac: number) {
@@ -39,6 +39,11 @@ export function onEvent(g: Game, e: GameEvent) {
     case 'itemRoll': if (me(e.kart)) { A.beep(1100, 0.05, 'square', 0.05); A.beep(600, 0.08, 'square', 0.04, 300); } break;
     case 'itemGet': if (me(e.kart)) A.beep(880, 0.08); break;
     case 'itemUse': { const h = hear(e.kart); itemSfx(A, e.item, h.dist, h.pan, e.ok); break; }
+    case 'godStart': if (me(e.kart)) { g.banner = { t: '¡Modo Dios!', life: 1.4, big: true }; g.rig.addTrauma(0.3); A.beep(1047, 0.25, 'square', 0.05, 600); } else if (near(e.kart, 260)) { g.rig.addTrauma(0.08); } break;
+    case 'godEnd': if (me(e.kart)) { g.banner = { t: 'Se acabó el Modo Dios', life: 1 }; A.beep(440, 0.3, 'triangle', 0.05, -250); } break;
+    case 'autoStart': if (me(e.kart)) { g.banner = { t: '¡Piloto Automático!', life: 1.4, big: true }; g.rig.addTrauma(0.25); } break;
+    case 'autoEnd': if (me(e.kart)) { g.banner = { t: '¡Tú al volante!', life: 1 }; A.beep(700, 0.15, 'square', 0.05, 200); } break;
+    case 'boost': { const h = hear(e.kart); boostSfx(A, h.dist, h.pan); if (me(e.kart)) g.rig.addTrauma(0.12); break; }
     case 'alreadyFirst': if (me(e.kart)) g.banner = { t: 'Ya vas primero', life: 1 }; break;
     case 'hit': {
       const k = w.karts[e.kart]!, d = p ? Math.hypot(p.x - k.x, p.y - k.y) : 0;

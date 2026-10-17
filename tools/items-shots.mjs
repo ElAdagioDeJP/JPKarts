@@ -17,10 +17,12 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 const logs = [];
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
 page.on('console', (m) => { if (m.type() === 'error') logs.push(`[error] ${m.text()}`); });
+// perfil ya creado: sin pantalla de bienvenida
+await page.addInitScript(() => localStorage.setItem('jpkart.profile', JSON.stringify({ version: 2, id: '0123456789abcdef', name: 'Tester', tutorialDone: true, lastCh: -1, lastParts: { body: 'kernel', wheels: 'std', wing: 'wing' } })));
 await page.goto('http://localhost:5173/');
 await page.waitForFunction(() => !!window.__jpkart, null, { timeout: 30000 });
 const key = async (k, n = 1) => { for (let i = 0; i < n; i++) { await page.keyboard.press(k); await page.waitForTimeout(100); } };
-await key('Enter'); await key('ArrowDown'); await key('Enter'); await key('Enter');
+await key('Enter'); await key('ArrowDown'); await key('Enter'); await key('Enter'); await key('Enter'); // menu → pilotos → kart → pista
 await page.evaluate((s) => { const g = window.__jpkart; g.classic = false; g.trackSel = s; }, slot);
 await key('Enter');
 await page.waitForFunction(() => window.__jpkart.world?.phase === 'race', null, { timeout: 60000 });

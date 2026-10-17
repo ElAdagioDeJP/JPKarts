@@ -22,7 +22,7 @@ export interface EffectDef {
   /** removed when the kart gets hit */
   cancelOnHit?: boolean;
   /** stage 1: modify the input (in registration order) */
-  input?(k: Kart, inp: Input, fx: Fx, human: boolean): void;
+  input?(k: Kart, inp: Input, fx: Fx, human: boolean, w: World): void;
   /** boost does nothing while this effect is active */
   noBoost?: boolean;
   /** stage 2: speed limit / acceleration. `order` < 30 runs before tar zones, ≥ 30 after */
@@ -41,6 +41,8 @@ export interface EffectDef {
   onOffRoad?(w: World, k: Kart, off: number): void;
   /** a projectile is about to hit this kart: return true when the effect deflected it */
   onProjectile?(w: World, k: Kart, e: Ent): boolean;
+  /** the timer ran out (not when the effect is removed by something else) */
+  onEnd?(w: World, k: Kart): void;
 }
 
 const DEFS: EffectDef[] = [];
@@ -82,13 +84,14 @@ export function removeFx(k: Kart, type: string) {
   if (i >= 0) k.fx.splice(i, 1);
 }
 
-/** Count down timed effects; expired ones are removed. */
-export function tickFx(k: Kart, dt: number) {
+/** Count down timed effects; expired ones are removed (and tell their `onEnd`). */
+export function tickFx(k: Kart, dt: number, w?: World) {
   for (let i = k.fx.length - 1; i >= 0; i--) {
     const f = k.fx[i]!;
-    if (BY_TYPE.get(f.type)?.permanent) continue;
+    const d = BY_TYPE.get(f.type);
+    if (d?.permanent) continue;
     f.t -= dt;
-    if (!(f.t > 0)) k.fx.splice(i, 1);
+    if (!(f.t > 0)) { k.fx.splice(i, 1); if (w) d?.onEnd?.(w, k); }
   }
 }
 

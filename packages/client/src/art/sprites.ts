@@ -319,6 +319,24 @@ ICONS.overclock = mk(16, 16, (p) => { P.rect(p, 3, 4, 10, 10, cyl('#26305c')); P
 ICONS.forkbomb = mk(16, 16, (p) => { for (const x of [3, 8, 13]) { P.ell(p, x, 10, 3, 3, sph('#3a3848')); P.rect(p, x, 5, 1, 3, '#d8dce8'); P.rect(p, x, 4, 1, 1, '#ff3a3a'); } });
 ICONS.antivirus = mk(16, 16, (p) => { P.ell(p, 8, 7, 6.5, 7, (dx, dy) => (dy > 0.55 ? 0 : '#3d8bff')); P.tri(p, 2, 9, 14, 9, 8, 16, '#3d8bff'); P.line(p, 5, 8, 7, 11, '#ffffff', 2); P.line(p, 7, 11, 12, 4, '#ffffff', 2); });
 ICONS.lagspike = mk(16, 16, (p) => { for (let i = 0; i < 4; i++) P.rect(p, 1 + i * 3, 12 - i * 3, 2, 3 + i * 3, i < 2 ? '#5de6c8' : '#ff3a3a'); P.line(p, 2, 14, 14, 2, '#ffe45e', 1); });
+// V3-4: Modo Dios (golden halo + star), Overclock Infinito (CPU with the infinity sign), Piloto Automático (wheel + cursor)
+ICONS.dios = mk(16, 16, (p) => {
+  P.ell(p, 8, 8, 7.5, 7.5, (dx, dy) => { const d = dx * dx + dy * dy; return d > 0.8 ? '#ffe45e' : d > 0.5 ? '#ffd23a' : 0; });
+  P.tri(p, 8, 2, 4, 13, 12, 13, (x) => (x < 8 ? '#fff7b0' : '#ffd23a'));
+  P.tri(p, 2, 6, 14, 6, 8, 14, (x) => (x < 8 ? '#ffffff' : '#ffe45e'));
+  P.rect(p, 7, 7, 2, 2, '#e8455a');
+});
+ICONS.infinito = mk(16, 16, (p) => {
+  P.rect(p, 2, 3, 12, 10, cyl('#26305c'));
+  for (const x of [3, 7, 11]) { P.rect(p, x, 0, 2, 3, '#ffd54a'); P.rect(p, x, 13, 2, 3, '#ffd54a'); }
+  P.ell(p, 5.5, 8, 2.6, 2.1, (dx, dy) => (dx * dx + dy * dy > 0.5 ? '#5de6c8' : 0));
+  P.ell(p, 10.5, 8, 2.6, 2.1, (dx, dy) => (dx * dx + dy * dy > 0.5 ? '#5de6c8' : 0));
+});
+ICONS.piloto = mk(16, 16, (p) => {
+  P.ell(p, 7, 8, 6.5, 6.5, (dx, dy) => (dx * dx + dy * dy > 0.7 ? '#3df0ff' : dx * dx + dy * dy < 0.12 ? '#26305c' : 0));
+  P.rect(p, 2, 7, 10, 2, '#3df0ff'); P.rect(p, 6, 8, 2, 6, '#3df0ff');
+  P.tri(p, 9, 8, 9, 15, 12, 12, '#ffffff'); P.rect(p, 11, 12, 3, 2, '#ffffff'); P.set(p, 10, 11, '#ff3a3a');
+});
 ICONS.coin = COIN[0]!;
 
 // ---- Phase 9: battle ----

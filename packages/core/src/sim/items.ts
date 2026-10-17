@@ -45,17 +45,27 @@ export const itemDef = (id: string) => {
 };
 export const itemList = (): readonly (ItemDef & { tier: number })[] => REG;
 
-/** Position zone: the field is split in three (0 front, 1 middle, 2 back); 8 karts → ranks 1-3, 4-6, 7-8. */
-export function itemZone(rank: number, n: number): 0 | 1 | 2 {
-  return n > 1 ? (Math.min(2, Math.floor((rank * 3) / n)) as 0 | 1 | 2) : 0;
+/** Number of item zones (docs/V3_PLAN.md §2.5): 0 is the front of the field, 5 the back. */
+export const ITEM_ZONES = 6;
+
+/**
+ * Zone of a kart: the larger of its zone by position (`floor(rank · 6 / n)`: 12 karts → 2 ranks per zone) and its zone by
+ * distance to the leader in track units (`items.json → distZones`, ascending thresholds). A kart far behind gets the strong
+ * items even if it is 3rd; the leader (distance 0) is always in zone 0.
+ */
+export function itemZone(rank: number, n: number, dist = 0): number {
+  const byRank = n > 1 ? Math.min(ITEM_ZONES - 1, Math.floor((rank * ITEM_ZONES) / n)) : 0, D = T.items.distZones;
+  let byDist = 0;
+  for (let i = 0; i < D.length; i++) if (dist >= D[i]!) byDist = i;
+  return Math.max(byRank, Math.min(ITEM_ZONES - 1, byDist));
 }
 
 /**
- * Weight of each item for a kart at `rank` of `n`: one weight per zone (items.json `zones`, [front, middle, back]).
- * 0 = never comes out there: the strong items only appear at the back, the basic ones never reach the last zone.
+ * Weight of each item for a kart at `rank` of `n`, `dist` units behind the leader: one weight per zone (items.json `zones`,
+ * 6 columns). 0 = never comes out there: the weak items stop at the 7th place, the strong ones only appear at the back.
  */
-export function itemWeights(rank: number, n: number): number[] {
-  const z = itemZone(rank, n), Z = T.items.zones as Record<string, number[]>;
+export function itemWeights(rank: number, n: number, dist = 0): number[] {
+  const z = itemZone(rank, n, dist), Z = T.items.zones as Record<string, number[]>;
   return REG.map((it) => (it.noRoll ? 0 : Z[it.id]?.[z] ?? 0));
 }
 
@@ -65,7 +75,8 @@ export function itemWeights(rank: number, n: number): number[] {
  */
 export function rollItem(w: World, k: Kart): string {
   const DI = T.items.distribution;
-  const ws = itemWeights(k.rank, w.karts.length).map((x, i) => {
+  const lead = w.karts[w.ranked[0]!], dist = lead ? Math.max(0, lead.prog - k.prog) * T.items.sampleLen : 0;
+  const ws = itemWeights(k.rank, w.karts.length, dist).map((x, i) => {
     const it = REG[i]!;
     if (w.highTierCD > 0 && it.tier >= DI.highTier) return 0;
     if (k.rank === 0 && it.tier > DI.firstMaxTier) return 0;

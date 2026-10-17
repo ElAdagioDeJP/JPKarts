@@ -3,7 +3,7 @@
 // Public fields stay stable: tools/*.mjs drive the game through them.
 import {
   ALL_TRACKS, ARENA_INDICES, CLASSIC_CUPS, CUPS, LAPS, ReplayPlayer, ReplayRecorder, TrackCache, prepAuthored,
-  SIM_DT, clamp, hAt, hashWorld, lerp, recordRace, wrapA,
+  SIM_DT, clamp, hAt, hasFx, hashWorld, lerp, recordRace, wrapA,
   type EngineClass, type GameEvent, type Input as SimInput, type Kart, type Loadout, type Profile, type Progress, type Replay, type StatKey, type Track, type World,
 } from '@jpkart/core';
 import { DebugOverlay } from './dev/debugOverlay';
@@ -364,7 +364,7 @@ export class Game {
     else if (this.state === 'race' || this.state === 'replay') {
       const d = this.tr.def, lastLap = this.local!.prog >= ((this.world?.cfg.laps ?? LAPS) - 1) * this.tr.N;
       const motif = { ...motifForTrack(this.tr.def.id), drums: DRUM_BY_STYLE[this.tr.th.style] ?? 'base' as const };
-      A.musicWant(d.song, d.mul * (lastLap ? 1.06 : 1), this.paused ? 0 : 1, motif);
+      A.musicWant(d.song, d.mul * (lastLap ? 1.06 : 1) * (this.local && hasFx(this.local, 'god') ? 1.15 : 1), this.paused ? 0 : 1, motif); // Modo Dios: the music speeds up
     }
     else A.musicWant('menu', 1, 0.7);
     this.dbg.draw(ui, this.tr, this.world);
@@ -466,7 +466,7 @@ export class Game {
     if (st === 'race' && this.local?.finished) return { file: null, ...ui };
     if (st === 'race' || st === 'replay') {
       const lastLap = this.local!.prog >= ((this.world?.cfg.laps ?? LAPS) - 1) * this.tr.N;
-      return { file: songFile(this.tr.def.id), ...ui, rate: lastLap ? 1.06 : 1, vol: this.paused ? 0 : 1 };
+      return { file: songFile(this.tr.def.id), ...ui, rate: (lastLap ? 1.06 : 1) * (this.local && hasFx(this.local, 'god') ? 1.15 : 1), vol: this.paused ? 0 : 1 };
     }
     if (st === 'results' || st === 'standings') return { file: 'results', ...ui, vol: 0.8 };
     const won = st === 'final' ? this.standingsList().indexOf(this.sel) < 3 : (this.local?.rank ?? 9) < 3;

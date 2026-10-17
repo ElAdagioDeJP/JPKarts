@@ -155,6 +155,12 @@ export type GameEvent =
   | { type: 'flagDrop'; kart: KartId }
   | { type: 'lap'; kart: KartId; lap: number; final: boolean }
   | { type: 'finish'; kart: KartId; time: number }
+  | { type: 'godStart'; kart: KartId }
+  | { type: 'godEnd'; kart: KartId }
+  | { type: 'autoStart'; kart: KartId }
+  | { type: 'autoEnd'; kart: KartId }
+  /** a boost granted by something other than the drift/pads/nitro (src names it: 'overclockInf') */
+  | { type: 'boost'; kart: KartId; src: string }
   | { type: 'flash'; color: string }
   | { type: 'raceEnd' };
 

@@ -30,3 +30,6 @@ import './jugger';
 import './agujero';
 import './cuantico';
 import './bala';
+import './dios';
+import './infinito';
+import './piloto';
