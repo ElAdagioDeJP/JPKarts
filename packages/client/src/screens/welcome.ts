@@ -70,7 +70,7 @@ function pageLines(g: Game, page: number): { title: string; lines: string[] } {
       'Si aceleras demasiado pronto, patinas.',
     ] };
     case 2: return { title: 'Derrapar', lines: [
-      'Mantén ' + key(g, 'derrapar') + ' mientras giras para derrapar.',
+      'Gira y mantén ' + key(g, 'derrapar') + ' para derrapar.',
       'Las chispas cambian de color:',
       'azul → naranja → morado.',
       'Al soltar, sales con un mini-turbo:',

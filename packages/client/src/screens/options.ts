@@ -112,12 +112,12 @@ export function drawOptions(g: Game) {
   ui.bg(0.82);
   ui.txt('Opciones', W / 2, 8, '#ffe45e', 16, 'center');
   rows.forEach(([k, v], i) => {
-    const y = 32 + i * 17, on = i === g.optSel;
-    ui.panel(ox, y, 300, 13, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
-    ui.txt(k, ox + 6, y + 3, on ? '#ffe45e' : '#fff7e0');
-    if (v) ui.txt((on ? '< ' : '') + v + (on ? ' >' : ''), ox + 294, y + 3, '#fff7e0', 8, 'right');
+    const y = 27 + i * 13, on = i === g.optSel;
+    ui.panel(ox, y, 300, 11, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
+    ui.txt(k, ox + 6, y + 2, on ? '#ffe45e' : '#fff7e0');
+    if (v) ui.txt((on ? '< ' : '') + v + (on ? ' >' : ''), ox + 294, y + 2, '#fff7e0', 8, 'right');
   });
-  ui.txtS('Flechas o mando para cambiar · Esc para volver (se guarda solo)', W / 2, 226, '#9c95d6');
+  ui.txtS('Flechas o mando para cambiar · Esc para volver (se guarda solo)', W / 2, 228, '#9c95d6');
 }
 
 export function drawControls(g: Game) {

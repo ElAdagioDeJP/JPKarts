@@ -8,7 +8,7 @@ import { hudLines } from '../feel/effectView';
 import { DRIFT_COL as DCOL, DRIFT_COL_CB } from '../feel/fx3d';
 import { TEAM_COL, uiRect } from '../app/types';
 import { effectiveHudScale, isMobileDevice } from '../mobile';
-import { W } from '../ui/draw';
+import { FONT, W } from '../ui/draw';
 import type { Game } from '../game';
 
 export function drawSmudge(g: Game) {
@@ -49,7 +49,7 @@ export function drawHUDs(g: Game, dt: number) {
 }
 
 export function drawHUD(g: Game, dt: number) {
-  // M2: en móvil la escala efectiva nunca baja de 1.5× (legible a 30 cm).
+  // M2: en móvil la escala efectiva nunca baja de 1.25× (legible a 30 cm).
   const sc = (() => { try { return effectiveHudScale(g.settings.hudScale); } catch { return g.settings.hudScale; } })();
   g.ui.ctx.save();
   g.ui.ctx.scale(sc, sc);
@@ -59,11 +59,12 @@ export function drawHUD(g: Game, dt: number) {
 export function drawHUDScaled(g: Game, dt: number, Wv: number, Hv: number) {
   const ui = g.ui, ctx = ui.ctx, w = g.world!, p = g.local!, tr = g.tr;
   const laps = w.cfg.laps, lap = clamp(Math.floor(p.prog / tr.N) + 1, 1, laps);
-  ui.panel(4, 4, 82, g.mode === 'cup' ? 32 : 26, 'rgba(27,23,64,0.75)', '#6d66b0');
-  ui.txt(
-    w.cfg.mode === 'battle' ? 'Globos: ' + p.balloons
+  const head = w.cfg.mode === 'battle' ? 'Globos: ' + p.balloons
     : w.cfg.mode === 'capture' ? 'Bandera: ' + p.score.toFixed(0) + '/' + T.race.capture.goal
-    : 'Vuelta ' + lap + '/' + laps, 8, 8);
+    : 'Vuelta ' + lap + '/' + laps;
+  ctx.font = '8px ' + FONT;
+  ui.panel(4, 4, Math.max(82, Math.ceil(ctx.measureText(head).width) + 12), g.mode === 'cup' ? 32 : 26, 'rgba(27,23,64,0.75)', '#6d66b0');
+  ui.txt(head, 8, 8);
   if (w.cfg.mode === 'elimination') {
     const alive = w.karts.filter((k) => !k.out);
     ui.txtS('Quedan ' + alive.length, 8, 34, '#ff8a1f', 'left');
@@ -81,7 +82,8 @@ export function drawHUDScaled(g: Game, dt: number, Wv: number, Hv: number) {
   if (p.rank !== g.lastRank) { g.posPop = g.lastRank >= 0 ? 1 : 0; g.lastRank = p.rank; }
   g.posPop = Math.max(0, g.posPop - dt * 4);
   const pop = 1 + Math.sin(g.posPop * Math.PI) * 0.35;
-  ctx.save(); ctx.translate(Wv - 8, 6); ctx.scale(pop, pop);
+  const mob = (() => { try { return isMobileDevice(); } catch { return false; } })();
+  ctx.save(); ctx.translate(Wv - 8 - (mob && typeof innerWidth === 'number' ? Math.round((128 * Wv) / innerWidth) : 0), 6); ctx.scale(pop, pop);
   ui.txt(pos + 'º', 0, 0, pos === 1 ? '#ffe45e' : pos <= 3 ? '#fff7e0' : '#c8c4f0', 24, 'right');
   ctx.restore();
   const bx = Wv / 2 - 15, by = 5;
@@ -91,7 +93,7 @@ export function drawHUDScaled(g: Game, dt: number, Wv: number, Hv: number) {
   if (p.roll > 0) icon = ICONS[list[((w.raceT * 18) | 0) % list.length]!.id];
   else if (p.item) icon = ICONS[p.item];
   if (icon) ui.img(icon.cv, bx + 3, by + 3, 24, 24);
-  if (p.item && p.roll <= 0 && p.itemN > 1) ui.txtS('×' + p.itemN, bx + 28, by + 22, '#ffe45e', 'left');
+  if (p.item && p.roll <= 0 && p.itemN > 1) ui.txtS('×' + p.itemN, bx + 29, by + 23, '#ffe45e', 'right');
   if (w.ents.some((e) => e.kind === 'coin') || p.coins > 0) {
     g.coinPop = Math.max(0, g.coinPop - dt * 3);
     const cx = bx - 30, cy = by + 8, shake = g.coinPop > 0 ? Math.sin(g.coinPop * 40) * 2 : 0;
@@ -103,9 +105,9 @@ export function drawHUDScaled(g: Game, dt: number, Wv: number, Hv: number) {
   if (p.glide) st.push(['¡Volando!', '#8fe0ff']);
   st.forEach(([s, c], i) => ui.txtS(s, Wv / 2, by + 46 + i * 9, c));
   if (hasFx(p, 'inv') && ((w.raceT * 4) | 0) % 2 === 0) ui.txt('¡Controles invertidos!', Wv / 2, Hv / 2 - 40, '#ff6ad0', 8, 'center');
-  const m = g.mini(tr), mob = (() => { try { return isMobileDevice(); } catch { return false; } })();
-  // M2: minimapa un 20% más grande y abajo-centro en móvil (fuera de los pulgares).
-  const ms = mob ? 72 : 60, mx = mob ? Wv / 2 - ms / 2 : Wv - 62, my = mob ? Hv - ms - 8 : Hv - 62;
+  const m = g.mini(tr);
+  // móvil: minimapa arriba a la derecha bajo la posición (abajo-centro tapaba el kart, abajo-derecha los botones).
+  const ms = mob ? 54 : 60, mx = mob ? Wv - ms - 8 : Wv - 62, my = mob ? 34 : Hv - 62;
   ui.panel(mx - 2, my - 2, ms, ms, 'rgba(27,23,64,0.55)', '#6d66b0');
   ui.img(m.cv, mx, my, ms, ms);
   for (const k of w.karts) {
@@ -115,8 +117,9 @@ export function drawHUDScaled(g: Game, dt: number, Wv: number, Hv: number) {
     ctx.fillStyle = CHARS[k.ch]!.helmet; ctx.fillRect(x - 1, y - 1, 2, 2);
     if (k.rank === 0) { ctx.fillStyle = '#ffd23a'; ctx.fillRect(x - 2, y - r - 2, 1, 1); ctx.fillRect(x, y - r - 3, 1, 1); ctx.fillRect(x + 1, y - r - 2, 1, 1); }
   }
+  const rowH = Math.min(17, Math.max(12, (Hv - 48) / Math.max(1, w.ranked.length))); // 8 pilotos siempre caben
   w.ranked.forEach((id, i) => {
-    const k = w.karts[id]!, y = 44 + i * 17;
+    const k = w.karts[id]!, y = 44 + i * rowH;
     if (id === g.localId) { ctx.fillStyle = 'rgba(255,228,94,0.35)'; ctx.fillRect(4, y - 1, 34, 17); }
     ui.img(FACES[k.ch]!.cv, 5, y, 16, 16);
     if (w.cfg.mode === 'battle' && !k.out) ui.txtS('●'.repeat(k.balloons), 38, y + 5, CHARS[k.ch]!.helmet, 'left');
@@ -140,9 +143,15 @@ export function drawHUDScaled(g: Game, dt: number, Wv: number, Hv: number) {
     }
   }
   if (p.backT > 0.8 && !p.finished && ((w.raceT * 3) | 0) % 2 === 0) ui.txt('¡Sentido contrario!', Wv / 2, Hv / 2 - 30, '#ff4d6d', 8, 'center');
+  if (g.banner && g.paused) g.banner = null;
   if (g.banner) {
     g.banner.life -= dt;
-    ui.txt(g.banner.t, Wv / 2, g.banner.big ? Hv / 2 - 24 : 66, '#ffe45e', g.banner.big ? 24 : 16, 'center');
+    // fit between the rank list (left) and the minimap (right): long banners shrink instead of being cut
+    let bs = g.banner.big ? 24 : 16;
+    ctx.font = bs + 'px ' + FONT;
+    const bw = ctx.measureText(g.banner.t).width, bmax = Wv - 100;
+    if (bw > bmax) bs = Math.max(8, Math.floor((bs * bmax) / bw));
+    ui.txt(g.banner.t, Wv / 2, g.banner.big ? Hv / 2 - 24 : 66, '#ffe45e', bs, 'center');
     if (g.banner.life <= 0) g.banner = null;
   }
   if (g.audio.muted) ui.txtS('Sin sonido', Wv / 2, Hv - 24);

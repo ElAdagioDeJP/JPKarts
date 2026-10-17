@@ -76,9 +76,9 @@ export function registerSW(): void {
   } catch { /* PWA opcional */ }
 }
 
-/** HUD efectivo: en móvil nunca por debajo de 1.5× (legible a 30 cm). */
+/** HUD efectivo: en móvil nunca por debajo de 1.25× (legible a 30 cm; a 1.5× la lista de 8 pilotos no cabía). */
 export function effectiveHudScale(base: number): number {
-  return isMobileDevice() ? Math.max(base, 1.5) : base;
+  return isMobileDevice() ? Math.max(base, 1.25) : base;
 }
 
 /** Tier inicial: `quality` manual gana; `auto` = ahorro en móvil, alta en PC. */

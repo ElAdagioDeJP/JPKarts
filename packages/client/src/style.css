@@ -202,3 +202,7 @@ body.mobile.can-pause #pausebtn { display: flex; }
   top: calc(env(safe-area-inset-top, 0px) + 8px);
   right: calc(env(safe-area-inset-right, 0px) + 68px);
 }
+/* En carrera el botón de sonido tapaba la posición (arriba a la derecha); se silencia desde la pausa. */
+body.mobile.racing:not(.menu-nav) #mute-btn { display: none; }
+/* En pausa se ven los botones de menú; los de conducción se esconden para no solaparse. */
+body.mobile.menu-nav #touch { display: none; }

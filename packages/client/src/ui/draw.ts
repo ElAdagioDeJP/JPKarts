@@ -54,9 +54,23 @@ export class Ui {
     ctx.fillStyle = fill; ctx.fillRect(x, y, w, h);
     ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(x, y, w, Math.min(3, h));
   }
+  /** Dim the whole canvas (it overshoots the logical area so a scaled-down screen still dims everything). */
   bg(a = 0.72) {
     this.ctx.fillStyle = 'rgba(27,23,64,' + a + ')';
-    this.ctx.fillRect(0, 0, W, H);
+    this.ctx.fillRect(-W, -H, W * 3, H * 3);
+  }
+  /** Small text wrapped to `maxW` logical px; returns the number of lines drawn. */
+  wrap(s: string, x: number, y: number, maxW: number, col = '#fff7e0', align: CanvasTextAlign = 'center', lineH = 8) {
+    this.ctx.font = '6px ' + FONT;
+    const lines: string[] = [];
+    let cur = '';
+    for (const w of s.split(' ')) {
+      const t = cur ? cur + ' ' + w : w;
+      if (cur && this.ctx.measureText(t).width > maxW) { lines.push(cur); cur = w; } else cur = t;
+    }
+    if (cur) lines.push(cur);
+    lines.forEach((l, i) => this.txtS(l, x, y + i * lineH, col, align));
+    return lines.length;
   }
   img(cv: CanvasImageSource, x: number, y: number, w?: number, h?: number) {
     if (w == null) this.ctx.drawImage(cv, x, y);

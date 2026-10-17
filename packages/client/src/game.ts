@@ -294,7 +294,7 @@ export class Game {
       const i = Math.floor(this.attract) % tr.N, x = tr.x[i]!, y = tr.y[i]!;
       this.updateCam(dt, x, y, tr.ang[i]!, hAt(tr, x, y));
       this.renderWorld(t, []);
-      ({ title: () => this.drawTitle(t), welcome: () => Welcome.drawWelcome(this, t), menu: () => this.drawMenu(t), options: () => this.drawOptions(), controls: () => this.drawControls(), lan: () => this.drawLan(t), online: () => this.drawOnline(t), lobby: () => this.drawLobby(t), select: () => this.drawSelect(t), cup: () => this.drawCupSel(t), track: () => this.drawTrackSel() } as Record<string, () => void>)[this.state]!();
+      this.safeArea(() => ({ title: () => this.drawTitle(t), welcome: () => Welcome.drawWelcome(this, t), menu: () => this.drawMenu(t), options: () => this.drawOptions(), controls: () => this.drawControls(), lan: () => this.drawLan(t), online: () => this.drawOnline(t), lobby: () => this.drawLobby(t), select: () => this.drawSelect(t), cup: () => this.drawCupSel(t), track: () => this.drawTrackSel() } as Record<string, () => void>)[this.state]!());
       A.engineSet(false, 0);
     } else if (this.world) {
       const w = this.world, p = this.local!;
@@ -324,14 +324,14 @@ export class Game {
           const n = Math.ceil(w.cd);
           ui.txt(n > 0 ? String(n) : '', W / 2, H / 2 - 40, '#ffe45e', 40, 'center');
           ui.txt(this.tr.def.name, W / 2, 34, '#fff7e0', 8, 'center');
-          ui.txtS('Truco: acelera justo en el 1 para salir con turbo', W / 2, H - 30);
+          ui.txtS('Truco: acelera justo en el 1 para salir con turbo', W / 2, isMobileDevice() ? 46 : H - 30); // en móvil los botones táctiles tapan el borde inferior
         } else this.drawHUDs(this.paused ? 0 : dt);
         if (this.net) drawNetOverlay(this);
         A.engineSet(!this.paused, p.speed + (p.boost > 0 ? 40 : 0));
         this.audioFrame(w, p);
         if (this.paused) { ui.bg(0.7); ui.txt('Pausa', W / 2, 80, '#ffe45e', 24, 'center'); ui.txt('P para seguir', W / 2, 130, '#fff7e0', 8, 'center'); ui.txt('Esc para salir al menú', W / 2, 146, '#fff7e0', 8, 'center'); }
       } else {
-        ({ replay: () => {}, results: () => this.drawResults(), standings: () => this.drawStandings(), final: () => this.drawFinal(t), podium: () => this.drawPodiumFree(t) } as Record<string, () => void>)[this.state]!();
+        this.safeArea(() => ({ replay: () => {}, results: () => this.drawResults(), standings: () => this.drawStandings(), final: () => this.drawFinal(t), podium: () => this.drawPodiumFree(t) } as Record<string, () => void>)[this.state]!());
         A.engineSet(false, 0);
       }
     }
@@ -421,6 +421,18 @@ export class Game {
   drawCupSel(t: number) { Menus.drawCupSel(this, t); }
   drawTrackSel() { Menus.drawTrackSel(this); }
   rowList(list: number[], extra: (ch: number, i: number, y: number) => void) { Menus.rowList(this, list, extra); }
+  /**
+   * Phones: the on-screen pad (56 px buttons + margin) covers the bottom of every 2D screen, so those screens are drawn
+   * scaled down into the area above it (the dim background still fills everything, see Ui.bg).
+   */
+  private safeArea(draw: () => void) {
+    let k = 1;
+    try { if (isMobileDevice()) { const h = this.ui.cv.getBoundingClientRect().height; if (h > 0) k = Math.min(1, Math.max(0.6, (h - 74) / h)); } } catch { /* noop */ }
+    if (k >= 1) { draw(); return; }
+    const c = this.ui.ctx;
+    c.save(); c.translate((W * (1 - k)) / 2, 0); c.scale(k, k);
+    try { draw(); } finally { c.restore(); }
+  }
   /** Recorded song for the current state (file null = silence or synth fallback). */
   private songPick(): { file: string | null; preload?: string; rate: number; vol: number; loop: boolean } {
     const st = this.state, ui = { rate: 1, vol: 1, loop: true };
@@ -446,3 +458,4 @@ export class Game {
   drawPodiumFree(t: number) { Menus.drawPodiumFree(this, t); }
   drawFinal(t: number) { Menus.drawFinal(this, t); }
 }
+

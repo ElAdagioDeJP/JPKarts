@@ -151,7 +151,7 @@ export function drawOnline(g: Game, t: number) {
     ui.panel(ox, y, 300, mob ? 21 : 15, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
     ui.txt(r, W / 2, y + 4, on ? '#ffe45e' : '#fff7e0', 8, 'center');
   });
-  ui.txtS('Crea la sala y pasa el código a tus amigos. La conexión va cifrada (wss).', W / 2, mob ? 208 : 202, '#fff7e0');
+  if (!mob) ui.wrap('Crea la sala y pasa el código a tus amigos. La conexión va cifrada (wss).', W / 2, 202, W - 24, '#fff7e0');
   ui.txtS(mob ? 'Intro: crear o unirse · C copiar · V pegar · Esc vuelve' : 'Intro: crear o unirse · ↑↓ cambia de campo · Esc vuelve', W / 2, 226, '#9c95d6');
 }
 
@@ -176,7 +176,7 @@ export function drawLan(g: Game, t: number) {
       ui.txtS(r, ox + 6, y + 3, on ? '#ffe45e' : '#fff7e0', 'left');
     });
     ui.txtS('Si Windows pregunta por el firewall, permite el acceso en redes privadas.', W / 2, 214, '#9c95d6');
-  } else ui.txtS('El anfitrión ejecuta "bun run server" o crea la partida desde la app de escritorio.', W / 2, 160, '#fff7e0');
+  } else ui.wrap('El anfitrión ejecuta "bun run server" o crea la partida desde la app de escritorio.', W / 2, 160, W - 24, '#fff7e0');
   ui.txtS('Puerto 7777 · Intro para conectar · ↑↓ cambia de campo · Esc vuelve', W / 2, 226, '#9c95d6');
 }
 

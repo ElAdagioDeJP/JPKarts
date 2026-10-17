@@ -80,8 +80,8 @@ export function drawSelect(g: Game, t: number) {
   ui.txt('Elige piloto', W / 2, 6, '#ffe45e', 16, 'center');
   if (g.mode !== 'timetrial') {
     const n = g.players, srcs = assignSources(n);
-    ui.txtS('Jugadores: ' + n + ' (J)', ox + 318, 8, n > 1 ? '#8fe0ff' : '#9c95d6', 'right');
-    if (n > 1) ui.txtS(srcs.map((src, i) => 'J' + (i + 1) + ' ' + (i ? CHARS[(g.sel + i) % CHARS.length]!.short : CHARS[g.sel]!.short) + ': ' + SOURCE_NAMES(src)).join('   '), W / 2, 230, '#8fe0ff');
+    ui.txtS('Jugadores: ' + n + ' (J)', 6, 4, n > 1 ? '#8fe0ff' : '#9c95d6', 'left');
+    if (n > 1) ui.txtS(srcs.map((src, i) => 'J' + (i + 1) + ': ' + SOURCE_NAMES(src).split(' · ')[0]).join('  ·  '), W / 2, 23, '#8fe0ff');
   }
   CHARS.forEach((c, i) => {
     const col = i % 4, row = i >> 2, x = ox + 18 + col * 74, y = 28 + row * 56, on = i === g.sel;
@@ -96,10 +96,8 @@ export function drawSelect(g: Game, t: number) {
   ui.txt(c.name, ox + 18, 150, '#ffe45e');
   ui.txtS(c.desc, ox + 18, 162, '#fff7e0', 'left');
   (['vel', 'ace', 'man', 'pes', 'vue'] as StatKey[]).forEach((k, i) => statBar10(g, k, c.st[k], ox + 18 + (i % 2) * 124, 176 + ((i / 2) | 0) * 13));
-  ui.txtS(g.mode === 'cup' ? 'Torneo' : 'Carrera libre', ox + 282, 196, '#9c95d6');
-  ui.txtS(DIFFS[g.diff]!.name, ox + 282, 206, '#9c95d6');
-  ui.txtS('Clase: ' + c.weightClass, ox + 282, 186, '#9c95d6');
-  ui.txtS('Enter', ox + 282, 218, '#9c95d6');
+  ui.txtS('Clase: ' + c.weightClass, ox + 18, 222, '#9c95d6', 'left');
+  ui.txtS((g.mode === 'cup' ? 'Torneo' : 'Carrera libre') + '  ·  ' + DIFFS[g.diff]!.name, ox + 302, 222, '#9c95d6', 'right');
 }
 
 export function drawCupSel(g: Game, t: number) {
@@ -124,36 +122,36 @@ export function drawTrackSel(g: Game) {
   const ui = g.ui, ctx = ui.ctx, ox = (W - 320) / 2;
   ui.bg();
   ui.txt(isArena(g.mode) ? (g.mode === 'battle' ? 'Batalla: Globos' : 'Batalla: Captura') : 'Elige circuito', W / 2, 6, '#ffe45e', 16, 'center');
-  g.trackCups.forEach((c, r) => ui.txtS(c.name.replace('Copa ', '').replace('Clásica ', ''), ox + 33, 28 + r * 44 + 16, c.col));
+  g.trackCups.forEach((c, r) => ui.txtS(c.name.replace('Copa ', '').replace('Clásica ', ''), ox + 33, 24 + r * 38 + 14, c.col));
   g.grid.forEach((ti, i) => {
     const trk = g.tracks.get(ti);
-    const r = i >> 2, x = ox + 66 + (i % 4) * 62, y = 26 + r * 44, on = i === g.trackSel;
-    ui.panel(x, y, 56, 38, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : g.trackCups[r]!.col);
-    ctx.fillStyle = trk.th.ground[0]; ctx.fillRect(x + 14, y + 5, 28, 28);
-    ui.img(g.mini(trk).cv, x + 14, y + 5, 28, 28);
+    const r = i >> 2, x = ox + 66 + (i % 4) * 62, y = 24 + r * 38, on = i === g.trackSel;
+    ui.panel(x, y, 56, 34, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : g.trackCups[r]!.col);
+    ctx.fillStyle = trk.th.ground[0]; ctx.fillRect(x + 15, y + 4, 26, 26);
+    ui.img(g.mini(trk).cv, x + 15, y + 4, 26, 26);
     if (trk.def.flight) ui.txtS('*', x + 50, y + 2, '#8fe0ff');
   });
   const d = g.tracks.get(g.grid[g.trackSel]!).def;
-  ui.txt(d.name, W / 2, 182, '#ffe45e', 8, 'center');
+  ui.txt(d.name, W / 2, 178, '#ffe45e', 8, 'center');
   const au = g.tracks.get(g.grid[g.trackSel]!).authored;
   const tags = au?.cup === 'arena' ? [au.sections[0]?.intent ?? 'Arena'] : au
     ? [...new Set(au.hazards.map((h) => HAZARD_TAG[h.kind]).filter(Boolean)), au.weather ? WEATHER_TAG[au.weather.kind] : null, au.dayNight ? 'Del día a la noche' : null, au.narrow ? 'La nieve estrecha la pista' : null, au.water?.kind === 'lava' ? 'Lava' : null].filter(Boolean)
     : [d.flight ? 'Rampas de vuelo' : null, d.th.ice ? 'Hielo' : null, d.liquid ? d.liquid.msg.replace(/[¡!]/g, '').replace('Al ', 'Cuidado: ').replace('A la ', 'Cuidado: ') : null, d.ramps.length ? 'Saltos' : null].filter(Boolean);
-  ui.txtS(tags.join('  /  ') || 'Clásica', W / 2, 214, '#fff7e0');
+  ui.wrap(tags.join('  /  ') || 'Clásica', W / 2, 190, W - 20, '#fff7e0');
   const rec = g.progress.records[ALL_TRACKS[g.grid[g.trackSel]!]!.id + ':' + g.cls];
-  if (rec?.race != null) ui.txtS('Récord: ' + fmtTime(rec.race) + (rec.lap != null ? '   Vuelta: ' + fmtTime(rec.lap) : ''), W / 2, 194, '#ffe45e');
-  drawClassLine(g, 204);
+  if (rec?.race != null) ui.txtS('Récord: ' + fmtTime(rec.race) + (rec.lap != null ? '   Vuelta: ' + fmtTime(rec.lap) : ''), W / 2, 199, '#ffe45e');
+  drawClassLine(g, 209);
   ui.txtS(isArena(g.mode) ? 'Enter: luchar  ·  C: ' + (g.mode === 'battle' ? 'Captura' : 'Globos') + '  ·  Esc: volver' : 'Enter: correr  ·  C: ' + (g.classic ? 'pistas nuevas' : 'pistas clásicas') + '  ·  Esc: volver', W / 2, 228, '#9c95d6');
 }
 
 export function rowList(g: Game, list: number[], extra: (ch: number, i: number, y: number) => void) {
   const ui = g.ui, ox = (W - 320) / 2;
   list.forEach((ch, i) => {
-    const y = 44 + i * 19, me = ch === g.sel;
-    ui.panel(ox + 28, y, 264, 15, me ? '#3a3478' : '#241f55', me ? '#ffe45e' : '#6d66b0');
-    ui.txt(i + 1 + 'º', ox + 34, y + 4, me ? '#ffe45e' : '#fff7e0');
+    const y = 40 + i * 17, me = ch === g.sel;
+    ui.panel(ox + 28, y, 264, 14, me ? '#3a3478' : '#241f55', me ? '#ffe45e' : '#6d66b0');
+    ui.txt(i + 1 + 'º', ox + 34, y + 3, me ? '#ffe45e' : '#fff7e0');
     ui.img(FACES[ch]!.cv, ox + 60, y - 1, 16, 16);
-    ui.txt(CHARS[ch]!.name, ox + 80, y + 4, me ? '#ffe45e' : '#fff7e0');
+    ui.txt(CHARS[ch]!.name, ox + 80, y + 3, me ? '#ffe45e' : '#fff7e0');
     extra(ch, i, y);
   });
 }
@@ -171,13 +169,15 @@ export function drawResults(g: Game) {
     if (g.mode === 'cup') ui.txt('+' + (modeOf(w).scoring?.(w, w.finalOrder).get(w.finalOrder[i]!) ?? 0), ox + 284, y + 4, '#2ec46b', 8, 'right');
   });
   const p = g.local!;
-  if (p.best != null) ui.txtS('Tu mejor vuelta: ' + fmtTime(p.best), W / 2, 186);
+  let ly = 178;
+  if (p.best != null) { ui.txtS('Tu mejor vuelta: ' + fmtTime(p.best), W / 2, ly); ly += 8; }
   if (w.cfg.teams) {
     const tot = [0, 0];
     w.finalOrder.forEach((id, i) => { const k = w.karts[id]!; if (k.team >= 0) tot[k.team]! += POINTS[i] ?? 0; });
-    ui.txtS('Equipo ' + TEAM_NAME[0] + ' ' + tot[0] + '  ·  Equipo ' + TEAM_NAME[1] + ' ' + tot[1] + (tot[0] === tot[1] ? '  ·  Empate' : '  ·  Gana el ' + TEAM_NAME[tot[0]! > tot[1]! ? 0 : 1]), W / 2, 196, tot[0] === tot[1] ? '#fff7e0' : TEAM_COL[tot[0]! > tot[1]! ? 0 : 1]!);
+    ui.txtS('Equipo ' + TEAM_NAME[0] + ' ' + tot[0] + '  ·  Equipo ' + TEAM_NAME[1] + ' ' + tot[1] + (tot[0] === tot[1] ? '  ·  Empate' : '  ·  Gana el ' + TEAM_NAME[tot[0]! > tot[1]! ? 0 : 1]), W / 2, ly, tot[0] === tot[1] ? '#fff7e0' : TEAM_COL[tot[0]! > tot[1]! ? 0 : 1]!);
+    ly += 8;
   }
-  g.resultNotes.forEach((n, i) => ui.txtS(n, W / 2, 206 - (g.resultNotes.length - 1 - i) * 9, '#ffe45e'));
+  g.resultNotes.forEach((n, i) => ui.txtS(n, W / 2, ly + i * 8, '#ffe45e'));
   ui.txtS(g.net
     ? (g.net.nextIn > 0 ? (g.net.settings.mode === 'cup' && g.net.cupRace < CUPS[g.net.settings.cup]!.tracks.length - 1 ? 'Siguiente carrera en ' : 'Volviendo a la sala en ') + g.net.nextIn + ' s' : 'Esperando...') + (g.net.isHost ? '    Intro: saltar' : '') + '    Esc: salir'
     : g.mode === 'cup' ? 'Enter: ver clasificación    R: repetición'
