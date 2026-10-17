@@ -26,3 +26,9 @@ art/blender/renders/*
 !art/blender/renders/jp_34.png
 !art/blender/renders/jp_side.png
 !art/blender/renders/pilots_sheet.png
+
+# Capturas y artefactos de pruebas locales (no se suben)
+.playwright-mcp/
+shots-*/
+verify-*.png
+*.tmp
