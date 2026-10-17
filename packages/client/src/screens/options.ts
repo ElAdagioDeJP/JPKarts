@@ -17,7 +17,8 @@ export function applySettings(g: Game) {
   g.renderer.post.enabled = S.post;
   // M3: la calidad manual fuerza tier; `auto` = ahorro en móvil, alta en PC.
   try {
-    g.renderer.applyTier(S.quality === 'alta' || S.quality === 'ahorro' ? S.quality : initialTier('auto'));
+    const tier = S.quality === 'alta' || S.quality === 'ahorro' ? S.quality : initialTier('auto');
+    if (g.renderer.tier !== tier) g.renderer.applyTier(tier); // re-applying the same tier recompiles every material
     g.renderer.post.enabled = S.post;
   } catch { /* render opcional en tests */ }
   for (const [a, ks] of Object.entries(S.keys)) if (ks?.length) (g.input.bindings as any)[a] = [...ks];

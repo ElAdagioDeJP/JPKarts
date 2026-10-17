@@ -269,12 +269,13 @@ export class WorldRenderer {
     } catch { r.setPixelRatio(1); }
     const saving = t === 'ahorro';
     // Sombras: 2048 (PC legacy) → 1024 en alta, OFF en ahorro.
+    // The shadow map is never disposed or resized here: the auto-downgrade fires mid-race (often at the start, while
+    // pipelines are still compiling) and WebGPU kept submitting the destroyed ShadowDepthTexture, so every frame was
+    // rejected and the 3D view froze on the starting grid while the HUD kept running.
     try {
       this.sun.castShadow = !saving;
       r.shadowMap.enabled = !saving;
-      this.sun.shadow.mapSize.set(saving ? 512 : 1024, saving ? 512 : 1024);
-      const m = this.sun.shadow.map as { dispose?: () => void } | null;
-      if (m && typeof m.dispose === 'function') { m.dispose(); (this.sun.shadow as { map: unknown }).map = null; }
+      if (!saving) this.sun.shadow.mapSize.set(1024, 1024);
       this.scene.traverse((o) => {
         const mm = o as THREE.Mesh;
         const mats = (mm as { material?: { needsUpdate?: boolean } | { needsUpdate?: boolean }[] }).material;

@@ -166,7 +166,9 @@ export class Game {
     this.tr = this.tracks.ensureBuilt(0);
     renderer.setTrack(this.tr);
     this.fx = new Fx3d(renderer.particles);
-    input.onFirstGesture = () => { audio.init(); this.applySettings(); };
+    // fires on every key/tap: only the first one creates the audio context and applies the volumes (applying the
+    // settings on each key re-applied the quality tier mid-race, which froze the 3D view on some GPUs)
+    input.onFirstGesture = () => { if (audio.AC) return; audio.init(); this.applySettings(); };
     this.applySettings();
   }
 
