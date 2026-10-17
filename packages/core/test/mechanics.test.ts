@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { ALL_TRACKS, LAPS, Rng, TrackCache, addFx, arenaGust, buildGrid, createWorld, lateralAt, prepAuthored, step, takeEvents, type GameEvent, type Kart, type World } from '../src';
+import { ALL_TRACKS, LAPS, Rng, T, TrackCache, addFx, arenaGust, buildGrid, createWorld, lateralAt, prepAuthored, step, takeEvents, type GameEvent, type Kart, type World } from '../src';
 import { hit } from '../src/sim/helpers';
 import { SCENARIOS, runScenario } from './golden';
 
@@ -64,7 +64,7 @@ test('parapente: trepar cambia altura por velocidad, picar da velocidad, en pér
     const idle = [{ t: 0, s: 0, d: false, item: false }];
     for (let i = 0; i < 60 * 5 && w.phase !== 'race'; i++) step(w, idle);
     const k = w.karts[0]!;
-    k.respawn = 0; k.invuln = 0; k.air = true; k.glide = true; k.vz = 0;
+    k.respawn = 0; k.invuln = 0; k.air = true; k.glide = true; k.glideE = T.driving.air.glideTime; k.vz = 0;
     return { w, k };
   };
   const flyTicks = (g: { w: World; k: Kart }, t: number, n: number) => {
@@ -244,3 +244,14 @@ test('zonas de planeo = barrancos: anillo y dunas abren el ala sobre desnivel re
     expect(mx - mn).toBeGreaterThan(15);
   }
 }, 60000);
+
+test('parapente: un turbo en el aire no da sustentación y la energía se agota (exploit de planear para siempre)', () => {
+  const tr = new TrackCache(ALL_TRACKS, prepAuthored).ensureBuilt(0);
+  const w = createWorld({ trackIndex: 0, diff: 0, seed: 3, laps: LAPS, grid: buildGrid(new Rng(3), [{ ch: 5, ctrl: 'local' }], { humanSlot: 0 }) }, tr);
+  for (let i = 0; i < 60 * 5 && w.phase !== 'race'; i++) step(w, [{ t: 0, s: 0, d: false, item: false }]);
+  const k = w.karts[0]!;
+  k.respawn = 0; k.invuln = 0; k.air = true; k.glide = true; k.glideE = T.driving.air.glideTime; k.vz = 0; k.z += 150; k.speed = 140;
+  // trepando con turbo permanente (el caso del panel en el aire): tiene que acabar aterrizando
+  for (let i = 0; i < 60 * 15 && k.air; i++) { k.boost = 1; step(w, [{ t: 1, s: 0, d: false, item: false }]); }
+  expect(k.air).toBe(false);
+});

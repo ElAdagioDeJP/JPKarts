@@ -30,7 +30,7 @@ function makeKart(w: World, id: number, ch: number, ctrl: Ctrl, g: number, aiDif
     drift: 0, dc: 0, boost: 0, spin: 0, hop: 0, item: null, roll: 0, finished: false, time: null,
     hold: 0, sv: 0, backT: 0, lastLap: 1, rb: ai ? ai.speed : 1, lapStart: 0, best: null, respawn: 0, off: 0, rank: g, padT: 0,
     fx: [], lapFly: 0,
-    spinK: T.driving.spinDecay, invuln: 0, wallT: 0, wallCD: 0, slip: 0, trickT: 0, trick: false, trickBig: false, dPrev: false, dLvl: 0,
+    spinK: T.driving.spinDecay, invuln: 0, wallT: 0, wallCD: 0, slip: 0, trickT: 0, glideE: 0, trick: false, trickBig: false, dPrev: false, dLvl: 0,
     pressCd: -1, burnout: 0, heavyT: 0, lastItem: null, lat, surf: null, ai, stuckT: 0, coins: 0, itemN: 0, team: w.cfg.teams ? (w.cfg.grid[g]?.team ?? g % 2) : -1, out: false, balloons: 0, score: 0,
   };
 }
@@ -200,7 +200,7 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
       for (const f of tr.flights) {
         const o = (f - pi + N) % N;
         if (o > 0 && o <= dI && d - tr.wd[k.idx]! < 10) {
-          k.air = true; k.glide = true; k.vz = D.air.flightVz; k.drift = 0; k.dc = 0;
+          k.air = true; k.glide = true; k.glideE = D.air.glideTime; k.vz = D.air.flightVz; k.drift = 0; k.dc = 0;
           takeOff(w, k);
           emit(w, { type: 'flight', kart: k.id });
           break;
@@ -212,7 +212,7 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
     for (const z of tr.glideZones) {
       const inside = z.i0 <= z.i1 ? (k.idx >= z.i0 && k.idx <= z.i1) : (k.idx >= z.i0 || k.idx <= z.i1);
       if (inside && d - tr.wd[k.idx]! < 10) {
-        k.air = true; k.glide = true; k.vz = Math.max(k.vz, D.air.flightVz * 0.7); k.drift = 0; k.dc = 0;
+        k.air = true; k.glide = true; k.glideE = D.air.glideTime; k.vz = Math.max(k.vz, D.air.flightVz * 0.7); k.drift = 0; k.dc = 0;
         takeOff(w, k);
         emit(w, { type: 'flight', kart: k.id });
         break;
@@ -267,7 +267,7 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
   const max = ctx.max;
   k.padT -= dt;
   for (const p of tr.pads)
-    if (k.padT <= 0 && dhypot(k.x - p.x, k.y - p.y) < D.pad.radius) { k.boost = Math.max(k.boost, D.pad.boost); k.padT = D.pad.cooldown; emit(w, { type: 'pad', kart: k.id }); }
+    if (k.padT <= 0 && !k.air && dhypot(k.x - p.x, k.y - p.y) < D.pad.radius) { k.boost = Math.max(k.boost, D.pad.boost); k.padT = D.pad.cooldown; emit(w, { type: 'pad', kart: k.id }); }
   const AIR = D.air;
   if (!k.air) {
     const acc = D.accel * st.acl * cc.accel * (k.heavyT > 0 ? D.hit.heavyAccelMul : 1);
@@ -282,9 +282,12 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
     // (cruise holds ~level with a gentle MK7 sink, Flight stat scales it);
     // hold acelerar to climb (bleeds speed), frenar to dive (gains speed), steer to carve (scrubs speed).
     if (k.glide) {
-      const liftK = AIR.glideLiftGain * (0.7 + st.fly * AIR.glideFlyMul);
-      k.vz += (k.speed - AIR.glideStallSpeed) * liftK * dt;
-      if (inp.t > 0) { k.vz += AIR.glideClimb * inp.t * dt; k.speed -= AIR.glideClimbBleed * inp.t * dt; }
+      const flyK = 0.7 + st.fly * AIR.glideFlyMul, liftK = AIR.glideLiftGain * flyK;
+      // lift runs on a budget (Flight stat stretches it) and only from base speed: a boost in the air pushes forward,
+      // never up — gliding over a pad used to hold the kart at the ceiling forever
+      k.glideE -= dt / flyK;
+      if (k.glideE > 0) k.vz += (Math.min(k.speed, base) - AIR.glideStallSpeed) * liftK * dt;
+      if (inp.t > 0 && k.glideE > 0) { k.vz += AIR.glideClimb * inp.t * dt; k.speed -= AIR.glideClimbBleed * inp.t * dt; }
       else if (inp.t < 0) { k.vz += AIR.glideDive * inp.t * dt; k.speed -= AIR.glideDiveGain * inp.t * dt; }
       if (k.speed < AIR.glideStallSpeed) k.vz -= AIR.glideStallSink * dt; // stall: the nose drops, speed rebuilds
       const cap = base * AIR.glideMaxMul;

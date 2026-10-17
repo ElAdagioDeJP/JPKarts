@@ -46,6 +46,8 @@ export interface Kart {
   respawn: number; off: number; rank: number; padT: number;
   fx: Fx[];
   lapFly: number;
+  /** seconds of lift left in the current glide (0 = the wing only slows the fall) */
+  glideE: number;
   // ---- driving v2 ----
   /** speed decay base while spinning (0.15 normal hit, 1 light hit) */
   spinK: number;

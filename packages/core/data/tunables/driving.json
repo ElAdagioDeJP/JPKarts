@@ -71,7 +71,8 @@
     "glideMaxAlt": 220,
     "glideTurnBleed": 8,
     "minGlideSpeed": 80,
-    "airFly": 5
+    "airFly": 5,
+    "glideTime": 4
   },
   "pad": {
     "radius": 14,
