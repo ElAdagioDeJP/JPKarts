@@ -12,3 +12,5 @@ packages/core/tools/tmp/
 backup-local-v1/
 .env
 shots-ui/
+shots-perf/
+shots-ref/

@@ -10,14 +10,28 @@ import { startServer, type ServerHandle } from '@jpkart/server';
 const DEV = process.argv.includes('--dev');
 let win: BrowserWindow | null = null;
 let server: ServerHandle | null = null;
-let beacon: dgram.Socket | null = null;
+const beacons = new Map<string, dgram.Socket>();
 let beaconTimer: NodeJS.Timeout | null = null;
 
-function lanAddresses(): string[] {
-  const out: string[] = [];
-  for (const list of Object.values(os.networkInterfaces())) for (const a of list ?? []) if (a.family === 'IPv4' && !a.internal) out.push(a.address);
-  return out;
+// IPv4 interfaces, real LAN first: VPN tunnels (/32 masks) and virtual adapters (Hyper-V, WSL, VMs) last.
+// Each one carries its directed broadcast, because Windows sends 255.255.255.255 through a single
+// interface (a VPN tunnel when one is active), so the beacon never reached the Wi-Fi/Ethernet LAN.
+const VIRTUAL = /vEthernet|WSL|Hyper-V|VirtualBox|VMware|TAP|TUN|VPN|WireGuard|ZeroTier|Tailscale|Hamachi/i;
+function lanInterfaces(): { address: string; broadcast: string }[] {
+  const out: { address: string; broadcast: string; score: number }[] = [];
+  for (const [name, list] of Object.entries(os.networkInterfaces())) {
+    for (const a of list ?? []) {
+      if ((a.family !== 'IPv4' && (a.family as unknown) !== 4) || a.internal) continue;
+      const ip = a.address.split('.').map(Number), mask = a.netmask.split('.').map(Number);
+      const broadcast = ip.map((b, i) => (b | (~mask[i]! & 255)) & 255).join('.');
+      const tunnel = a.netmask === '255.255.255.255';
+      const score = (tunnel || VIRTUAL.test(name) ? 0 : 10) + (ip[0] === 192 && ip[1] === 168 ? 3 : ip[0] === 10 ? 2 : 1);
+      out.push({ address: a.address, broadcast: tunnel ? '' : broadcast, score });
+    }
+  }
+  return out.sort((x, y) => y.score - x.score);
 }
+const lanAddresses = () => lanInterfaces().map((i) => i.address);
 
 function createWindow() {
   Menu.setApplicationMenu(null);
@@ -34,21 +48,30 @@ function createWindow() {
 // ---- hosting: embedded server + UDP beacon ----
 ipcMain.handle('host:start', (_e, name: string) => {
   if (!server) server = startServer(LAN_PORT, (m) => console.log('[servidor]', m));
-  if (!beacon) {
-    beacon = dgram.createSocket({ type: 'udp4', reuseAddr: true });
-    beacon.bind(() => {
-      beacon!.setBroadcast(true);
-      beaconTimer = setInterval(() => {
-        const msg = Buffer.from(JSON.stringify({ jpkart: 1, name: String(name).slice(0, 16), port: LAN_PORT, players: server?.room.players.size ?? 0 }));
-        beacon?.send(msg, DISCOVERY_PORT, '255.255.255.255');
-      }, 1000);
-    });
+  if (!beaconTimer) {
+    beaconTimer = setInterval(() => {
+      const msg = Buffer.from(JSON.stringify({ jpkart: 1, name: String(name).slice(0, 16), port: LAN_PORT, players: server?.room.players.size ?? 0 }));
+      // one socket bound to each interface's address, so every LAN gets the beacon (not only the VPN's)
+      for (const i of lanInterfaces()) {
+        const s = beacons.get(i.address);
+        if (!s) {
+          const sock = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+          beacons.set(i.address, sock);
+          sock.on('error', () => { sock.close(); beacons.delete(i.address); });
+          sock.bind(0, i.address, () => sock.setBroadcast(true));
+          continue;
+        }
+        for (const t of new Set([i.broadcast || '255.255.255.255', '255.255.255.255'])) s.send(msg, DISCOVERY_PORT, t, () => { /* interface gone: ignore */ });
+      }
+    }, 1000);
   }
   return { port: LAN_PORT, addresses: lanAddresses() };
 });
 ipcMain.handle('host:stop', () => {
   if (beaconTimer) clearInterval(beaconTimer);
-  beacon?.close(); beacon = null;
+  beaconTimer = null;
+  for (const s of beacons.values()) s.close();
+  beacons.clear();
   server?.close(); server = null;
   return true;
 });

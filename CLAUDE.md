@@ -7,6 +7,8 @@ Juego de karts con render Three.js moderno (PBR, sol con sombras, ruedas expuest
 - `docs/GDD.md`: diseño (conducción, objetos, sistemas, modos, pistas, IA, personajes).
 - `docs/ART_BIBLE.md`: arte, render, cámara, HUD, audio, accesibilidad.
 - `docs/MECHANICS_BACKLOG.md`: mecánicas numeradas (`#n`), con prioridad y fase.
+- `docs/V3_PLAN.md`: **plan de la v3** (12 pilotos, stats estilo MK, piezas, selector, objetos, rampas/cañones, modelos Blender). Documento único: decisiones cerradas, fases, especificación 3D y bitácora.
+- `docs/PERF_PLAN.md`: plan y resultados de rendimiento.
 - `legacy/jp-kart.html`: **referencia de comportamiento**. Las fases 1–3 deben sentirse idénticas a él.
 
 ## Arquitectura (monorepo, Bun workspaces)
