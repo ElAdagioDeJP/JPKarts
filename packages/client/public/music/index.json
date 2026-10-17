@@ -1,0 +1,191 @@
+{
+ "anillo-turbo": {
+  "bpm": 168,
+  "loop": true,
+  "m4a": 666762,
+  "ogg": 629326,
+  "sec": 45.71
+ },
+ "arena-crater": {
+  "bpm": 156,
+  "loop": true,
+  "m4a": 549951,
+  "ogg": 513438,
+  "sec": 36.92
+ },
+ "arena-hielo": {
+  "bpm": 119,
+  "loop": true,
+  "m4a": 704940,
+  "ogg": 685394,
+  "sec": 48.4
+ },
+ "arena-neon": {
+  "bpm": 168,
+  "loop": true,
+  "m4a": 501272,
+  "ogg": 462660,
+  "sec": 34.29
+ },
+ "arena-plaza": {
+  "bpm": 148,
+  "loop": true,
+  "m4a": 580310,
+  "ogg": 551440,
+  "sec": 38.92
+ },
+ "autopista-laser": {
+  "bpm": 181,
+  "loop": true,
+  "m4a": 615767,
+  "ogg": 579087,
+  "sec": 42.43
+ },
+ "bahia-atardecer": {
+  "bpm": 111,
+  "loop": true,
+  "m4a": 1022233,
+  "ogg": 963205,
+  "sec": 69.19
+ },
+ "bosque-encantado": {
+  "bpm": 129,
+  "loop": true,
+  "m4a": 868205,
+  "ogg": 841694,
+  "sec": 59.53
+ },
+ "canon-rojo": {
+  "bpm": 156,
+  "loop": true,
+  "m4a": 721506,
+  "ogg": 718508,
+  "sec": 49.23
+ },
+ "ciudad-neon": {
+  "bpm": 140,
+  "loop": true,
+  "m4a": 799631,
+  "ogg": 739969,
+  "sec": 54.86
+ },
+ "crater-ardiente": {
+  "bpm": 178,
+  "loop": true,
+  "m4a": 633127,
+  "ogg": 614016,
+  "sec": 43.15
+ },
+ "defeat": {
+  "bpm": 76,
+  "loop": false,
+  "m4a": 380025,
+  "ogg": 363655,
+  "sec": 26.86
+ },
+ "dunas-doradas": {
+  "bpm": 126,
+  "loop": true,
+  "m4a": 878189,
+  "ogg": 900788,
+  "sec": 60.95
+ },
+ "dunas-veloces": {
+  "bpm": 136,
+  "loop": true,
+  "m4a": 810134,
+  "ogg": 863650,
+  "sec": 56.47
+ },
+ "estadio-central": {
+  "bpm": 129,
+  "loop": true,
+  "m4a": 881011,
+  "ogg": 838298,
+  "sec": 59.53
+ },
+ "glaciar-polar": {
+  "bpm": 119,
+  "loop": true,
+  "m4a": 941835,
+  "ogg": 915525,
+  "sec": 64.54
+ },
+ "menu": {
+  "bpm": 118,
+  "loop": true,
+  "m4a": 964814,
+  "ogg": 921084,
+  "sec": 65.08
+ },
+ "pico-nevado": {
+  "bpm": 143,
+  "loop": true,
+  "m4a": 790563,
+  "ogg": 759271,
+  "sec": 53.71
+ },
+ "playa-coco": {
+  "bpm": 118,
+  "loop": true,
+  "m4a": 940877,
+  "ogg": 943887,
+  "sec": 65.08
+ },
+ "pradera-jp": {
+  "bpm": 148,
+  "loop": true,
+  "m4a": 773119,
+  "ogg": 725434,
+  "sec": 51.89
+ },
+ "results": {
+  "bpm": 100,
+  "loop": true,
+  "m4a": 560918,
+  "ogg": 536760,
+  "sec": 38.4
+ },
+ "selva-tropical": {
+  "bpm": 132,
+  "loop": true,
+  "m4a": 838891,
+  "ogg": 841241,
+  "sec": 58.18
+ },
+ "tenis-jp": {
+  "bpm": 157,
+  "loop": true,
+  "m4a": 725111,
+  "ogg": 704955,
+  "sec": 48.92
+ },
+ "tutorial": {
+  "bpm": 110,
+  "loop": true,
+  "m4a": 506287,
+  "ogg": 516972,
+  "sec": 34.91
+ },
+ "valle-molino": {
+  "bpm": 141,
+  "loop": true,
+  "m4a": 794668,
+  "ogg": 819768,
+  "sec": 54.47
+ },
+ "victory": {
+  "bpm": 150,
+  "loop": false,
+  "m4a": 212179,
+  "ogg": 198763,
+  "sec": 14.4
+ },
+ "volcan-rugiente": {
+  "bpm": 168,
+  "loop": true,
+  "m4a": 670028,
+  "ogg": 644266,
+  "sec": 45.71
+ }
+}
