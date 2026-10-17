@@ -137,6 +137,10 @@ export class Game {
   fps = 0; private fpsAcc = 0; private fpsN = 0;
   showPerf = false;
   simMs = 0; renderMs = 0;
+  /** last 600 raw frame times (ms): p95/p99 show the stutters an fps average hides (PERF_PLAN P0) */
+  private frames = new Float32Array(600); private frameI = 0;
+  /** p-th percentile of the recent frame times (ms) */
+  frameP(q: number) { const a = Float32Array.from(this.frames).sort(); return a[Math.min(599, Math.floor(600 * q))]!; }
   private tierToast = false;
   private batteryToast = false;
 
@@ -166,7 +170,10 @@ export class Game {
   }
 
   /** Debug/test hooks: perf numbers. */
-  perf() { return { fps: this.fps, sim: this.simMs, render: this.renderMs, drawCalls: this.renderer.drawCalls, backend: this.renderer.backend }; }
+  perf() {
+    const r = this.net?.race;
+    return { fps: this.fps, sim: this.simMs, render: this.renderMs, drawCalls: this.renderer.drawCalls, backend: this.renderer.backend, frameP95: this.frameP(0.95), frameP99: this.frameP(0.99), resim: r?.lastResim ?? 0, resyncs: r?.resyncs ?? 0 };
+  }
 
   /** Debug/test hooks: current replay and state hash. */
   debugReplay() { return { replay: this.recorder?.replay ?? this.lastReplay, hash: this.world ? hashWorld(this.world) : '' }; }
@@ -257,6 +264,7 @@ export class Game {
     const dt = clamp(rawDt, 0, 1 / 30);
     this.last = now;
     this.fpsAcc += rawDt; this.fpsN++;
+    this.frames[this.frameI] = rawDt * 1000; this.frameI = (this.frameI + 1) % 600;
     if (this.fpsAcc > 0.5) { this.fps = this.fpsN / this.fpsAcc; this.fpsAcc = 0; this.fpsN = 0; }
     // M3: auto-downgrade a ahorro si <40fps 3 s + aviso de batería baja (una vez).
     try {
@@ -351,7 +359,7 @@ export class Game {
     this.dbg.draw(ui, this.tr, this.world);
     if (this.toastMsg) { this.toastMsg.life -= dt; ui.txtS(this.toastMsg.t, 4, 4, '#9cff9c', 'left'); if (this.toastMsg.life <= 0) this.toastMsg = null; }
     if (this.showPerf) {
-      ui.txtS(`${this.fps.toFixed(0)} fps · ${this.renderer.backend} · sim ${this.simMs.toFixed(2)} ms · render ${this.renderMs.toFixed(2)} ms · ${this.renderer.drawCalls} draw calls`, 4, H - 8, '#9cff9c', 'left');
+      ui.txtS(`${this.fps.toFixed(0)} fps · ${this.renderer.backend} · sim ${this.simMs.toFixed(2)} ms · render ${this.renderMs.toFixed(2)} ms · ${this.renderer.drawCalls} draw calls · frame p95 ${this.frameP(0.95).toFixed(1)} / p99 ${this.frameP(0.99).toFixed(1)} ms` + (this.net?.race ? ` · resim ${this.net.race.lastResim} · resync ${this.net.race.resyncs}` : ''), 4, H - 8, '#9cff9c', 'left');
     }
   }
 

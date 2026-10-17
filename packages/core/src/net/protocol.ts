@@ -5,10 +5,14 @@ import { tunablesHash } from '../tunables';
 import type { Track } from '../track/track';
 import type { Ctrl, GameEvent, Input, RaceConfig, World } from '../sim/types';
 
-export const PROTOCOL_VERSION = 5; // 5: items Overclock/Fork Bomb/Antivirus/Pico de Latencia; 4: load barrier (`loaded`/`go`), race ids, rejoin by `pid`; 3: auto next race (`nextIn`), last call; 2: coins, item charges, Phase 8 items and hazards
+export const PROTOCOL_VERSION = 6; // 6: snapshots relay the humans' inputs + a periodic hash instead of the world (full state on start/resync); 5: items Overclock/Fork Bomb/Antivirus/Pico de Latencia; 4: load barrier (`loaded`/`go`), race ids, rejoin by `pid`; 3: auto next race (`nextIn`), last call; 2: coins, item charges, Phase 8 items and hazards
 export const LAN_PORT = 7777;
 export const DISCOVERY_PORT = 7778;
 export const SNAPSHOT_EVERY = 3; // server ticks per snapshot (60 Hz / 3 = 20 Hz): clients predict everything, so 20 Hz is plenty
+export const HASH_EVERY = 10; // snapshots between two world hashes (2 Hz): a client whose copy drifted asks for a full state
+
+/** One relayed tick: the packed input of every human kart, `[kart, t·127, s·127, drift, item]`. */
+export type RelayTick = [number, number, number, number, number][];
 
 /** Packed input: [seq, t·127, s·127, drift, item]. */
 export type PackedInput = [number, number, number, number, number];
@@ -48,7 +52,9 @@ export type ClientMsg =
   | { t: 'next' }
   /** `seats[k]`: the inputs of local seat k + 1 (same seq numbers as `i`) */
   | { t: 'in'; i: PackedInput[]; seats?: PackedInput[][] }
-  | { t: 'leave' };
+  | { t: 'leave' }
+  /** the client's authoritative copy drifted (hash mismatch / gap): send the next snapshot whole */
+  | { t: 'resync' };
 
 export type ServerMsg =
   | { t: 'welcome'; id: number; proto: number; room?: string }
@@ -58,7 +64,12 @@ export type ServerMsg =
   | { t: 'start'; cfg: RaceConfig; kart: number; seats?: number[]; /** race id: stale messages of another race are ignored */ rid: number; /** a dropped player coming back to a race already running: no load barrier */ resume?: boolean }
   /** every human is ready: the countdown starts now */
   | { t: 'go'; rid: number }
-  | { t: 'snap'; rid: number; tick: number; ack: number; state?: WorldState; delta?: Delta; last: Record<number, PackedInput> }
+  /**
+   * `state`: the whole world after `tick` (race start, rejoin, resync, server-side changes). Otherwise `ins`: the
+   * humans' inputs of every tick since the previous snapshot (the core is deterministic, so the client advances its
+   * own authoritative copy with them) and, every HASH_EVERY snapshots, `h` = hashWorld after `tick`.
+   */
+  | { t: 'snap'; rid: number; tick: number; ack: number; state?: WorldState; ins?: RelayTick[]; h?: string }
   | { t: 'end'; rid: number; order: number[]; points: Record<number, number> };
 
 /** Everything needed to rebuild a World on a peer (the track is rebuilt locally from cfg.trackIndex). */
@@ -74,6 +85,13 @@ export function restoreWorld(w: World, s: WorldState) {
   const c: WorldState = JSON.parse(JSON.stringify(s));
   Object.assign(w, c, { rng: new Rng(0), events: [] });
   w.rng.s = c.rng;
+}
+
+/** Overwrite `dst` with a deep copy of `src` (same track), cloning once. */
+export function copyWorld(dst: World, src: World) {
+  const { track: _t, rng, events: _e, ...rest } = src;
+  Object.assign(dst, JSON.parse(JSON.stringify(rest)), { rng: new Rng(0), events: [] });
+  dst.rng.s = rng.s;
 }
 
 export function worldFromState(s: WorldState, track: Track): World {

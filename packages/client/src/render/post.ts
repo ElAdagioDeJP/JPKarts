@@ -22,19 +22,27 @@ export class Post {
     const scenePass = pass(scene, camera);
     const color = scenePass.getTextureNode('output');
     this.bloomNode = bloom(color, 0.18, 0.25, 0.93);
-    let c = color.rgb.add(this.bloomNode.rgb);
-    // grading: tint, saturation, contrast, lift
-    const luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
-    c = mix(vec3(luma), c, this.uSat);
-    c = c.sub(0.5).mul(this.uContrast).add(0.5).add(this.uLift);
-    c = c.mul(this.uTint);
-    // vignette
-    const d = length(uv().sub(vec2(0.5, 0.5)).mul(vec2(1.25, 1)));
-    c = c.mul(float(1).sub(smoothstep(0.45, 0.95, d).mul(this.uVig)));
-    // screen flash (items, explosions)
-    c = mix(c, this.uFlash.rgb, this.uFlash.a);
-    this.pipeline.outputNode = vec4(tclamp(c, 0, 1), 1);
+    const grade = (src: THREE.Node<"vec3">) => {
+      let c: THREE.Node<"vec3"> = src;
+      // grading: tint, saturation, contrast, lift
+      const luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      c = mix(vec3(luma), c, this.uSat);
+      c = c.sub(0.5).mul(this.uContrast).add(0.5).add(this.uLift);
+      c = c.mul(this.uTint);
+      // vignette
+      const d = length(uv().sub(vec2(0.5, 0.5)).mul(vec2(1.25, 1)));
+      c = c.mul(float(1).sub(smoothstep(0.45, 0.95, d).mul(this.uVig)));
+      // screen flash (items, explosions)
+      c = mix(c, this.uFlash.rgb, this.uFlash.a);
+      return vec4(tclamp(c, 0, 1), 1);
+    };
+    this.withBloom = grade(color.rgb.add(this.bloomNode.rgb));
+    // bloom at strength 0 still renders its mip chain: without it the pass is left out of the graph (PERF_PLAN P1)
+    this.noBloom = grade(color.rgb.add(0));
+    this.pipeline.outputNode = this.withBloom;
   }
+  private withBloom: ReturnType<typeof vec4>;
+  private noBloom: ReturnType<typeof vec4>;
 
   setGrade(g: Grade) {
     this.uTint.value.set(...g.tint);
@@ -42,7 +50,11 @@ export class Post {
     this.uContrast.value = g.contrast;
     this.uLift.value = g.lift;
   }
-  setBloom(strength: number) { this.bloomNode.strength.value = strength; }
+  setBloom(strength: number) {
+    this.bloomNode.strength.value = strength;
+    const out = strength > 0 ? this.withBloom : this.noBloom;
+    if (this.pipeline.outputNode !== out) { this.pipeline.outputNode = out; this.pipeline.needsUpdate = true; }
+  }
   setVignette(v: number) { this.uVig.value = v; }
   setFlash(r: number, g: number, b: number, a: number) { this.uFlash.value.set(r, g, b, a); }
 

@@ -132,14 +132,24 @@ export function bakeAuthored(tr: Track) {
         for (let ox = -4; ox <= 4; ox++) {
           const cx = bx + ox, cy = by + oy;
           if (cx < 0 || cy < 0 || cx >= B || cy >= B) continue;
-          for (const i of bk[cy * B + cx]!) {
-            const dx = tr.x[i]! - wx, dy = tr.y[i]! - wy, d = dx * dx + dy * dy;
+          // skip a bucket that cannot hold anything nearer (edge buckets also hold the clamped outside points)
+          const lx = cx === 0 ? -Infinity : cx * 64, hx = cx === B - 1 ? Infinity : cx * 64 + 64, ly = cy === 0 ? -Infinity : cy * 64, hy = cy === B - 1 ? Infinity : cy * 64 + 64;
+          const gx = wx < lx ? lx - wx : wx > hx ? wx - hx : 0, gy = wy < ly ? ly - wy : wy > hy ? wy - hy : 0;
+          if (gx * gx + gy * gy > bd * 1.000001 + 1) continue;
+          const bucket = bk[cy * B + cx]!;
+          for (let j = 0; j < bucket.length; j++) {
+            const i = bucket[j]!, dx = tr.x[i]! - wx, dy = tr.y[i]! - wy, d = dx * dx + dy * dy;
             if (d < bd) { bd = d; best = i; }
           }
         }
       let d = best < 0 ? 999 : Math.sqrt(bd), hr = best < 0 ? 0 : tr.hc[best]!, w = best < 0 ? 42 : tr.wd[best]!;
-      for (const q of bp) {
-        const dd = dhypot(q[0] - wx, q[1] - wy);
+      for (let j = 0; j < bp.length; j++) {
+        const q = bp[j]!;
+        // max(|dx|,|dy|) ≤ hypot: when even that bound fails by a full unit the test below is false, skip the sqrt
+        // (bit-identical bake, ~10× faster on tracks with many branch points)
+        const ex = q[0] - wx, ey = q[1] - wy;
+        if ((ex > ey ? (ex > -ey ? ex : -ey) : (ey > -ex ? ey : -ex)) - q[3] > d - w + 1) continue;
+        const dd = dhypot(ex, ey);
         if (dd - q[3] < d - w) { d = dd; hr = q[2]; w = q[3]; }
       }
       // natural terrain: base + noise, dropping into the sea past the shore

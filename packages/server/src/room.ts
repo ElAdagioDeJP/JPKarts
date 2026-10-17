@@ -1,11 +1,12 @@
 // Authoritative race room, independent of the transport (WebSocket in main.ts, in-memory in tests).
 import {
-  ALL_TRACKS, ARENA_INDICES, CLASSES, CUPS, LAPS, PROTOCOL_VERSION, classCfg, cleanName, cleanPid, validPacked, ReplayRecorder, Rng, SIM_DT, SNAPSHOT_EVERY, T, TrackCache, buildGrid, createWorld, diffJson, handshakeTunables, modeOf,
+  ALL_TRACKS, ARENA_INDICES, CLASSES, CUPS, HASH_EVERY, LAPS, PROTOCOL_VERSION, classCfg, cleanName, cleanPid, validPacked, ReplayRecorder, Rng, SIM_DT, SNAPSHOT_EVERY, T, TrackCache, buildGrid, createWorld, handshakeTunables, hashWorld, modeOf,
   newAiState, prepAuthored, serializeWorld, step, takeEvents, unpackInput,
-  type ClientMsg, type Delta, type Input, type LobbyPlayer, type LobbySettings, type PackedInput, type RaceConfig, type ServerMsg, type World, type WorldState,
+  type ClientMsg, type Input, type LobbyPlayer, type LobbySettings, type PackedInput, type RaceConfig, type RelayTick, type ServerMsg, type World, type WorldState,
 } from '@jpkart/core';
 
-export interface Conn { id: number; send(m: ServerMsg): void; close(): void }
+/** `sendRaw` (optional): the same message already as JSON, so a transport that writes text never stringifies twice. */
+export interface Conn { id: number; send(m: ServerMsg): void; sendRaw?(s: string): void; close(): void }
 
 interface Player {
   conn: Conn;
@@ -20,7 +21,7 @@ interface Player {
   kart: number;
   /** profile id: a dropped player comes back to the same kart with it */
   pid?: string;
-  /** next snapshot goes out whole (a player that just came back has no base to patch) */
+  /** next snapshot goes out whole (a player that just came back, or whose copy drifted, has no base to advance) */
   needFull?: boolean;
 }
 
@@ -40,8 +41,10 @@ export class Room {
   private seed: number;
   /** online room code (undefined on LAN) */
   code: string | undefined;
-  /** last broadcast state: snapshots after the first one are deltas against it */
-  private lastState: WorldState | null = null;
+  /** humans' inputs of every tick since the last snapshot (relayed to the clients instead of the world) */
+  private relay: RelayTick[] = [];
+  /** the world changed outside `step` (a kart passed to the AI or back): next snapshot goes out whole to everybody */
+  private fullNext = true;
   /** seconds until the next race starts by itself (standings phase) */
   private nextIn = 0;
   /** race counter: every start/snap/end carries it, so a client ignores what belongs to another race */
@@ -63,7 +66,7 @@ export class Room {
   private send(p: Player, m: ServerMsg) {
     const s = JSON.stringify(m);
     this.sentBytes += s.length;
-    p.conn.send(m);
+    if (p.conn.sendRaw) p.conn.sendRaw(s); else p.conn.send(m);
   }
   /** One message per connection (extra seats share their connection). */
   private broadcast(m: ServerMsg) { for (const p of this.players.values()) if (p.seat === 0) this.send(p, m); }
@@ -98,7 +101,7 @@ export class Room {
   private dropKart(p: Player) {
     if (!this.world || p.kart < 0) return;
     const k = this.world.karts[p.kart];
-    if (k) { k.ctrl = 'ai'; k.ai = newAiState(this.world); }
+    if (k) { k.ctrl = 'ai'; k.ai = newAiState(this.world); this.fullNext = true; }
   }
   private seatPlayer(conn: Conn, seat: unknown): Player | undefined {
     const s = seat === undefined ? 0 : seat;
@@ -183,6 +186,7 @@ export class Room {
         }
         break;
       }
+      case 'resync': p.needFull = true; break;
       case 'leave': this.leave(conn.id); break;
     }
   }
@@ -192,6 +196,7 @@ export class Room {
     const w = this.world!, k = w.karts[gone.kart]!;
     this.away.delete(pid);
     k.ctrl = 'remote'; k.ai = null;
+    this.fullNext = true;
     const p: Player = { conn, seat: 0, name: gone.name, ch: gone.ch, ready: true, host: [...this.players.values()].every((q) => !q.host), queue: [], last: [0, 0, 0, 0, 0], kart: gone.kart, pid, needFull: true };
     this.players.set(conn.id, p);
     conn.send({ t: 'welcome', id: conn.id, proto: PROTOCOL_VERSION, room: this.code });
@@ -246,7 +251,8 @@ export class Room {
     this.loading = new Set([...this.players.values()].filter((q) => q.seat === 0).map((q) => q.conn.id));
     this.loadTotal = this.loading.size;
     this.loadT = 0;
-    this.lastState = null;
+    this.relay = [];
+    this.fullNext = true;
     this.phase = 'race';
     this.log(`Carrera en ${track.def.name} con ${this.players.size} humano(s)`);
   }
@@ -268,29 +274,32 @@ export class Room {
       return;
     }
     for (const [pid, a] of this.away) if ((a.ttl -= SIM_DT) <= 0) this.away.delete(pid);
-    const inputs: Input[] = [];
+    const inputs: Input[] = [], relay: RelayTick = [];
     for (const p of this.players.values()) {
       const next = p.queue.shift();
       if (next) p.last = next;
       inputs[p.kart] = unpackInput(p.last);
+      if (p.kart >= 0) relay.push([p.kart, p.last[1], p.last[2], p.last[3], p.last[4]]);
     }
+    this.relay.push(relay);
     this.recorder?.record(w, inputs);
     step(w, inputs);
     this.recorder?.after(w);
     let ended = false;
     for (const e of takeEvents(w)) if (e.type === 'raceEnd') ended = true;
     if (w.tick % SNAPSHOT_EVERY === 0 || ended) {
-      const state = serializeWorld(w);
-      const last: Record<number, PackedInput> = {};
-      for (const p of this.players.values()) last[p.kart] = p.last;
-      const delta = this.lastState ? (diffJson(this.lastState, state) as Delta | undefined) ?? {} : undefined;
+      let state: WorldState | undefined;
+      const ins = this.relay, h = w.tick % (SNAPSHOT_EVERY * HASH_EVERY) === 0 || ended ? hashWorld(w) : undefined;
       for (const p of this.players.values()) {
         if (p.seat !== 0) continue;
-        const whole = !delta || p.needFull;
+        if (this.fullNext || p.needFull) {
+          state ??= serializeWorld(w);
+          this.send(p, { t: 'snap', rid: this.rid, tick: w.tick, ack: p.last[0], state });
+        } else this.send(p, h ? { t: 'snap', rid: this.rid, tick: w.tick, ack: p.last[0], ins, h } : { t: 'snap', rid: this.rid, tick: w.tick, ack: p.last[0], ins });
         p.needFull = false;
-        this.send(p, whole ? { t: 'snap', rid: this.rid, tick: w.tick, ack: p.last[0], state, last } : { t: 'snap', rid: this.rid, tick: w.tick, ack: p.last[0], delta, last });
       }
-      this.lastState = state;
+      this.relay = [];
+      this.fullNext = false;
     }
     if (ended) {
       const pts = modeOf(w).scoring?.(w, w.finalOrder) ?? new Map<number, number>();

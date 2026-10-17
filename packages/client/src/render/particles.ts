@@ -63,9 +63,17 @@ export class Particles {
       n++;
     }
     this.mesh.count = n;
-    this.mesh.instanceMatrix.needsUpdate = true;
-    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+    if (n === 0 && this.lastN === 0) return; // nothing alive now or last frame: no upload
+    this.lastN = n;
+    // upload only the live range (it was the whole 1024 pool every frame)
+    for (const a of [this.mesh.instanceMatrix, this.mesh.instanceColor]) {
+      if (!a || n === 0) continue;
+      a.clearUpdateRanges();
+      a.addUpdateRange(0, n * a.itemSize);
+      a.needsUpdate = true;
+    }
   }
+  private lastN = 0;
 
   clear() { for (const p of this.ps) p.alive = false; this.mesh.count = 0; }
 

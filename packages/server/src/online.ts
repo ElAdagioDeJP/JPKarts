@@ -119,7 +119,7 @@ export function startOnlineServer(port = Number(process.env.PORT ?? LAN_PORT), l
   const wss = new WebSocketServer({ server, maxPayload: limits.maxPayload, perMessageDeflate: { threshold: 256, zlibDeflateOptions: { level: 3 } } });
   let nextId = 1;
   wss.on('connection', (ws: WebSocket) => {
-    const conn: Conn = { id: nextId++, send: (m) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m)); }, close: () => ws.close() };
+    const conn: Conn = { id: nextId++, send: (m) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m)); }, sendRaw: (s) => { if (ws.readyState === ws.OPEN) ws.send(s); }, close: () => ws.close() };
     const hello = setTimeout(() => { if (!core.rooms.size || ![...core.rooms.values()].some((r) => r.players.has(conn.id))) ws.close(); }, limits.helloTimeout);
     ws.on('message', (data) => core.onMessage(conn, String(data)));
     let alive = true;

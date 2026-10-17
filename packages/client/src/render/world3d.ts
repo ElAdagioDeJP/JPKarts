@@ -319,6 +319,7 @@ export class WorldRenderer {
   setTrack(tr: Track) {
     if (this.track === tr) return;
     this.track = tr;
+    this.warmPending = true;
     for (const o of [...this.trackGroup.children]) { this.trackGroup.remove(o); disposeDeep(o); }
     for (const o of [...this.skyGroup.children]) { this.skyGroup.remove(o); disposeDeep(o); }
     this.boxSprites = [];
@@ -770,8 +771,12 @@ export class WorldRenderer {
     if (!this.track) return;
     this.setCamera(cam, RW, RH);
     this.update(cam, karts, things, boxesActive, t, water, dt);
+    // pre-warm: compile every material of the new track (and the karts, now built) in the background, also the ones
+    // out of view; otherwise each one compiles the first time it enters the screen = stutters in the first lap
+    if (this.warmPending) { this.warmPending = false; void this.renderer.compileAsync(this.scene, this.camera).catch(() => {}); }
     this.post.render(this.scene, this.camera);
   }
+  private warmPending = false;
 
   /**
    * Split screen (Phase 10): the scene is updated once, then drawn once per viewport with its own camera.

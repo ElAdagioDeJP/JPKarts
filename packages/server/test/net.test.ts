@@ -104,6 +104,9 @@ test('red: 2 clientes, 80 ms y 2 % de pérdida — estado del servidor = replay;
   const p95 = corr[Math.floor(corr.length * 0.95)] ?? 0;
   console.log(`correcciones p95 ${p95.toFixed(2)} u · ancho de banda (comprimido) ${kbps.map((k) => k.toFixed(1)).join(' / ')} KB/s por cliente`);
   expect(p95).toBeLessThan(25);
+  // input relay (PERF_PLAN P4): the clients' authoritative copies never drift, and the line stays well under 4G budget
+  expect(clients.map((c) => c.race!.resyncs)).toEqual([0, 0]);
+  expect(Math.max(...kbps)).toBeLessThan(10);
 }, 120000);
 
 test('red: con 50 ms de latencia la corrección del kart local es < 5 u en el p95', () => {

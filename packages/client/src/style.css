@@ -145,7 +145,7 @@ body.mobile.racing #touch { display: block; }
   font: inherit;
   font-size: 8px;
   color: var(--ink);
-  background: rgba(47, 42, 107, 0.78);
+  background: rgba(47, 42, 107, 0.45); /* translúcidos: la pista se ve detrás */
   border: 2px solid var(--keyedge);
   border-radius: 12px;
   touch-action: none;
@@ -155,9 +155,9 @@ body.mobile.racing #touch { display: block; }
 #touch .tbtn.gas {
   width: 84px;
   height: 84px;
-  background: rgba(60, 120, 60, 0.8);
+  background: rgba(60, 120, 60, 0.5);
 }
-#touch .tbtn.item { background: rgba(150, 90, 10, 0.85); }
+#touch .tbtn.item { background: rgba(150, 90, 10, 0.55); }
 /* ---- Táctil en menús, tutorial y pausa ---- */
 #menupad, #pausebtn, #exitbtn { display: none; }
 body.mobile.can-exit #exitbtn { display: flex; }

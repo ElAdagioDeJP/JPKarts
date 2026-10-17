@@ -11,7 +11,7 @@ export function startServer(port = LAN_PORT, log: (m: string) => void = console.
   wss.on('error', (e: Error & { code?: string }) => log(e.code === 'EADDRINUSE' ? `El puerto ${port} ya está en uso: ¿hay otra partida abierta en este PC?` : 'Error del servidor: ' + e.message));
   let nextId = 1;
   wss.on('connection', (ws: WebSocket) => {
-    const conn: Conn = { id: nextId++, send: (m) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m)); }, close: () => ws.close() };
+    const conn: Conn = { id: nextId++, send: (m) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m)); }, sendRaw: (s) => { if (ws.readyState === ws.OPEN) ws.send(s); }, close: () => ws.close() };
     room.join(conn);
     ws.on('message', (data) => {
       let m: ClientMsg;

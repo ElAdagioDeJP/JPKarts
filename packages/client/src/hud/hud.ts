@@ -87,16 +87,18 @@ export function drawHUDScaled(g: Game, dt: number, Wv: number, Hv: number) {
   ui.txt(pos + 'º', 0, 0, pos === 1 ? '#ffe45e' : pos <= 3 ? '#fff7e0' : '#c8c4f0', 24, 'right');
   ctx.restore();
   const bx = Wv / 2 - 15, by = 5;
+  if (mob && !p.item && p.roll <= 0) ctx.globalAlpha = 0.4; // caja vacía discreta en móvil
   ui.panel(bx, by, 30, 30, '#1b1740', p.roll > 0 ? (((w.raceT * 10) | 0) % 2 ? '#ffe45e' : '#fff7e0') : '#fff7e0');
   const list = itemList();
   let icon = null;
   if (p.roll > 0) icon = ICONS[list[((w.raceT * 18) | 0) % list.length]!.id];
   else if (p.item) icon = ICONS[p.item];
+  ctx.globalAlpha = 1;
   if (icon) ui.img(icon.cv, bx + 3, by + 3, 24, 24);
   if (p.item && p.roll <= 0 && p.itemN > 1) ui.txtS('×' + p.itemN, bx + 29, by + 23, '#ffe45e', 'right');
   if (w.ents.some((e) => e.kind === 'coin') || p.coins > 0) {
     g.coinPop = Math.max(0, g.coinPop - dt * 3);
-    const cx = bx - 30, cy = by + 8, shake = g.coinPop > 0 ? Math.sin(g.coinPop * 40) * 2 : 0;
+    const cx = bx - 36, cy = by + 8, shake = g.coinPop > 0 ? Math.sin(g.coinPop * 40) * 2 : 0;
     ui.img(COIN[0]!.cv, cx + shake, cy, 10, 10);
     ui.txtS('×' + p.coins, cx + 12 + shake, cy + 2, p.coins >= T.race.coins.max ? '#ffe45e' : g.coinPop > 0 ? '#ff4d6d' : '#fff7e0', 'left');
   }
@@ -108,8 +110,11 @@ export function drawHUDScaled(g: Game, dt: number, Wv: number, Hv: number) {
   const m = g.mini(tr);
   // móvil: minimapa arriba a la derecha bajo la posición (abajo-centro tapaba el kart, abajo-derecha los botones).
   const ms = mob ? 54 : 60, mx = mob ? Wv - ms - 8 : Wv - 62, my = mob ? 34 : Hv - 62;
-  ui.panel(mx - 2, my - 2, ms, ms, 'rgba(27,23,64,0.55)', '#6d66b0');
+  // móvil: sin fondo y semitransparente, para ver la pista a través del minimapa
+  if (!mob) ui.panel(mx - 2, my - 2, ms, ms, 'rgba(27,23,64,0.55)', '#6d66b0');
+  ctx.globalAlpha = mob ? 0.7 : 1;
   ui.img(m.cv, mx, my, ms, ms);
+  ctx.globalAlpha = 1;
   for (const k of w.karts) {
     const x = mx + k.x * m.k, y = my + k.y * m.k, r = k.id === g.localId ? 3 : 2;
     ctx.fillStyle = OUT; ctx.fillRect(x - r, y - r, r * 2, r * 2);
@@ -117,9 +122,12 @@ export function drawHUDScaled(g: Game, dt: number, Wv: number, Hv: number) {
     ctx.fillStyle = CHARS[k.ch]!.helmet; ctx.fillRect(x - 1, y - 1, 2, 2);
     if (k.rank === 0) { ctx.fillStyle = '#ffd23a'; ctx.fillRect(x - 2, y - r - 2, 1, 1); ctx.fillRect(x, y - r - 3, 1, 1); ctx.fillRect(x + 1, y - r - 2, 1, 1); }
   }
-  const rowH = Math.min(17, Math.max(12, (Hv - 48) / Math.max(1, w.ranked.length))); // 8 pilotos siempre caben
-  w.ranked.forEach((id, i) => {
-    const k = w.karts[id]!, y = 44 + i * rowH;
+  // móvil: solo líder + rival delante + tú + rival detrás (la lista de 8 tapaba media pista en pantallas pequeñas)
+  const me = w.ranked.indexOf(g.localId), n8 = w.ranked.length;
+  const rows = !mob || n8 <= 4 ? w.ranked.map((_, i) => i) : me < 0 ? [0, 1, 2, 3] : [...new Set([0, me - 1, me, me + 1])].filter((i) => i >= 0 && i < n8);
+  const rowH = mob ? 17 : Math.min(17, Math.max(12, (Hv - 48) / Math.max(1, n8))); // 8 pilotos siempre caben
+  rows.forEach((i, r) => {
+    const id = w.ranked[i]!, k = w.karts[id]!, y = 44 + r * rowH;
     if (id === g.localId) { ctx.fillStyle = 'rgba(255,228,94,0.35)'; ctx.fillRect(4, y - 1, 34, 17); }
     ui.img(FACES[k.ch]!.cv, 5, y, 16, 16);
     if (w.cfg.mode === 'battle' && !k.out) ui.txtS('●'.repeat(k.balloons), 38, y + 5, CHARS[k.ch]!.helmet, 'left');

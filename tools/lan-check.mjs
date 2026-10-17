@@ -47,6 +47,6 @@ for (const p of [host, guest]) await p.keyboard.down('ArrowUp');
 await host.waitForTimeout(9000);
 await host.screenshot({ path: `${out}/lan-2-host.png` });
 await guest.screenshot({ path: `${out}/lan-3-guest.png` });
-const info = async (p) => p.evaluate(() => { const g = window.__jpkart, r = g.net.race; return { views: g.views.length, seats: r.seats, kart: r.kart, pending: r.pendingCount, serverTick: r.serverTick, tick: r.world.tick, prog: r.world.karts[r.kart].prog, humans: r.world.karts.filter((k) => k.ctrl !== 'ai').length, corrP95: [...r.corrections].sort((a, b) => a - b)[Math.floor(r.corrections.length * 0.95)] ?? 0 }; });
+const info = async (p) => p.evaluate(() => { const g = window.__jpkart, r = g.net.race; return { views: g.views.length, seats: r.seats, kart: r.kart, pending: r.pendingCount, serverTick: r.serverTick, tick: r.world.tick, prog: r.world.karts[r.kart].prog, humans: r.world.karts.filter((k) => k.ctrl !== 'ai').length, resyncs: r.resyncs, corrP95: [...r.corrections].sort((a, b) => a - b)[Math.floor(r.corrections.length * 0.95)] ?? 0 }; });
 console.log(JSON.stringify({ room: roomCode || undefined, host: await info(host), guest: await info(guest), errors }));
 await browser.close();

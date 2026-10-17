@@ -99,7 +99,9 @@ export class NetSession {
         const r = this.race;
         if (!r || m.rid !== this.rid) break;
         this.lastSnapAt = performance.now();
+        const drifted = r.needResync;
         r.ingest(m); // cheap; the re-simulation happens once per frame in flushSnaps()
+        if (r.needResync && !drifted) this.send({ t: 'resync' });
         this.snapDirty = true;
         break;
       }
