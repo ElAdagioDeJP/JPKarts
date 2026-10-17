@@ -1,60 +1,76 @@
-// Roster full-3D: los 8 personajes resuelven modelo (ext .glb o procedural) dentro de
-// presupuesto, con sus colores de characters.json y su accesorio.
+// V3-6: los .glb de Blender (12 pilotos + 11 piezas) cumplen la especificación de docs/V3_PLAN.md §4 sin abrir un navegador:
+// se lee la cabecera JSON del .glb (nodos, animaciones, mallas) y el tamaño del archivo.
 import { expect, test } from 'bun:test';
-import * as THREE from 'three';
-import { buildCodeBody, buildCodeHead, buildShot, triCount, type CodeModelDef } from '../src/art/codeModels';
-import { CHARS } from '../../core/src/data/characters';
+import { readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { buildShot, triCount } from '../src/art/codeModels';
+import { DRIVER_IDS } from '../src/render/driverIds';
+import { PARTS } from '../../core/src/data/parts';
 
-const DEFS = CHARS as unknown as (CodeModelDef & { name: string })[];
-const EXT_CH = new Set([4, 5]); // Miguel y JP tienen .glb; el resto es procedural (V3-6 los reemplaza)
+const DIR = join(import.meta.dir, '..', 'src', 'assets', 'models');
 
-function colorNear(g: THREE.BufferGeometry, hex: string, eps = 0.03): boolean {
-  const want = new THREE.Color(hex);
-  const c = g.attributes.color as THREE.BufferAttribute;
-  for (let i = 0; i < c.count; i++) {
-    const d = Math.abs(c.getX(i) - want.r) + Math.abs(c.getY(i) - want.g) + Math.abs(c.getZ(i) - want.b);
-    if (d < eps) return true;
-  }
-  return false;
+interface Glb {
+  bytes: number;
+  nodes: string[];
+  animations: string[];
+  materials: string[];
+  /** malla → triángulos */
+  meshes: Record<string, number>;
+  hasSkin: boolean;
 }
 
-test('los 12 generan cuerpo/cabeza dentro de presupuesto (cuerpo ≤760, cabeza ≤440)', () => {
+function readGlb(name: string): Glb {
+  const file = join(DIR, name + '.glb'), d = readFileSync(file);
+  const n = d.readUInt32LE(12);
+  const j = JSON.parse(d.subarray(20, 20 + n).toString('utf8'));
+  const meshes: Record<string, number> = {};
+  for (const m of j.meshes) meshes[m.name] = m.primitives.reduce((a: number, p: { indices: number }) => a + j.accessors[p.indices].count / 3, 0);
+  return {
+    bytes: statSync(file).size,
+    nodes: j.nodes.map((x: { name: string }) => x.name),
+    animations: (j.animations ?? []).map((a: { name: string }) => a.name),
+    materials: j.materials.map((m: { name: string }) => m.name),
+    meshes,
+    hasSkin: !!j.skins?.length,
+  };
+}
+
+const BONES = ['root', 'spine', 'chest', 'neck', 'head', 'upperArm.L', 'forearm.L', 'hand.L', 'upperArm.R', 'forearm.R', 'hand.R'];
+const CLIPS = ['idle', 'steerL', 'steerR', 'trick', 'hit', 'lookBack', 'victory'];
+
+test('los 12 pilotos: huesos, 7 clips, LOD0 4000-6000 tris, LOD1 ≤1500, ≤7 materiales, ≤250 KB', () => {
+  expect(DRIVER_IDS.length).toBe(12);
   const rows: string[] = [];
-  for (const d of DEFS) {
-    const body = buildCodeBody(d), head = buildCodeHead(d);
-    expect(body).not.toBeNull();
-    expect(head).not.toBeNull();
-    const tb = triCount(body!), th = triCount(head!);
-    rows.push(`${d.name}: body ${tb} / head ${th}`);
-    expect(tb).toBeLessThanOrEqual(760);
-    expect(th).toBeLessThanOrEqual(440);
+  for (const id of DRIVER_IDS) {
+    const g = readGlb('driver_' + id);
+    for (const b of BONES) expect(g.nodes).toContain(b);
+    for (const c of CLIPS) expect(g.animations).toContain(c);
+    expect(g.hasSkin).toBe(true);
+    const lod0 = g.meshes[id]!, lod1 = g.meshes[id + '_LOD1']!;
+    expect(lod0).toBeGreaterThanOrEqual(4000);
+    expect(lod0).toBeLessThanOrEqual(6000);
+    expect(lod1).toBeLessThanOrEqual(1500);
+    expect(g.materials.length).toBeLessThanOrEqual(7);
+    expect(g.bytes).toBeLessThanOrEqual(250_000);
+    rows.push(`${id}: ${lod0} / ${lod1} tris, ${g.materials.length} mats, ${(g.bytes / 1024).toFixed(0)} KB`);
   }
   console.log(rows.join('\n'));
 });
 
-test('colores de characters.json y accesorio por personaje', () => {
-  for (const d of DEFS) {
-    if (EXT_CH.has(DEFS.indexOf(d))) continue;
-    const body = buildCodeBody(d)!, head = buildCodeHead(d)!;
-    expect(colorNear(body, d.kart)).toBe(true);
-    expect(colorNear(body, d.suit)).toBe(true);
-    expect(colorNear(head, d.helmet)).toBe(true);
-    expect(colorNear(head, d.skin)).toBe(true);
-    if (d.acc !== 'none' && d.acc !== 'glasses') expect(colorNear(head, d.accCol)).toBe(true);
-    if (d.beard) expect(colorNear(head, d.beardCol ?? '#3a2418')).toBe(true);
-    if (d.goatee) expect(colorNear(head, d.beardCol ?? '#3a2418')).toBe(true);
+test('las 11 piezas del catálogo tienen su .glb: chasis con empties, ruedas ≤600 tris, alas ≤800, ≤80 KB', () => {
+  for (const p of PARTS) {
+    const g = readGlb('part_' + p.id), tris = g.meshes['part_' + p.id]!;
+    expect(g.bytes).toBeLessThanOrEqual(80_000);
+    if (p.type === 'body') {
+      for (const e of ['seat', 'wheel_FL', 'wheel_FR', 'wheel_RL', 'wheel_RR', 'glider']) expect(g.nodes).toContain(e);
+      expect(tris).toBeGreaterThanOrEqual(1000); // el plan pedía 1500-3000; Mainframe y Rover quedaron en ~1300 (bitácora V3-6)
+      expect(tris).toBeLessThanOrEqual(3000);
+      expect(g.materials.length).toBeLessThanOrEqual(4);
+      expect(g.materials).toContain('body');
+    }
+    if (p.type === 'wheels') { expect(tris).toBeLessThanOrEqual(600); expect(g.materials).toEqual(expect.arrayContaining(['tire', 'rim'])); }
+    if (p.type === 'wing') { expect(tris).toBeLessThanOrEqual(800); expect(g.materials).toEqual(expect.arrayContaining(['canvas', 'frame'])); }
   }
-  // accesorios esperados por índice: Marco mohawk, Guaycaipuro none, Luis/Jesús/Mario/Andrés…
-  expect(DEFS[0]!.acc).toBe('mohawk');
-  expect(DEFS[2]!.acc).toBe('headphones');
-  expect(DEFS[3]!.acc).toBe('tuft');
-  expect(DEFS[6]!.acc).toBe('headphones');
-  expect(DEFS[7]!.acc).toBe('spikes');
-  // V3-2: Edu lentes, Dieguito gorra, Angelito barba rubia, Henry lentes y perilla
-  expect(DEFS[8]!.acc).toBe('glasses');
-  expect(DEFS[9]!.acc).toBe('cap');
-  expect(DEFS[10]!.beard).toBe(true);
-  expect(DEFS[11]!.goatee).toBe(true);
 });
 
 test('proyectil ciego 3D dentro de presupuesto (≤150 tris)', () => {

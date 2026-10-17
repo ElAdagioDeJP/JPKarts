@@ -1,13 +1,17 @@
 // Electron main process: window, embedded LAN server, UDP discovery and settings storage.
-import { app, BrowserWindow, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, net, protocol } from 'electron';
 import dgram from 'node:dgram';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { DISCOVERY_PORT, LAN_PORT } from '@jpkart/core';
 import { startServer, type ServerHandle } from '@jpkart/server';
 
 const DEV = process.argv.includes('--dev');
+// The client is served through `app://jpkart/` instead of file://: the kart models (.glb) are real files that `fetch` must be able to read,
+// and under file:// Chromium refuses it. The scheme is privileged (standard + secure + fetch) so it behaves like https.
+protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
 let win: BrowserWindow | null = null;
 let server: ServerHandle | null = null;
 const beacons = new Map<string, dgram.Socket>();
@@ -41,7 +45,7 @@ function createWindow() {
   });
   if (DEV) void win.loadURL('http://localhost:5173/');
   // note: never use __dirname here (bundlers may inline the build machine's path)
-  else void win.loadFile(path.join(app.getAppPath(), 'dist', 'renderer', 'index.html'));
+  else void win.loadURL('app://jpkart/index.html');
   win.webContents.on('before-input-event', (_e, input) => { if (input.key === 'F11' && input.type === 'keyDown') win!.setFullScreen(!win!.isFullScreen()); });
 }
 
@@ -105,5 +109,14 @@ ipcMain.handle('store:write', (_e, key: string, value: string) => {
   return true;
 });
 
-app.whenReady().then(createWindow);
+function serveRenderer() {
+  const root = path.join(app.getAppPath(), 'dist', 'renderer');
+  protocol.handle('app', (req) => {
+    const rel = decodeURIComponent(new URL(req.url).pathname).replace(/^\/+/, '') || 'index.html';
+    const file = path.resolve(root, rel);
+    if (file !== root && !file.startsWith(root + path.sep)) return new Response('forbidden', { status: 403 });
+    return net.fetch(pathToFileURL(file).toString());
+  });
+}
+app.whenReady().then(() => { if (!DEV) serveRenderer(); createWindow(); });
 app.on('window-all-closed', () => { server?.close(); app.quit(); });

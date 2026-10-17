@@ -4,17 +4,11 @@ import { CHARS, type Character, type Track, hAt } from '@jpkart/core';
 import { OUT, hexRGB, shade, type Spr } from '../art/pixel';
 import { BALLS, D, ICONS, MINE, OLA, PUDDLE, REFLECT_RING, RING, SHOT, TARS } from '../art/sprites';
 import { MK7_RIG, mk7Layers, type Voxel } from '../art/mk7';
-import { buildCodeBody, buildCodeHead, buildShot, painted, part } from '../art/codeModels';
+import { buildShot, painted, part } from '../art/codeModels';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import jpBodyUrl from '../assets/models/jp_body.glb?inline';
-import jpHeadUrl from '../assets/models/jp_head.glb?inline';
-import driverJpUrl from '../assets/models/driver_jp.glb?inline';
-import miguelBodyUrl from '../assets/models/miguel_body.glb?inline';
-import miguelHeadUrl from '../assets/models/miguel_head.glb?inline';
-import wingUrl from '../assets/models/wing.glb?inline';
 import shroomUrl from '../assets/models/shroom.glb?inline';
+import { KartModels, RigKart, DEFAULT_PARTS, type PartIds } from './kartModels';
 import { GRADES, Post, type Grade } from './post';
 import { Particles } from './particles';
 import type { QualityTier } from '../mobile';
@@ -30,6 +24,14 @@ export interface KartView {
   id: number; ch: number; x: number; y: number; z: number; a: number; lean: number;
   hop: number; spin: number; big: boolean; bubble: boolean; reflect: boolean; visible: boolean; ground: number; air: boolean; glide: boolean;
   speed: number;
+  /** the kart build (V3-3); missing = the default parts */
+  parts?: PartIds;
+  /** 0..1 progress of the 'hit' reaction (0 = none) */
+  hit?: number;
+  /** the local player holds the rear-view button */
+  look?: boolean;
+  /** finished on the podium positions: celebrates */
+  win?: boolean;
   /** 0..1 progress of a trick flip (0 = none) */
   trick: number;
   /** which figure: 1 twist (corkscrew), 2 spin, 3 flip (provisional animation in code until the V3-6 clips) */
@@ -158,22 +160,11 @@ interface KartObj {
   wheels: WheelRig[]; spin: number;
   ch: number; ghost: boolean;
   bodyMesh: THREE.Mesh; bodyOut: THREE.Mesh; headMesh: THREE.Mesh; headOut: THREE.Mesh;
-  wingMesh: THREE.Mesh | null; wingMat: THREE.MeshStandardMaterial; deploy: number; extCh: number;
-  /** qué geometría lleva puesta: voxel (fallback), code (procedural), ext (.glb de cuerpo+cabeza) o pilot (piloto riggeado sobre el kart voxel) */
-  model: 'voxel' | 'code' | 'ext' | 'pilot';
-  pilot: PilotRig | null;
+  deploy: number;
+  /** el kart de Blender (chasis + ruedas + piloto riggeado) cuando sus .glb ya cargaron; mientras tanto, el kart voxel */
+  rig: RigKart | null; rigKey: string; hit: number;
 }
-/** Piloto de Blender (`driver_<id>.glb`): malla con esqueleto + clips `idle`, `steerL/R` (se mezclan con el volante) y `trick`. */
-interface PilotRig { root: THREE.Object3D; mixer: THREE.AnimationMixer; idle: THREE.AnimationAction; steerL: THREE.AnimationAction; steerR: THREE.AnimationAction; trick: THREE.AnimationAction }
-/** Pilotos con modelo riggeado: ch -> glb. Escala y asiento en unidades del juego (el glb va en metros, mira a -Z de glTF). */
-const PILOT_MODELS: Record<number, string> = { 5: driverJpUrl };
-const PILOT_SCALE = 13, PILOT_SEAT: [number, number, number] = [-2.8, 3.15, 0];
-/** Karts modelados en Blender (fase 2): ch -> glb body/head. El resto usa modelos procedurales (codeModels); el voxel es el fallback. */
-const EXT_MODELS: Record<number, { body: string; head: string }> = {
-  5: { body: jpBodyUrl, head: jpHeadUrl },
-  4: { body: miguelBodyUrl, head: miguelHeadUrl },
-};
-interface KartGeo { body: THREE.BufferGeometry; head: THREE.BufferGeometry; headC: THREE.Vector3; /** solo el kart (sin el piloto voxel), para los pilotos riggeados */ kart: THREE.BufferGeometry }
+interface KartGeo { body: THREE.BufferGeometry; head: THREE.BufferGeometry; headC: THREE.Vector3 }
 
 export class WorldRenderer {
   renderer!: THREE.WebGPURenderer;
@@ -187,11 +178,7 @@ export class WorldRenderer {
   private skyGroup = new THREE.Group();
   private kartObjs = new Map<number, KartObj>();
   private kartGeo = new Map<number, KartGeo>();
-  private extGeo = new Map<number, { body: THREE.BufferGeometry; head: THREE.BufferGeometry }>();
-  private pilotGltf = new Map<number, { scene: THREE.Object3D; clips: THREE.AnimationClip[] }>();
-  private codeGeo = new Map<number, { body: THREE.BufferGeometry; head: THREE.BufferGeometry }>();
-  private wingGeo: THREE.BufferGeometry | null = null;
-  private wingCenter = new THREE.Vector3();
+  readonly models = new KartModels();
   private shroomGeo: THREE.BufferGeometry | null = null;
   private shroomPool: THREE.Mesh[] = [];
   private shroomUsed = 0;
@@ -570,169 +557,40 @@ export class WorldRenderer {
       // y para el futuro swap por cabeza Mii: solo cambia `head` + `headC`).
       const S = KART_VOXEL;
       const headC = new THREE.Vector3(MK7_RIG.HEAD_C.y * S, (MK7_RIG.HEAD_C.z + 0.5) * S, MK7_RIG.HEAD_C.x * S);
-      g = { body, head, headC, kart: geometryFromVoxels(L.kart) };
+      g = { body, head, headC };
       this.kartGeo.set(ch, g);
     }
     return g;
   }
 
-  /** Carga perezosa de los .glb de Blender (data-URI embutido, sin fetch): al resolver, swapea los karts en escena. */
+  /** Carga perezosa: la seta y, en segundo plano, los .glb de los karts de Blender (archivos servidos, no embutidos). */
   private ensureExternal() {
     if (this.extLoading) return;
     this.extLoading = true;
-    const loader = new GLTFLoader();
-    const one = async (url: string): Promise<THREE.BufferGeometry | null> => {
-      try {
-        const gl = await loader.loadAsync(url);
-        const mesh = gl.scene.getObjectByProperty('type', 'Mesh') as THREE.Mesh | undefined;
-        const geo = mesh?.geometry as THREE.BufferGeometry | undefined;
-        gl.scene.traverse((ob) => {
-          const m = ob as THREE.Mesh;
-          if (m.isMesh && m.material) for (const x of Array.isArray(m.material) ? m.material : [m.material]) x.dispose();
-        });
-        return geo ?? null;
-      } catch { return null; }
-    };
-    (async () => {
-      const jobs: { ch: number; part: 'body' | 'head'; url: string }[] = [];
-      for (const [ch, f] of Object.entries(EXT_MODELS)) jobs.push({ ch: +ch, part: 'body', url: f.body }, { ch: +ch, part: 'head', url: f.head });
-      const geos = await Promise.all(jobs.map((j) => one(j.url)));
-      geos.forEach((geo, i) => {
-        if (!geo) return;
-        geo.rotateY(-Math.PI / 2); // three (-Z adelante) -> marco del juego (+X adelante)
-        const j = jobs[i]!;
-        let e = this.extGeo.get(j.ch);
-        if (!e) { e = { body: null as unknown as THREE.BufferGeometry, head: null as unknown as THREE.BufferGeometry }; this.extGeo.set(j.ch, e); }
-        e[j.part] = geo;
-      });
-      await Promise.all(Object.entries(PILOT_MODELS).map(async ([ch, url]) => {
-        try {
-          const gl = await loader.loadAsync(url);
-          gl.scene.traverse((ob) => { const m = ob as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.frustumCulled = false; } });
-          this.pilotGltf.set(+ch, { scene: gl.scene, clips: gl.animations });
-        } catch { /* sin .glb: el kart conserva su modelo por código */ }
-      }));
-      const wg = await one(wingUrl);
-      if (wg) {
-        wg.rotateY(-Math.PI / 2);
-        wg.computeBoundingBox();
-        wg.boundingBox!.getCenter(this.wingCenter);
-        wg.translate(-this.wingCenter.x, -this.wingCenter.y, -this.wingCenter.z);
-        this.wingGeo = wg;
-      }
-      const sg = await one(shroomUrl);
-      if (sg) this.shroomGeo = sg;
-      for (const o of this.kartObjs.values()) this.applyModel(o);
-    })();
+    this.models.preloadAll();
+    void new GLTFLoader().loadAsync(shroomUrl).then((gl) => {
+      this.shroomGeo = (gl.scene.getObjectByProperty('type', 'Mesh') as THREE.Mesh | undefined)?.geometry ?? null;
+    }, () => {});
   }
 
-  /** Modelo procedural del ch (los 6 sin .glb). Null si falla la fusión → fallback voxel. */
-  private codeModelOf(ch: number): { body: THREE.BufferGeometry; head: THREE.BufferGeometry } | null {
-    if (ch in EXT_MODELS) return null;
-    let m = this.codeGeo.get(ch);
-    if (!m) {
-      try {
-        const def = CHARS[ch] as Character | undefined;
-        if (!def) return null;
-        const body = buildCodeBody(def), head = buildCodeHead(def);
-        if (!body || !head) return null;
-        m = { body, head };
-        this.codeGeo.set(ch, m);
-      } catch { return null; }
-    }
-    return m;
+  /** Monta el kart de Blender cuando sus .glb están listos (o si el kart cambió de piezas); mientras tanto vale el voxel. */
+  private applyRig(o: KartObj, k: KartView) {
+    const parts = k.parts ?? DEFAULT_PARTS, key = `${k.ch}|${parts.body}|${parts.wheels}|${parts.wing}`;
+    if (o.rigKey === key) return;
+    this.models.loadKart(k.ch, parts); // idempotente: pide lo que falte
+    if (!this.models.ready(k.ch, parts)) return;
+    const rig = this.models.build(k.ch, parts, CHARS[k.ch]?.kart ?? '#ffffff', o.ghost);
+    if (!rig) return;
+    if (o.rig) { o.body.remove(o.rig.root); o.rig.dispose(); }
+    o.rig = rig; o.rigKey = key;
+    o.body.add(rig.root);
+    o.bodyMesh.visible = o.bodyOut.visible = o.headG.visible = false;
+    for (const w of o.wheels) w.g.visible = false;
   }
 
-  /** Elige geometría: .glb si cargó, procedural si existe, voxel si todo falla. */
-  private applyModel(o: KartObj) {
-    const pg = this.pilotGltf.get(o.ch);
-    if (pg) { this.applyPilot(o, pg); return; }
-    const e = this.extGeo.get(o.ch);
-    if (e?.body && e?.head) {
-      if (o.model !== 'ext' || o.extCh !== o.ch) {
-        const mat = o.ghost ? this.ghostMat : this.kartMat;
-        o.bodyMesh.geometry = e.body; o.bodyMesh.material = mat;
-        o.bodyOut.geometry = e.body; o.bodyOut.visible = !o.ghost;
-        o.headMesh.geometry = e.head; o.headMesh.material = mat;
-        o.headOut.geometry = e.head; o.headOut.visible = !o.ghost;
-        o.model = 'ext'; o.extCh = o.ch;
-      }
-      return;
-    }
-    const c = this.codeModelOf(o.ch);
-    if (c && (o.model !== 'code' || o.extCh !== o.ch)) {
-      const mat = o.ghost ? this.ghostMat : this.kartMat;
-      o.bodyMesh.geometry = c.body; o.bodyMesh.material = mat;
-      o.bodyOut.geometry = c.body; o.bodyOut.visible = !o.ghost;
-      o.headMesh.geometry = c.head; o.headMesh.material = mat;
-      o.headOut.geometry = c.head; o.headOut.visible = !o.ghost;
-      o.model = 'code'; o.extCh = o.ch;
-    }
-  }
-
-  /** Kart voxel sin piloto + el piloto de Blender clonado (esqueleto propio) en el asiento, con los clips enlazados. */
-  private applyPilot(o: KartObj, pg: { scene: THREE.Object3D; clips: THREE.AnimationClip[] }) {
-    if (o.model === 'pilot' && o.extCh === o.ch) return;
-    const mat = o.ghost ? this.ghostMat : this.kartMat, kart = this.kartGeoOf(o.ch).kart;
-    o.bodyMesh.geometry = kart; o.bodyMesh.material = mat;
-    o.bodyOut.geometry = kart; o.bodyOut.visible = !o.ghost;
-    o.headG.visible = false;
-    if (o.pilot) { o.body.remove(o.pilot.root); o.pilot.mixer.stopAllAction(); }
-    const root = cloneSkinned(pg.scene);
-    root.scale.setScalar(PILOT_SCALE);
-    root.position.set(...PILOT_SEAT);
-    root.rotation.y = -Math.PI / 2; // glTF -Z (adelante) → +X del juego
-    root.traverse((ob) => {
-      const m = ob as THREE.Mesh;
-      if (m.isMesh && m.name.endsWith('_LOD1')) m.visible = false; // el LOD1 entra con la distancia (V3-6b)
-      if (m.isMesh && o.ghost) m.material = Array.isArray(m.material) ? m.material.map((x) => this.ghostPilotMat(x)) : this.ghostPilotMat(m.material);
-    });
-    o.body.add(root);
-    const mixer = new THREE.AnimationMixer(root);
-    const act = (name: string, loop: boolean) => {
-      const clip = pg.clips.find((c) => c.name === name);
-      const a = mixer.clipAction(clip ?? new THREE.AnimationClip(name, 1, []));
-      a.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
-      a.clampWhenFinished = true;
-      a.play();
-      if (!loop) { a.paused = true; a.time = 0; }
-      return a;
-    };
-    o.pilot = { root, mixer, idle: act('idle', true), steerL: act('steerL', false), steerR: act('steerR', false), trick: act('trick', false) };
-    o.pilot.idle.time = (o.ch * 0.37) % 2; // que los karts no respiren a la vez
-    o.model = 'pilot'; o.extCh = o.ch;
-  }
-  private ghostPilotMat(m: THREE.Material): THREE.Material {
-    const c = m.clone();
-    c.transparent = true; c.opacity = 0.42; c.depthWrite = false;
-    return c;
-  }
-
-  /** Mezcla los clips con el volante (lean < 0 = izquierda, como `sv`): idle ↔ steerL/R por peso, y `trick` recorre su clip con el progreso del truco. */
-  private animatePilot(p: PilotRig, lean: number, trick: number, dt: number) {
-    const s = Math.max(-1, Math.min(1, lean)), tw = trick > 0 ? 1 : 0;
-    const l = Math.max(0, -s) * (1 - tw), r = Math.max(0, s) * (1 - tw);
-    p.steerL.time = p.steerL.getClip().duration; p.steerR.time = p.steerR.getClip().duration;
-    p.steerL.setEffectiveWeight(l); p.steerR.setEffectiveWeight(r);
-    p.trick.time = Math.min(trick, 1) * p.trick.getClip().duration; p.trick.setEffectiveWeight(tw);
-    p.idle.setEffectiveWeight(Math.max(0.0001, 1 - l - r - tw));
-    p.mixer.update(dt);
-  }
-
-  /** Debug/QA: qué modelo lleva cada kart en escena (id → ch + kind). */
-  modelKinds(): Record<number, { ch: number; model: KartObj['model'] }> {
-    return Object.fromEntries([...this.kartObjs.entries()].map(([id, o]) => [id, { ch: o.ch, model: o.model }]));
-  }
-
-  private wingOf(o: KartObj) {
-    if (!o.wingMesh && this.wingGeo) {
-      const m = new THREE.Mesh(this.wingGeo, o.wingMat);
-      m.castShadow = true;
-      m.visible = false;
-      m.position.copy(this.wingCenter);
-      o.body.add(m);
-      o.wingMesh = m;
-    }
+  /** Debug/QA: qué modelo lleva cada kart en escena (id → ch + 'rig' | 'voxel'). */
+  modelKinds(): Record<number, { ch: number; model: 'rig' | 'voxel' }> {
+    return Object.fromEntries([...this.kartObjs.entries()].map(([id, o]) => [id, { ch: o.ch, model: o.rig ? 'rig' as const : 'voxel' as const }]));
   }
 
   /** One wheel per pilot: dark tyre + hub cap in the kart colour, fused with per-vertex colours. */
@@ -808,10 +666,7 @@ export class WorldRenderer {
     refl.center.set(0.5, 0.25);
     refl.scale.set(19, 19, 1);
     this.scene.add(root, shadow, ring, refl);
-    const wingMat = new THREE.MeshStandardMaterial({ vertexColors: true, color: new THREE.Color(CHARS[ch]?.kart ?? '#ffffff'), roughness: 0.5, metalness: 0.08 });
-    if (ghost) { wingMat.transparent = true; wingMat.opacity = 0.42; wingMat.depthWrite = false; }
-    o = { root, body, headG, shadow, ring, refl, wheels, spin: 0, ch, ghost, bodyMesh: mesh, bodyOut: outline, headMesh: head, headOut, wingMesh: null, wingMat, deploy: 0, extCh: -1, model: 'voxel', pilot: null };
-    this.applyModel(o);
+    o = { root, body, headG, shadow, ring, refl, wheels, spin: 0, ch, ghost, bodyMesh: mesh, bodyOut: outline, headMesh: head, headOut, deploy: 0, rig: null, rigKey: '', hit: 0 };
     this.kartObjs.set(id, o);
     return o;
   }
@@ -933,27 +788,23 @@ export class WorldRenderer {
       o.body.scale.set(1 + sq * 0.15, 1 - sq * 0.13, 1 + sq * 0.15);
       // cabeza MK7: mira hacia la salida del derrape + cabezazo en truco/aterrizaje
       o.headG.rotation.set(k.trick > 0 ? -0.35 * Math.sin(k.trick * Math.PI) : sq * 0.3, -k.lean * 0.3, 0);
-      if (o.pilot) this.animatePilot(o.pilot, k.lean, k.trick, dt);
-      // ala externa: visible en planeo, despliegue 0.25 s + escora con el kart
-      this.wingOf(o);
+      this.applyRig(o, k);
+      // ala: visible en planeo, despliegue 0.25 s + escora con el kart
       const want = k.glide && k.visible ? 1 : 0;
       o.deploy += Math.sign(want - o.deploy) * Math.min(Math.abs(want - o.deploy), dt / 0.25);
-      if (o.wingMesh) {
-        o.wingMesh.visible = o.deploy > 0.02;
-        const e = o.deploy * o.deploy * (3 - 2 * o.deploy);
-        o.wingMesh.scale.setScalar(Math.max(0.001, e));
-        o.wingMesh.rotation.x = -k.lean * 0.15;
-      }
-      // wheels: roll with speed, fronts yaw with steering
-      o.spin += (k.speed / 1.9) * dt;
-      const steerYaw = k.lean * 0.22;
-      for (const wh of o.wheels) {
-        wh.g.rotation.y = wh.front ? steerYaw : 0;
-        wh.tire.rotation.z = -o.spin;
-        wh.hub.rotation.z = -o.spin;
-      }
       // legibility: far rivals are drawn bigger (visual only) so they keep ≥ ~12 px on screen
       const depth = Math.hypot(k.x - cam.x, k.y - cam.y), farK = k.local ? 1 : Math.max(1, Math.min(1.6, depth / 300));
+      if (o.rig) o.rig.update({ lean: k.lean, speed: k.speed, trick: k.trick, hit: k.hit ?? 0, look: !!k.look, win: !!k.win, deploy: o.deploy, depth, dt });
+      else {
+        // kart voxel (mientras cargan los .glb): ruedas que giran con la velocidad y delanteras que giran con el volante
+        o.spin += (k.speed / 1.9) * dt;
+        const steerYaw = k.lean * 0.22;
+        for (const wh of o.wheels) {
+          wh.g.rotation.y = wh.front ? steerYaw : 0;
+          wh.tire.rotation.z = -o.spin;
+          wh.hub.rotation.z = -o.spin;
+        }
+      }
       const baseScale = CHARS[k.ch]?.visualScale ?? 1;
       o.root.scale.setScalar(baseScale * (k.big ? 2 : 1) * farK);
       const sw = k.big ? 2 : 1;

@@ -50,8 +50,9 @@ export default defineConfig({
   base: './',
   plugins: [hotTunables(), saveTracks()],
   server: { port: 5173, host: true },
-  // .glb van embutidos como data-URI: el .exe de Electron carga por file:// y fetch local fallaría.
+  // Los .glb de los karts (driver_*, part_*) se emiten como archivos con hash (el SW los cachea y el .exe los sirve por app://);
+  // el resto de assets pequeños sigue embutido, y los `?inline` explícitos (seta) también.
   assetsInclude: ['**/*.glb'],
-  assetsInlineLimit: 300000,
+  assetsInlineLimit: (file, content) => (file.endsWith('.glb') ? false : content.length <= 300000),
   build: { target: 'es2022', chunkSizeWarningLimit: 2000 },
 });

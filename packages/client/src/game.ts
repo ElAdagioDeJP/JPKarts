@@ -33,6 +33,7 @@ import * as LocalRace from './race/localRace';
 import * as ReplayDirector from './race/replayDirector';
 import * as NetRace from './net/netRace';
 import * as NetScreens from './screens/netScreens';
+import { podiumScene } from './screens/podium3d';
 import * as Menus from './screens/menus';
 import * as Picker from './screens/picker';
 import * as InputRouter from './app/inputRouter';
@@ -134,6 +135,12 @@ export class Game {
   recon: { t: number; next: number } | null = null;
   specT = 0;
   trickAnim = new Map<number, number>();
+  /** 0..1 progress of the pilot's 'hit' reaction per kart (0.8 s clip) */
+  hitAnim = new Map<number, number>();
+  /** dev/QA (tools/models-shot.mjs): a free camera and hand-placed kart views; when set, the world is drawn from these instead of the race */
+  showcase: { cam: import('./render/world3d').CamView; views: import('./render/world3d').KartView[] } | null = null;
+  /** the podium pedestals of this frame (world coordinates), read by the 2D layer */
+  podiumSpots: import('./screens/podium3d').PodiumSpot[] = [];
   /** figure of the trick in progress per kart (1 twist, 2 spin, 3 flip) */
   trickKind = new Map<number, number>();
   squash = new Map<number, number>();
@@ -233,6 +240,7 @@ export class Game {
   drawReplayHud(t: number) { ReplayDirector.drawReplayHud(this, t); }
 
   tickAnims(dt: number) {
+    for (const [id, v] of this.hitAnim) { const n = v + dt / 0.8; if (n >= 1) this.hitAnim.delete(id); else this.hitAnim.set(id, n); }
     for (const [id, v] of this.trickAnim) { const n = v + dt / 0.45; if (n >= 1) this.trickAnim.delete(id); else this.trickAnim.set(id, n); }
     for (const [id, v] of this.squash) { const n = v - dt / 0.18; if (n <= 0) this.squash.delete(id); else this.squash.set(id, n); }
   }
@@ -335,6 +343,10 @@ export class Game {
       this.v = this.views[0]!;
       if (!this.paused) this.fx.frame(w, dt, this.cam.x, this.cam.y, (k) => this.pose(k), this.tr.th.ground[0]);
       this.updateAtmosphere(w, dt);
+      if (this.state === 'podium' || this.state === 'final') {
+        const sc = podiumScene(this, this.state === 'final' ? this.standingsList() : w.finalOrder.map((id) => w.karts[id]!.ch), t);
+        this.showcase = sc; this.podiumSpots = sc.spots;
+      } else { this.showcase = null; this.podiumSpots = []; }
       this.renderWorld(w.raceT, w.karts);
       if (this.state === 'replay') this.drawReplayHud(t);
       else if (this.state === 'race') {

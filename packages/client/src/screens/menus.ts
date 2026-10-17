@@ -8,7 +8,7 @@ import {
 } from '@jpkart/core';
 import { OUT } from '../art/pixel';
 import { BALLS, BUG, FACES, rotFrames } from '../art/sprites';
-import { HAZARD_TAG, TEAM_COL, TEAM_NAME, WEATHER_TAG, isArena } from '../app/types';
+import { HAZARD_TAG, TEAM_COL, TEAM_NAME, UIK, WEATHER_TAG, isArena } from '../app/types';
 import { W } from '../ui/draw';
 import * as Picker from './picker';
 import type { Game } from '../game';
@@ -206,22 +206,23 @@ export function drawStandings(g: Game) {
   ui.txtS(last ? 'Enter: ver podio' : 'Enter: siguiente carrera, ' + g.tracks.get(c.def.tracks[c.race + 1]!).def.name, W / 2, 218, '#9c95d6');
 }
 
-export function drawPodium(g: Game, list: number[], title: string, col: string, sub: ((ch: number) => string) | null, t: number) {
+export function drawPodium(g: Game, _list: number[], title: string, col: string, sub: ((ch: number) => string) | null, t: number) {
   const ui = g.ui, ctx = ui.ctx;
-  ui.bg(0.8);
+  // the karts are drawn in 3D behind this layer (screens/podium3d.ts); here: title, pedestals (projected from world points) and names
+  ctx.fillStyle = 'rgba(27,23,64,0.6)'; ctx.fillRect(0, 0, W, 28);
   ui.txt(title, W / 2, 8, col, 16, 'center');
-  const ped: [number, number, number][] = [[1, W / 2 - 86, 26], [0, W / 2, 42], [2, W / 2 + 86, 14]], base = 164;
-  for (const [i, x, h] of ped) {
-    const ch = list[i];
-    if (ch == null) continue;
-    ctx.fillStyle = OUT; ctx.fillRect(x - 32, base - h - 1, 64, h + 1);
-    ctx.fillStyle = i === 0 ? '#ffe45e' : i === 1 ? '#c8ccdc' : '#d9894a'; ctx.fillRect(x - 31, base - h, 62, h);
-    ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(x - 31, base - h, 62, 3);
-    ui.txt(String(i + 1), x, base - h + 6, OUT, 8, 'center', '#fff7e0');
-    ui.img(rotFrames(ch)[((t * 12 + i * 8) | 0) % rotFrames(ch).length]!.cv, x - 21, base - h - 38, 42, 42);
-    ui.img(FACES[ch]!.cv, x - 8, base - h - 56 + Math.round(Math.sin(t * 5 + i) * 2), 16, 16);
-    ui.txtS(CHARS[ch]!.short, x, base + 5, '#fff7e0');
-    if (sub) ui.txtS(sub(ch), x, base + 14, '#ffe45e');
+  for (const sp of g.podiumSpots) {
+    const P = (dx: number, z: number) => g.renderer.project(sp.cx + sp.rx * dx, sp.cy + sp.ry * dx, sp.gz + z);
+    const a = P(-9, 0), b = P(9, 0), c = P(9, sp.h), d = P(-9, sp.h);
+    if (!a || !b || !c || !d) continue;
+    const x0 = Math.round(d.sx * UIK), x1 = Math.round(c.sx * UIK), yTop = Math.round(d.sy * UIK), yBot = Math.round(a.sy * UIK);
+    ctx.fillStyle = OUT; ctx.fillRect(x0 - 1, yTop - 1, x1 - x0 + 2, yBot - yTop + 2);
+    ctx.fillStyle = sp.place === 0 ? '#ffe45e' : sp.place === 1 ? '#c8ccdc' : '#d9894a'; ctx.fillRect(x0, yTop, x1 - x0, yBot - yTop);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(x0, yTop, x1 - x0, 3);
+    const mx = Math.round((x0 + x1) / 2);
+    ui.txt(String(sp.place + 1), mx, yTop + 6, OUT, 8, 'center', '#fff7e0');
+    ui.txtS(CHARS[sp.ch]!.short, mx, yBot + 5, '#fff7e0');
+    if (sub) ui.txtS(sub(sp.ch), mx, yBot + 14, '#ffe45e');
   }
   for (let i = 0; i < 18; i++) {
     const x = (i * 53 + t * 40) % W, y = (i * 37 + t * 60) % 150;

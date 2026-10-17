@@ -27,7 +27,15 @@ const found = await win.evaluate(() => window.jpkartDesktop.discover());
 await win.evaluate(() => window.__jpkart.connectLan('localhost', 'Anfitrión'));
 await win.waitForFunction(() => window.__jpkart.net?.status === 'lobby' && window.__jpkart.net.players.length > 0, null, { timeout: 20000 });
 await win.screenshot({ path: `${out}/desk-2-lobby.png` });
+// V3-6b: the .glb karts load under app:// (fetch of local files): start a race and ask the renderer which models it mounted
+await win.evaluate(() => { const g = window.__jpkart; g.sel = 5; g.loadouts = [{ ch: 5, parts: { body: 'rover', wheels: 'offroad', wing: 'glider' } }]; g.state = 'menu'; g.menuSel = 1; });
+await win.evaluate(() => { const g = window.__jpkart; g.startRace(g.grid[0]); });
+await win.waitForFunction(() => window.__jpkart.state === 'race', null, { timeout: 120000 });
+await win.waitForFunction(() => Object.values(window.__jpkart.renderer.modelKinds()).filter((k) => k.model === 'rig').length >= 12, null, { timeout: 30000 }).catch(() => {});
+const kinds = await win.evaluate(() => Object.values(window.__jpkart.renderer.modelKinds()).map((k) => k.model));
+await win.screenshot({ path: `${out}/desk-3-race.png` });
+await win.evaluate(() => window.__jpkart.toMenu());
 const stored = await win.evaluate(async () => { await window.jpkartDesktop.write('check', '{"ok":1}'); return window.jpkartDesktop.read('check'); });
-console.log(JSON.stringify({ backend, bridge, host, found, stored, errors }));
+console.log(JSON.stringify({ backend, bridge, host, found, stored, rigs: kinds.filter((k) => k === 'rig').length + '/' + kinds.length, errors }));
 await win.evaluate(() => window.jpkartDesktop.stopHost());
 await app.close();

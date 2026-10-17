@@ -29,6 +29,7 @@ export function updateCam(g: Game, dt: number, x: number, y: number, a: number, 
 }
 
 export function renderWorld(g: Game, t: number, karts: Kart[]) {
+  if (g.showcase) { g.renderer.render(g.showcase.cam, g.showcase.views, [], [], t, -1e4, 1 / 60); return; }
   const w = g.world, views: KartView[] = [], things: ThingView[] = [];
   for (const k of karts) {
     const ps = g.pose(k);
@@ -39,6 +40,7 @@ export function renderWorld(g: Game, t: number, karts: Kart[]) {
       big: hasFx(k, 'jug'), bubble: hasFx(k, 'bubble'), reflect: hasFx(k, 'reflect'),
       visible: vis, ground: hAt(g.tr, ps.x, ps.y), air: k.air, glide: k.glide, speed: k.speed,
       trick: g.trickAnim.get(k.id) ?? 0, trickKind: g.trickKind.get(k.id), squash: g.squash.get(k.id) ?? 0,
+      parts: w?.cfg.grid[k.id]?.parts, hit: g.hitAnim.get(k.id) ?? 0, look: k.id === g.localId && g.input.held('mirarAtras'), win: k.finished && !k.out && k.rank < 3,
       local: g.views.some((v) => v.localId === k.id),
     });
   }
