@@ -1,6 +1,14 @@
 {
   "points": [15, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
   "pickTime": 30,
+  "chasm": {
+    "wallPad": 50,
+    "wallWidth": 44,
+    "edge": 14,
+    "rescueBack": 40,
+    "respawnTime": 2,
+    "floorFrac": 0.5
+  },
   "countdown": 3.999,
   "finishDelay": 3,
   "finishTimeout": 30,

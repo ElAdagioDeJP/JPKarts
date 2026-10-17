@@ -117,7 +117,7 @@ export function simulate(g: Game, dt: number) {
     for (const e of takeEvents(w)) {
       g.v = g.viewFor(e); g.onEvent(e); g.v = g.views[0]!;
       g.fx.event(e, w);
-      if (e.type === 'trick') g.trickAnim.set(e.kart, 0.001);
+      if (e.type === 'trick') { g.trickAnim.set(e.kart, 0.001); g.trickKind.set(e.kart, e.kind === 'twist' ? 1 : e.kind === 'spin' ? 2 : 3); }
       if (e.type === 'land') { g.squash.set(e.kart, 1); g.trickAnim.delete(e.kart); }
     }
     g.tickAnims(SIM_DT);

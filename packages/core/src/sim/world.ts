@@ -158,13 +158,40 @@ function waterDepth(w: World, k: Kart, ground: number): number {
   return w.track.water ? w.water - ground : -1;
 }
 
-/** Start a jump: opens the trick window. */
+/** Start a jump: opens the trick window. A jump next to a 'trick' ramp earns the long turbo. */
 function takeOff(w: World, k: Kart) {
   const tr = w.track, TR = T.driving.trick;
   k.trickT = TR.takeoff;
   k.trick = false;
   k.trickBig = false;
-  if (tr.authored) for (const r of tr.authored.ramps) if (r.big && Math.abs(((Math.floor(r.at * tr.N) - k.idx + tr.N + tr.N / 2) % tr.N) - tr.N / 2) < TR.bigRadius) k.trickBig = true;
+  for (const r of tr.ramps) if (r.kind === 'trick' && Math.abs(((r.i - k.idx + tr.N + tr.N / 2) % tr.N) - tr.N / 2) < TR.bigRadius) k.trickBig = true;
+}
+
+/** Crossing a marked ramp: it launches the kart whatever the slope (a 'glide' ramp always opens the wing, at a guaranteed speed). */
+function launchFromRamp(w: World, k: Kart, kind: 'hop' | 'trick' | 'glide') {
+  const D = T.driving, tr = w.track;
+  k.air = true; k.drift = 0; k.dc = 0;
+  k.z = Math.max(k.z, hAt(tr, k.x, k.y));
+  if (kind === 'glide') {
+    k.glide = true; k.glideE = D.air.glideTime; k.vz = D.air.flightVz; k.speed = Math.max(k.speed, D.air.glideLaunchSpeed);
+    takeOff(w, k);
+    emit(w, { type: 'flight', kart: k.id });
+    return;
+  }
+  k.vz = kind === 'trick' ? D.ramp.trickVz : D.ramp.hopVz;
+  takeOff(w, k);
+  if (kind === 'trick') k.trickBig = true;
+  emit(w, { type: 'jump', kart: k.id });
+}
+
+/** Rescue after falling into a chasm: back on the road before it (with the lost progress), a couple of seconds lost. */
+function chasmRescue(w: World, k: Kart, c: { i0: number }) {
+  const N = w.track.N, CH = T.race.chasm, to = (c.i0 - CH.rescueBack + N) % N;
+  k.prog += ((to - k.idx + N + N / 2) % N) - N / 2;
+  k.idx = to;
+  k.respawn = CH.respawnTime; k.speed = 0; k.drift = 0; k.boost = 0; k.slip = 0; k.air = false; k.glide = false; k.vz = 0;
+  ouch(k, 1, 0);
+  emit(w, { type: 'fall', kart: k.id });
 }
 
 // Reused scratch objects: no allocation per kart per tick.
@@ -208,6 +235,23 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
         }
       }
   }
+  // marked ramps (V3-5): crossing one launches the kart, the slope is only the visual
+  if (tr.ramps.length) {
+    const dI = (k.idx - pi + N) % N;
+    if (dI > 0 && dI <= 16 && d - tr.wd[k.idx]! < 10)
+      for (const r of tr.ramps) {
+        // a glide ramp also opens the wing on a kart that already hopped off the crest (the bump launches the AI a few samples early)
+        if (k.air && (r.kind !== 'glide' || k.glide)) continue;
+        const o = (r.i - pi + N) % N;
+        if (o > 0 && o <= dI && (r.kind === 'glide' || k.speed >= D.ramp.minSpeed)) { launchFromRamp(w, k, r.kind); break; }
+      }
+  }
+  // chasms: the road is missing; a kart that lands on the canyon floor is rescued before it
+  if (tr.chasms.length && !k.air)
+    for (const c of tr.chasms) {
+      const inside = c.i0 <= c.i1 ? k.idx >= c.i0 && k.idx <= c.i1 : k.idx >= c.i0 || k.idx <= c.i1;
+      if (inside && k.z < tr.hc[k.idx]! - c.depth * T.race.chasm.floorFrac) { chasmRescue(w, k, c); return; }
+    }
   // paraglider zones (authored tracks): entering fast on the ground opens the wing
   if (tr.glideZones.length && !k.air && k.speed > D.air.minGlideSpeed) {
     for (const z of tr.glideZones) {
@@ -305,7 +349,11 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
     // tricks: press drift during the take-off window
     if (k.trickT > 0) {
       k.trickT -= dt;
-      if (inp.d && !k.dPrev && !k.trick) { k.trick = true; emit(w, { type: 'trick', kart: k.id }); }
+      // pressing OR releasing the drift button counts; the steering at that moment picks the figure
+      if (inp.d !== k.dPrev && !k.trick) {
+        k.trick = true;
+        emit(w, { type: 'trick', kart: k.id, kind: inp.s < -0.3 ? 'twist' : inp.s > 0.3 ? 'spin' : 'flip' });
+      }
     }
   }
   if (k.speed < D.reverseMax) k.speed = D.reverseMax;

@@ -3,6 +3,8 @@ import type { SongId } from '../data/tracks';
 import type { Theme, ThemeStyle } from '../data/themes';
 import type { SurfaceKind } from './track';
 
+export type RampKind = 'hop' | 'trick' | 'glide';
+
 /** Section types: the designer's vocabulary (GDD §6.2). */
 export type SectionType = 'recta' | 'chicane' | 'horquilla' | 'curva-rapida' | 'salto' | 'riesgo' | 'atajo' | 'descanso' | 'climax';
 
@@ -28,8 +30,17 @@ export interface AuthoredTrackDef {
   /** coin lines (lat = fraction of the half width); default: one line after each item row */
   coins?: { at: number; lat: number; n?: number }[];
   pads: { at: number; lat: number }[];
-  /** jump ramps on the road: a height bump; `big` gives a longer trick boost */
-  ramps: { at: number; big?: boolean }[];
+  /**
+   * Marked ramps on the road (V3-5). `kind`: 'hop' = a small jump (a trick gives a mini-turbo), 'trick' = a big jump (a trick gives
+   * the long turbo), 'glide' = opens the wing at a guaranteed speed (the run-up to a chasm). Crossing one launches the kart.
+   * Old files may carry `big` instead of `kind` (big → 'trick', else 'hop').
+   */
+  ramps: { at: number; kind?: RampKind; /** legacy */ big?: boolean }[];
+  /**
+   * Chasms (V3-5): the road is gone between `from` and `to` (fractions of the lap) and the ground drops `depth` units; walls of
+   * height `wallH` flank it (and the approach), so there is no way around: the kart must glide across a `glide` ramp.
+   */
+  chasms?: { from: number; to: number; depth: number; wallH: number }[];
   /** gliding ramps (legacy "vuelo"): the Flight stat matters */
   flights?: number[];
   /** paraglider zones (fractions of the lap): entering fast on the ground opens the wing */

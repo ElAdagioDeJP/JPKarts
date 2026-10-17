@@ -5,7 +5,8 @@ import { th as themeOf } from '../data/themes';
 import type { TrackDef } from '../data/tracks';
 import { LIQ_LAVA, LIQ_RIVER, LIQ_WATER } from '../data/themes';
 import { clamp, lerp, mulberry, vnoise } from '../math';
-import type { AuthoredTrackDef } from './authoredTypes';
+import { T } from '../tunables';
+import type { AuthoredTrackDef, RampKind } from './authoredTypes';
 import { type Branch, type Pad, type SurfaceBand, type Track, hAt, placeBoxes } from './track';
 
 type P = { x: number; y: number; h: number; w: number };
@@ -65,8 +66,9 @@ export function prepAuthored(a: AuthoredTrackDef): Track {
   const x = new Float32Array(N), y = new Float32Array(N), hc = new Float32Array(N), wd = new Float32Array(N), ang = new Float32Array(N);
   S.forEach((p, i) => { x[i] = p.x; y[i] = p.y; hc[i] = p.h; wd[i] = p.w; });
   for (let i = 0; i < N; i++) { const n1 = (i + 1) % N, p1 = (i - 1 + N) % N; ang[i] = datan2(y[n1]! - y[p1]!, x[n1]! - x[p1]!); }
-  for (const r of a.ramps) {
-    const c = idxOf(r.at, N), rh = r.big ? 12 : 8;
+  const ramps = a.ramps.map((r) => ({ i: idxOf(r.at, N), kind: (r.kind ?? (r.big ? 'trick' : 'hop')) as RampKind }));
+  for (const r of ramps) {
+    const c = r.i, rh = r.kind === 'trick' ? 12 : 8;
     for (let d = -10; d <= 4; d++) { const j = (c + d + N) % N; hc[j]! += rh * dexp(-(d / 4) * (d / 4)) * (d <= 0 ? 1 : Math.max(0, 1 - d / 3)); }
   }
   const flights = (a.flights ?? []).map((f) => idxOf(f, N)).sort((p, q) => p - q);
@@ -76,6 +78,12 @@ export function prepAuthored(a: AuthoredTrackDef): Track {
   for (const wl of a.walls) {
     const i0 = idxOf(wl.from, N), i1 = idxOf(wl.to, N);
     for (let i = i0; i !== i1; i = (i + 1) % N) { if (wl.side !== 'der') wallL[i] = 1; if (wl.side !== 'izq') wallR[i] = 1; }
+  }
+  // chasms: no road between i0 and i1; walls on both sides of the approach too, so there is no way around (V3-5)
+  const chasms = (a.chasms ?? []).map((c) => ({ i0: idxOf(c.from, N), i1: idxOf(c.to, N), depth: c.depth, wallH: c.wallH }));
+  for (const c of chasms) {
+    const pad = T.race.chasm.wallPad;
+    for (let i = (c.i0 - pad + N) % N, n = 0; n < ((c.i1 - c.i0 + N) % N) + 2 * pad + 1; i = (i + 1) % N, n++) { wallL[i] = 1; wallR[i] = 1; }
   }
   const surfaces: SurfaceBand[] = a.surfaces.map((s) => ({ i0: idxOf(s.from, N), i1: idxOf(s.to, N), lat0: s.lat[0], lat1: s.lat[1], kind: s.kind }));
   const pads: Pad[] = a.pads.map((p) => { const i = idxOf(p.at, N), an = ang[i]!; return { i, lat: p.lat, x: x[i]! - dsin(an) * p.lat, y: y[i]! + dcos(an) * p.lat }; });
@@ -94,7 +102,7 @@ export function prepAuthored(a: AuthoredTrackDef): Track {
   const tr: Track = {
     def, th, authored: a, size: a.size, res, N, wd, wallL, wallR, surfaces,
     water: a.water ? { base: a.water.base, laps: Object.fromEntries(Object.entries(a.water.laps).map(([k, v]) => [Number(k), v])), rate: a.water.rate, fallDepth: a.water.fallDepth, puddleDepth: a.water.puddleDepth } : null,
-    x, y, ang, hc, flights, glideZones, pads, boxRows: a.itemRows.map((f) => idxOf(f, N)), branches, built: false,
+    x, y, ang, hc, flights, glideZones, ramps, chasms, pads, boxRows: a.itemRows.map((f) => idxOf(f, N)), branches, built: false,
     hm: empty, dg: empty, wg: empty, liq: new Uint8Array(0), ng: empty, boxes: [],
   };
   tr.bake = bakeAuthored;
@@ -124,6 +132,17 @@ export function bakeAuthored(tr: Track) {
   for (const b of tr.branches) for (let i = 0; i < b.n; i++) bp.push([b.x[i]!, b.y[i]!, b.h[i]!, b.w!]);
   const hm = new Float32Array(res * res), dg = new Float32Array(res * res), wg = new Float32Array(res * res), liq = new Uint8Array(res * res), ng = new Float32Array(res * res);
   const R = mulberry(a.terrain.seed * 31 + 7), nz = vnoise(R), W = a.water;
+  // chasm ground: the canyon floor under the missing road, and a wall of terrain at its sides (V3-5)
+  const CH = T.race.chasm, chasmGround = tr.chasms.length ? (best: number, d: number, w: number, hr: number): number | null => {
+    for (const c of tr.chasms) {
+      const inCanyon = c.i0 <= c.i1 ? best >= c.i0 && best <= c.i1 : best >= c.i0 || best <= c.i1;
+      const p0 = (c.i0 - CH.wallPad + N) % N, p1 = (c.i1 + CH.wallPad) % N;
+      const inWall = p0 <= p1 ? best >= p0 && best <= p1 : best >= p0 || best <= p1;
+      if (inCanyon && d < w + CH.edge) return hr - c.depth;
+      if (inWall && d >= w + CH.edge && d < w + CH.edge + CH.wallWidth) return hr + c.wallH;
+    }
+    return null;
+  } : null;
   for (let gy = 0; gy < res; gy++)
     for (let gx = 0; gx < res; gx++) {
       const wx = gx * 4 + 2, wy = gy * 4 + 2, bx = (wx / 64) | 0, by = (wy / 64) | 0;
@@ -162,7 +181,8 @@ export function bakeAuthored(tr: Track) {
       if (!W || W.shore.length < 2) tn += e * e * 120;
       let s = clamp((d - (w + 12)) / 100, 0, 1);
       s = s * s * (3 - 2 * s);
-      const h = best < 0 ? tn : lerp(hr, tn, s);
+      let h = best < 0 ? tn : lerp(hr, tn, s);
+      if (best >= 0 && chasmGround) { const c = chasmGround(best, d, w, hr); if (c !== null) h = c; }
       const i = gy * res + gx;
       hm[i] = h;
       dg[i] = d;

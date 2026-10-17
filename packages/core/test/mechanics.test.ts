@@ -99,8 +99,8 @@ test('parapente: trepar cambia altura por velocidad, picar da velocidad, en pér
   flyTicks(cruise4, 0, 240);
   expect(cruise4.k.air).toBe(true);
   expect(cruise4.k.glide).toBe(true);
-  expect(cruise4.k.z).toBeLessThan(460); // vuelo sostenido ±60 u, no escalera ni roca
-  expect(cruise4.k.z).toBeGreaterThan(340);
+  expect(cruise4.k.z).toBeLessThan(460); // vuelo sostenido, no escalera ni roca
+  expect(cruise4.k.z).toBeGreaterThan(300); // V3-5: glideLiftGain 0.675 → 0.6, a bit more sink
   // flare: tirar hacia arriba al tocar suelo suaviza el aterrizaje (no duro), soltarlo lo deja duro
   const landWith = (t: number) => {
     const g = mkGlider();

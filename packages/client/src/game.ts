@@ -3,7 +3,7 @@
 // Public fields stay stable: tools/*.mjs drive the game through them.
 import {
   ALL_TRACKS, ARENA_INDICES, CLASSIC_CUPS, CUPS, LAPS, ReplayPlayer, ReplayRecorder, TrackCache, prepAuthored,
-  SIM_DT, clamp, hAt, hasFx, hashWorld, lerp, recordRace, wrapA,
+  SIM_DT, clamp, hAt, hasFx, hashWorld, trackIndexById, lerp, recordRace, wrapA,
   type EngineClass, type GameEvent, type Input as SimInput, type Kart, type Loadout, type Profile, type Progress, type Replay, type StatKey, type Track, type World,
 } from '@jpkart/core';
 import { DebugOverlay } from './dev/debugOverlay';
@@ -134,6 +134,8 @@ export class Game {
   recon: { t: number; next: number } | null = null;
   specT = 0;
   trickAnim = new Map<number, number>();
+  /** figure of the trick in progress per kart (1 twist, 2 spin, 3 flip) */
+  trickKind = new Map<number, number>();
   squash = new Map<number, number>();
   held: Pose[] | null = null;
   attract = 0;
@@ -205,6 +207,8 @@ export class Game {
 
   // ---------------- race (see race/localRace.ts, race/replayDirector.ts) ----------------
   startRace(ti: number) { LocalRace.startRace(this, ti); }
+  /** Debug/test hook: index of a track by its id (tools/chasm-shots.mjs). */
+  trackIndexById(id: string) { return trackIndexById(id); }
   /** Records and ghosts (local races only; LAN races do not count). */
   onRaceEnd() {
     const w = this.world, k = this.local;

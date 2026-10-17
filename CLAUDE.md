@@ -59,7 +59,7 @@ TypeScript estricto, Bun (workspaces, `bun test`), Vite (client), **Three.js con
 - `bun run server:online`: servidor online con salas por código (`Dockerfile`, despliegue en `docs/DEPLOY.md`)
 - `bun run desktop`: Electron en desarrollo
 - `bun run dist:win`: genera el `.exe` portable en `apps/desktop/release/`
-- `node tools/shot.mjs`, `tools/lan-check.mjs` (`--online=host:puerto`), `tools/desktop-check.mjs`, `tools/modes-check.mjs`, `tools/split-check.mjs`, `tools/hazard-shots.mjs`, `tools/items-shots.mjs`: pruebas en navegador y en Electron con capturas
+- `node tools/shot.mjs`, `tools/picker-check.mjs` (selector y constructor de kart), `tools/chasm-shots.mjs` (cañones), `tools/lan-check.mjs` (`--online=host:puerto`), `tools/desktop-check.mjs`, `tools/modes-check.mjs`, `tools/split-check.mjs`, `tools/hazard-shots.mjs`, `tools/items-shots.mjs`: pruebas en navegador y en Electron con capturas
 - `bun tools/online-check.mjs <ws|wss>`: comprueba un servidor online (health, crear sala, unirse)
 - `python tools/music/build.py [id]` (con el venv de nobu): regenera la banda sonora en `packages/client/public/music/` · `node tools/songs-check.mjs`: comprueba qué canción suena · ver `docs/MUSIC.md`
 - `node tools/ui-audit.mjs [--mobile] [--vp=WxH] [--only=a,b] [--port=N]`: recorre cada pantalla, captura en `shots-ui/` y detecta texto fuera del lienzo, fuera de su panel o solapado (conviene servir un build: `vite build --outDir /tmp/jpdist` + `vite preview --port 5176`)

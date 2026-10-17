@@ -81,10 +81,23 @@ export function buildGroundTexture(tr: Track): Uint8Array<ArrayBuffer> {
     for (const l0 of [-20, -14, 12, 18]) { const l = l0 * sk, o = l + Math.sin(i * 0.3) * 3; g.fillRect((tr.x[i]! - Math.sin(a) * o - 1) | 0, (tr.y[i]! + Math.cos(a) * o - 1) | 0, 3, 3); }
   }
   g.setLineDash([10, 14]); g.strokeStyle = th.line; g.lineWidth = 2; g.stroke(path); g.setLineDash([]);
-  for (const f of tr.def.ramps) {
-    const i = Math.floor(f * tr.N), half = Math.ceil(tr.wd[i]! / 7);
+  // marked ramps look different by kind (V3-5): hop = yellow/black stripes, trick = blue with arrows, glide = cyan arch with the wing painted
+  const ramps = tr.ramps.length ? tr.ramps : tr.def.ramps.map((f) => ({ i: Math.floor(f * tr.N), kind: 'hop' as const }));
+  for (const { i, kind } of ramps) {
+    const half = Math.ceil(tr.wd[i]! / 7);
     g.save(); g.translate(tr.x[i]!, tr.y[i]!); g.rotate(tr.ang[i]!);
-    for (let s = -half; s < half; s++) { g.fillStyle = s & 1 ? '#ffe45e' : '#1a1026'; g.fillRect(-14, s * 7, 10, 7); }
+    if (kind === 'hop') for (let s = -half; s < half; s++) { g.fillStyle = s & 1 ? '#ffe45e' : '#1a1026'; g.fillRect(-14, s * 7, 10, 7); }
+    else if (kind === 'trick') {
+      g.fillStyle = OUT; g.fillRect(-20, -half * 7 - 2, 26, half * 14 + 4); g.fillStyle = '#2f6bff'; g.fillRect(-19, -half * 7, 24, half * 14);
+      g.fillStyle = '#bfe0ff';
+      for (let s = -half + 1; s < half; s += 2) for (let k = 0; k < 3; k++) { const x = -16 + k * 7; g.beginPath(); g.moveTo(x, s * 7 - 3); g.lineTo(x + 5, s * 7); g.lineTo(x, s * 7 + 3); g.lineTo(x + 2, s * 7); g.closePath(); g.fill(); }
+    } else {
+      // glide: a cyan arch band with a white wing painted across the lanes
+      g.fillStyle = OUT; g.fillRect(-26, -half * 7 - 3, 34, half * 14 + 6); g.fillStyle = '#12b8d8'; g.fillRect(-25, -half * 7 - 1, 32, half * 14 + 2);
+      g.fillStyle = '#8fefff'; g.fillRect(-25, -half * 7 - 1, 32, 3); g.fillRect(-25, half * 7 - 2, 32, 3);
+      g.fillStyle = '#ffffff';
+      g.beginPath(); g.moveTo(4, 0); g.lineTo(-18, -half * 4); g.lineTo(-12, -2); g.lineTo(-20, 0); g.lineTo(-12, 2); g.lineTo(-18, half * 4); g.closePath(); g.fill();
+    }
     g.restore();
   }
   for (const p of tr.pads) {
@@ -316,11 +329,25 @@ function paintAuthoredRoad(g: CanvasRenderingContext2D, tr: Track) {
     g.strokeStyle = color; g.lineWidth = width;
     g.beginPath(); g.moveTo(tr.x[i]!, tr.y[i]!); g.lineTo(tr.x[j]!, tr.y[j]!); g.stroke();
   };
-  for (let i = 0; i < N; i++) seg(i, tr.wd[i]! * 2 + 30, shade(th.edge, 0.8));
-  for (let i = 0; i < N; i++) seg(i, tr.wd[i]! * 2 + 24, th.edge);
-  for (let i = 0; i < N; i++) seg(i, tr.wd[i]! * 2 + 10, (i >> 1) & 1 ? th.curbB : th.curbA);
-  for (let i = 0; i < N; i++) seg(i, tr.wd[i]! * 2 + 2, shade(th.road, 0.8));
-  for (let i = 0; i < N; i++) seg(i, tr.wd[i]! * 2, th.road);
+  // chasms: the road is missing there (V3-5)
+  const gap = new Uint8Array(N);
+  for (const c of tr.chasms) for (let i = c.i0; ; i = (i + 1) % N) { gap[i] = 1; if (i === c.i1) break; }
+  for (let i = 0; i < N; i++) if (!gap[i]) seg(i, tr.wd[i]! * 2 + 30, shade(th.edge, 0.8));
+  for (let i = 0; i < N; i++) if (!gap[i]) seg(i, tr.wd[i]! * 2 + 24, th.edge);
+  for (let i = 0; i < N; i++) if (!gap[i]) seg(i, tr.wd[i]! * 2 + 10, (i >> 1) & 1 ? th.curbB : th.curbA);
+  for (let i = 0; i < N; i++) if (!gap[i]) seg(i, tr.wd[i]! * 2 + 2, shade(th.road, 0.8));
+  for (let i = 0; i < N; i++) if (!gap[i]) seg(i, tr.wd[i]! * 2, th.road);
+  // the canyon: dark rock under the missing road, hazard stripes on both lips
+  for (const c of tr.chasms) {
+    for (let i = c.i0; ; i = (i + 1) % N) { seg(i, tr.wd[i]! * 2 + 44, shade(th.ground[0], 0.32)); if (i === c.i1) break; }
+    for (let i = c.i0; ; i = (i + 1) % N) { seg(i, tr.wd[i]! * 2 + 12, shade(th.ground[0], 0.18)); if (i === c.i1) break; }
+    for (const e of [c.i0, c.i1]) {
+      const half = Math.ceil(tr.wd[e]! / 6);
+      g.save(); g.translate(tr.x[e]!, tr.y[e]!); g.rotate(tr.ang[e]!);
+      for (let s = -half; s < half; s++) { g.fillStyle = s & 1 ? '#ffe45e' : '#1a1026'; g.fillRect(e === c.i0 ? -6 : 0, s * 6, 6, 6); }
+      g.restore();
+    }
+  }
   // shortcuts: a wooden pier when it crosses water, a dirt path otherwise
   for (const b of tr.branches) {
     const bw = (b.w ?? 24) * 2, pier = !!tr.authored!.branches.find((x) => x.risk === 'agua');
@@ -348,7 +375,8 @@ function paintAuthoredRoad(g: CanvasRenderingContext2D, tr: Track) {
     }
   }
   g.setLineDash([10, 14]); g.strokeStyle = th.line; g.lineWidth = 2;
-  g.beginPath(); g.moveTo(tr.x[0]!, tr.y[0]!);
-  for (let i = 1; i < N; i++) g.lineTo(tr.x[i]!, tr.y[i]!);
-  g.closePath(); g.stroke(); g.setLineDash([]);
+  g.beginPath();
+  let pen = false; // one dashed run between chasms (the dash pattern restarts at each moveTo)
+  for (let i = 0; i < N; i++) { const j = (i + 1) % N; if (gap[i] || gap[j]) { pen = false; continue; } if (!pen) { g.moveTo(tr.x[i]!, tr.y[i]!); pen = true; } g.lineTo(tr.x[j]!, tr.y[j]!); }
+  g.stroke(); g.setLineDash([]);
 }

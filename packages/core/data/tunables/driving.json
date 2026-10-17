@@ -57,7 +57,8 @@
     "jumpMinSpeed": 80,
     "landHard": -50,
     "landHardKeep": 0.8,
-    "glideLiftGain": 0.675,
+    "glideLiftGain": 0.6,
+    "glideLaunchSpeed": 165,
     "glideFlare": 40,
     "glideFlyMul": 0.06,
     "glideClimb": 55,
@@ -99,10 +100,15 @@
     "recover": 2
   },
   "trick": {
-    "takeoff": 0.25,
+    "takeoff": 0.45,
     "boost": 0.6,
     "bigBoost": 0.9,
     "bigRadius": 18
+  },
+  "ramp": {
+    "minSpeed": 70,
+    "hopVz": 55,
+    "trickVz": 85
   },
   "slipstream": {
     "range": 70,

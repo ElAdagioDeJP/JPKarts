@@ -353,7 +353,8 @@
       "lat": -16
     }
   ],
-  "ramps": [],
+  "ramps": [{"at": 0.6269, "kind": "glide"}],
+  "chasms": [{"from": 0.635, "to": 0.651, "depth": 70, "wallH": 60}],
   "flights": [
     0.057,
     0.231,

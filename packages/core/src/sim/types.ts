@@ -123,7 +123,8 @@ export type GameEvent =
   | { type: 'driftStart'; kart: KartId }
   | { type: 'miniTurbo'; kart: KartId; level: 1 | 2 | 3 }
   | { type: 'driftLevel'; kart: KartId; level: 1 | 2 | 3 }
-  | { type: 'trick'; kart: KartId }
+  /** `kind`: the figure the steering picked: left = twist (corkscrew), right = spin, centre = flip */
+  | { type: 'trick'; kart: KartId; kind: 'twist' | 'spin' | 'flip' }
   | { type: 'slipstream'; kart: KartId }
   | { type: 'wallBump'; kart: KartId; hard: boolean }
   | { type: 'burnout'; kart: KartId }

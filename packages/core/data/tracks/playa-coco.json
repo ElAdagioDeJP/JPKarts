@@ -313,12 +313,7 @@
       "lat": 14
     }
   ],
-  "ramps": [
-    {
-      "at": 0.428,
-      "big": true
-    }
-  ],
+  "ramps": [{"at": 0.428, "kind": "trick"}],
   "hazards": [
     {
       "kind": "ola",

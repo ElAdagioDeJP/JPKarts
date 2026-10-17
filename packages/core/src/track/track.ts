@@ -38,6 +38,10 @@ export interface Track {
   ang: Float32Array;
   hc: Float32Array; // centerline height
   flights: number[];
+  /** marked ramps (sample index + kind): crossing one launches the kart (V3-5) */
+  ramps: { i: number; kind: import('./authoredTypes').RampKind }[];
+  /** chasms: samples [i0, i1] have no road, the ground is `depth` lower and walls of `wallH` flank them */
+  chasms: { i0: number; i1: number; depth: number; wallH: number }[];
   /** paraglider zones as sample ranges (authored tracks); entering fast on the ground opens the wing */
   glideZones: { i0: number; i1: number }[];
   pads: Pad[];
@@ -236,7 +240,7 @@ export function prepTrack(def: TrackDef): Track {
   const empty32 = new Float32Array(0);
   return {
     def, th: def.th, authored: null, size: TS, res: HM, N, wd: new Float32Array(N).fill(ROAD), wallL: new Uint8Array(N), wallR: new Uint8Array(N), surfaces: [], water: null,
-    x, y, ang, hc, flights, glideZones: [], pads, boxRows, branches: [], built: false,
+    x, y, ang, hc, flights, glideZones: [], ramps: [], chasms: [], pads, boxRows, branches: [], built: false,
     hm: empty32, dg: empty32, wg: empty32, liq: new Uint8Array(0), ng: empty32, boxes: [],
   };
 }

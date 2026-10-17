@@ -10,6 +10,7 @@ export * from './track/track';
 export * from './track/authored';
 export * from './track/authoredTypes';
 export * from './track/mirror';
+export * from './track/chasm';
 export * from './data/authoredTracks';
 export * from './ai/line';
 export * from './ai/ai';

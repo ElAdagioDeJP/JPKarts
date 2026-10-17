@@ -358,11 +358,8 @@
       "lat": 16
     }
   ],
-  "ramps": [
-    {
-      "at": 0.45
-    }
-  ],
+  "ramps": [{"at": 0.45, "kind": "hop"}, {"at": 0.632, "kind": "glide"}],
+  "chasms": [{"from": 0.64, "to": 0.656, "depth": 70, "wallH": 60}],
   "flights": [],
   "hazards": [
     {

@@ -38,7 +38,7 @@ export function renderWorld(g: Game, t: number, karts: Kart[]) {
       lean: k.drift ? k.drift : k.sv, hop: k.hop, spin: k.spin,
       big: hasFx(k, 'jug'), bubble: hasFx(k, 'bubble'), reflect: hasFx(k, 'reflect'),
       visible: vis, ground: hAt(g.tr, ps.x, ps.y), air: k.air, glide: k.glide, speed: k.speed,
-      trick: g.trickAnim.get(k.id) ?? 0, squash: g.squash.get(k.id) ?? 0,
+      trick: g.trickAnim.get(k.id) ?? 0, trickKind: g.trickKind.get(k.id), squash: g.squash.get(k.id) ?? 0,
       local: g.views.some((v) => v.localId === k.id),
     });
   }

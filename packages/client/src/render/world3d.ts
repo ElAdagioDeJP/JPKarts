@@ -30,6 +30,8 @@ export interface KartView {
   speed: number;
   /** 0..1 progress of a trick flip (0 = none) */
   trick: number;
+  /** which figure: 1 twist (corkscrew), 2 spin, 3 flip (provisional animation in code until the V3-6 clips) */
+  trickKind?: number;
   /** 0..1 squash after landing (1 = just landed) */
   squash: number;
   /** time-trial ghost: translucent, no outline */
@@ -855,7 +857,11 @@ export class WorldRenderer {
       const yaw = k.spin > 0 ? -k.a - t * 14 * (Math.PI / 2) : -k.a;
       o.root.rotation.set(0, yaw, 0);
       // trick: a full barrel roll; landing: squash & stretch (ease-out back to 1)
-      o.body.rotation.set(k.lean * 0.12 + (k.trick > 0 ? k.trick * Math.PI * 2 : 0), 0, 0);
+      {
+        const a = k.trick > 0 ? k.trick * Math.PI * 2 : 0, kind = k.trickKind ?? 1;
+        // twist: roll with a quarter turn of yaw; spin: yaw 360°; flip: pitch 360°
+        o.body.rotation.set(k.lean * 0.12 + (kind === 1 ? a : 0), kind === 2 ? a : kind === 1 ? Math.sin(a) * 0.35 : 0, kind === 3 ? a : 0);
+      }
       const sq = k.squash * k.squash;
       o.body.scale.set(1 + sq * 0.15, 1 - sq * 0.13, 1 + sq * 0.15);
       // cabeza MK7: mira hacia la salida del derrape + cabezazo en truco/aterrizaje
