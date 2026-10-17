@@ -20,7 +20,7 @@ if (process.argv[2] === '--wins') {
     if (ti2 < 0) { console.log('pista desconocida: ' + tid); continue; }
     const t2 = wc.ensureBuilt(ti2), wins = new Array(CHARS.length).fill(0);
     for (let r = 0; r < n; r++) {
-      const seed = 2000 + r * 31;
+      const seed = 2000 + Number(process.env.JP_SEED ?? 0) + r * 31; // JP_SEED desplaza las semillas (para repartir muchas carreras en varios procesos)
       const grid = buildGrid(new Rng(seed), [], { humanSlot: 0 });
       const w = createWorld({ trackIndex: ti2, diff: df, seed, laps: LAPS, grid }, t2);
       for (let t = 0; t < 60 * 60 * 6 && w.phase !== 'results'; t++) { step(w, []); takeEvents(w); }
