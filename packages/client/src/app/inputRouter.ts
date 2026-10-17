@@ -4,6 +4,7 @@
 import { CHARS, CLASSES, CUPS, classUnlocked, cupUnlocked, recordCup } from '@jpkart/core';
 import { saveProgress } from '../meta/store';
 import { welcomeInput } from '../screens/welcome';
+import { allReady, commit, confirmLobbyKart, navigate, newPickers, randomize, type Nav } from '../screens/picker';
 import { isArena, type Mode } from './types';
 import { spectateStep, spectating } from '../race/spectate';
 import type { Game } from '../game';
@@ -54,6 +55,7 @@ export function onPress(g: Game, code: string) {
         g.mode = (['cup', 'free', 'timetrial', 'elimination', 'battle'] as Mode[])[g.menuSel]!;
         g.trackSel = 0;
         if (g.mode !== 'free' && g.mode !== 'cup') g.teams = false;
+        g.pickers = newPickers(g);
         g.state = 'select'; A.blip();
       }
       if (back) g.state = 'title';
@@ -63,15 +65,36 @@ export function onPress(g: Game, code: string) {
     case 'online': g.onlineInput(code, back, ...textNav(g, code, U, D)); break;
     case 'lobby': g.lobbyInput(code, ok, back, L, R, U, D); break;
     case 'controls': g.controlsInput(code, ok, back, U, D); break;
-    case 'select':
-      if (R) { g.sel = (g.sel + 1) % CHARS.length; A.blip(); }
-      if (L) { g.sel = (g.sel + CHARS.length - 1) % CHARS.length; A.blip(); }
-      if (D) { g.sel = (g.sel + 4) % CHARS.length; A.blip(); } // grid of 4 columns
-      if (U) { g.sel = (g.sel + CHARS.length - 4) % CHARS.length; A.blip(); }
-      if ((code === 'KeyJ' || code === 'Pad8') && g.mode !== 'timetrial') { g.players = (g.players % 4) + 1; A.blip(); }
-      if (ok) { g.state = g.mode === 'cup' ? 'cup' : 'track'; A.beep(780, 0.1); }
-      if (back) g.state = 'menu';
+    case 'select': {
+      if ((code === 'KeyJ' || code === 'Pad8') && g.mode !== 'timetrial') { g.players = (g.players % 4) + 1; g.pickers = newPickers(g); A.blip(); break; }
+      if (back) { g.state = 'menu'; break; }
+      const ps = g.pickers;
+      if (ps.length > 1) {
+        // split screen: each player moves their own panel (screens/picker.ts); Intro goes on once everybody is ready
+        if (ok) { if (allReady(g)) { commit(g); g.state = g.mode === 'cup' ? 'cup' : 'track'; A.beep(780, 0.1); } else A.beep(160, 0.1, 'square', 0.05); }
+        break;
+      }
+      const p = ps[0]!, n = CHARS.length;
+      if (R) { p.ch = (p.ch + 1) % n; A.blip(); }
+      if (L) { p.ch = (p.ch + n - 1) % n; A.blip(); }
+      if (D) { p.ch = (p.ch + 4) % n; A.blip(); } // grid of 4 columns
+      if (U) { p.ch = (p.ch + n - 4) % n; A.blip(); }
+      g.sel = p.ch;
+      if (ok) { p.row = 5; g.buildFrom = 'local'; g.state = 'build'; A.beep(780, 0.1); }
       break;
+    }
+    case 'build': {
+      const p = g.pickers[0];
+      if (!p) { g.state = 'menu'; break; }
+      if (back) { g.state = g.buildFrom === 'lobby' ? 'lobby' : 'select'; break; }
+      if (code === 'KeyR') { randomize(p); A.beep(660, 0.08); break; }
+      const a: Nav | null = L ? 'L' : R ? 'R' : U ? 'U' : D ? 'D' : ok ? 'OK' : null;
+      if (a && navigate(g, p, a, false)) {
+        if (g.buildFrom === 'lobby') confirmLobbyKart(g);
+        else { commit(g); g.state = g.mode === 'cup' ? 'cup' : 'track'; }
+      }
+      break;
+    }
     case 'cup':
       if (classKeys(g, code)) break;
       if (R) { g.cupSel = (g.cupSel + 1) % 4; A.blip(); }

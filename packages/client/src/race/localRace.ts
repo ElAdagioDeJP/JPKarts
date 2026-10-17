@@ -2,7 +2,7 @@
 // Network races live in netRace.ts; the highlight replay lives in replayDirector.ts.
 // Game delegates here so new race rules don't touch the orchestrator.
 import {
-  ALL_TRACKS, CHARS, LAPS, ReplayPlayer, ReplayRecorder, Rng, SIM_DT,
+  ALL_TRACKS, CHARS, DEFAULT_LOADOUT, LAPS, ReplayPlayer, ReplayRecorder, Rng, SIM_DT,
   buildGrid, classCfg, createWorld, fmtTime, modeOf, step, takeEvents,
   type Input as SimInput, type Replay, type World,
 } from '@jpkart/core';
@@ -27,7 +27,9 @@ export function startRace(g: Game, ti: number) {
   // M3 móvil: pantalla dividida deshabilitada (1 jugador por teléfono).
   const mobile1 = (() => { try { return isMobileDevice(); } catch { return false; } })();
   const n = g.mode === 'timetrial' ? 1 : mobile1 ? 1 : g.players;
-  const humans = [g.sel, ...CHARS.map((_, i) => (g.sel + i) % CHARS.length).slice(1, n)].map((ch) => ({ ch, ctrl: 'local' as const }));
+  // the karts the players built in the selector (screens/picker.ts); without a selection (replays, tests) the pilot alone with the default parts
+  const picks = g.loadouts.length ? g.loadouts : [{ ch: g.sel, parts: { ...DEFAULT_LOADOUT } }];
+  const humans = [...picks.slice(0, n), ...CHARS.map((_, i) => (g.sel + i) % CHARS.length).filter((ch) => !picks.some((q) => q.ch === ch)).slice(0, Math.max(0, n - picks.length)).map((ch) => ({ ch, parts: { ...DEFAULT_LOADOUT } }))].map((q) => ({ ch: q.ch, ctrl: 'local' as const, parts: q.parts }));
   let grid = g.mode === 'timetrial' ? humans
     : g.mode === 'cup' && g.cup && g.cup.race > 0
       ? buildGrid(rng, humans, { cupPts: g.cup.pts, humanSlot: 0 })

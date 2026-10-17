@@ -1,6 +1,8 @@
 import type { Rng } from '../math';
 import type { Track } from '../track/track';
 import type { AiState } from '../ai/ai';
+import type { KartStats } from '../data/characters';
+import type { Loadout } from '../data/parts';
 
 export type Ctrl = 'local' | 'remote' | 'ai';
 export type KartId = number;
@@ -32,6 +34,8 @@ export interface Fx {
 export interface Kart {
   id: KartId;
   ch: number; // index into CHARS
+  /** the pilot's stats with their parts, computed once at race start (plain numbers: the sim never reads CHARS per tick) */
+  st: KartStats;
   ctrl: Ctrl;
   x: number; y: number; z: number; vz: number;
   air: boolean; glide: boolean;
@@ -162,7 +166,7 @@ export interface RaceConfig {
   /** game mode id (defineMode); default 'race' */
   mode?: string;
   /** grid order: character index + controller for each slot (team: 0 red, 1 blue when `teams`) */
-  grid: { ch: number; ctrl: Ctrl; aiDiff?: number; team?: number }[];
+  grid: { ch: number; ctrl: Ctrl; aiDiff?: number; team?: number; /** the kart build (V3-3); missing = the default parts */ parts?: Loadout }[];
   /** engine class (GDD §9): 100 (default) or 150 */
   cc?: number;
   /** mirrored track (authored tracks only) */

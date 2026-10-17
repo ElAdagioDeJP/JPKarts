@@ -2,6 +2,7 @@ export * from './constants';
 export * from './math';
 export * from './dmath';
 export * from './tunables';
+export * from './data/parts';
 export * from './data/characters';
 export * from './data/themes';
 export * from './data/tracks';

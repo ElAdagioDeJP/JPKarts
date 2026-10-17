@@ -1,6 +1,8 @@
 // Local player profile (save-systems): who you are on this device. Versioned like every persistent file.
 // `id` identifies the device to the online server (rejoin a race you dropped from); several people may use the same name.
 // Data only: the client creates the id (core has no randomness) and decides when to save.
+import { CHARS } from '../data/characters';
+import { DEFAULT_LOADOUT, resolveLoadout, validLoadout, type Loadout } from '../data/parts';
 import { cleanPid } from '../net/protocol';
 import type { SaveSchema } from './save';
 
@@ -12,9 +14,12 @@ export interface Profile {
   name: string;
   /** the welcome tutorial was seen */
   tutorialDone: boolean;
+  /** v2: the last kart this player built (pilot index, -1 = none yet) and its parts */
+  lastCh: number;
+  lastParts: Loadout;
 }
 
-export const PROFILE_VERSION = 1;
+export const PROFILE_VERSION = 2;
 export const PROFILE_NAME_MIN = 3, PROFILE_NAME_MAX = 12;
 
 /** Name rules shared by the welcome screen and the server: printable, trimmed, 3 to 12 characters. */
@@ -23,14 +28,16 @@ export const validProfileName = (n: string) => n.length >= PROFILE_NAME_MIN && n
 
 const MIGRATIONS: Record<number, (s: any) => any> = {
   0: (s) => ({ ...s, version: 1, id: typeof s.id === 'string' ? s.id : '', name: typeof s.name === 'string' ? s.name : '', tutorialDone: !!s.tutorialDone }),
+  // v2: the last kart
+  1: (s) => ({ ...s, version: 2, lastCh: Number.isInteger(s.lastCh) ? s.lastCh : -1, lastParts: resolveLoadout(s.lastParts) }),
 };
 
 export const PROFILE: SaveSchema<Profile> = {
   key: 'jpkart.profile',
   version: PROFILE_VERSION,
   migrations: MIGRATIONS,
-  fresh: () => ({ version: PROFILE_VERSION, id: '', name: '', tutorialDone: false }),
-  valid: (s) => !!s && typeof s.id === 'string' && (s.id === '' || cleanPid(s.id) !== undefined) && typeof s.name === 'string' && typeof s.tutorialDone === 'boolean',
+  fresh: () => ({ version: PROFILE_VERSION, id: '', name: '', tutorialDone: false, lastCh: -1, lastParts: { ...DEFAULT_LOADOUT } }),
+  valid: (s) => !!s && typeof s.id === 'string' && (s.id === '' || cleanPid(s.id) !== undefined) && typeof s.name === 'string' && typeof s.tutorialDone === 'boolean' && Number.isInteger(s.lastCh) && s.lastCh >= -1 && s.lastCh < CHARS.length && validLoadout(s.lastParts),
 };
 
 /** A profile id from 16 random bytes (`bytes` comes from crypto in the client). */

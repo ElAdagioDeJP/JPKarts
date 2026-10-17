@@ -39,6 +39,8 @@ export class NetSession {
   go = false;
   /** the server waits for slow clients: how many are ready */
   loading: { done: number; total: number } | null = null;
+  /** the host pressed start: seconds left to confirm the kart before the server picks one (0 = no countdown) */
+  pickIn = 0;
   /** when the last snapshot arrived (ms): a silent line while racing means the connection is dead */
   lastSnapAt = 0;
 
@@ -83,7 +85,7 @@ export class NetSession {
       case 'welcome': this.id = m.id; this.status = 'lobby'; this.room = m.room ?? ''; break;
       case 'reject': this.error = m.reason; this.status = 'closed'; this.ws?.close(); break;
       case 'lobby':
-        this.players = m.players; this.settings = m.settings; this.phase = m.phase; this.cupRace = m.cupRace; this.cupPts = m.cupPts; this.nextIn = m.nextIn ?? 0; this.loading = m.loading ?? null;
+        this.players = m.players; this.settings = m.settings; this.phase = m.phase; this.cupRace = m.cupRace; this.cupPts = m.cupPts; this.nextIn = m.nextIn ?? 0; this.loading = m.loading ?? null; this.pickIn = m.pickIn ?? 0;
         if (m.phase !== 'race' && this.status === 'race') this.status = 'lobby';
         break;
       case 'start':

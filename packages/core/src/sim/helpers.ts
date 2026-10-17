@@ -52,7 +52,7 @@ export function hit(w: World, k: Kart, t: number, level = 1, src = -1): boolean 
     if (d?.absorbHit && d.absorbHit(w, k, f, Math.max(1, level))) return false;
   }
   const H = T.race.hit, DH = T.driving.hit, light = level === 0;
-  const cls = CHARS[k.ch]!.weightClass === 'ligero' ? DH.lightClassMul : 1;
+  const cls = k.st.weightClass === 'ligero' ? DH.lightClassMul : 1;
   k.spin = (light ? DH.lightSpin : t) * cls;
   k.spinK = light ? 1 : T.driving.spinDecay;
   if (light) k.speed *= DH.lightKeep;

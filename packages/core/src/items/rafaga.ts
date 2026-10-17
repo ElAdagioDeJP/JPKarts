@@ -1,6 +1,6 @@
 // rafaga: see docs/GDD.md §3.3 (a side gust: pushes the karts beside you off the line, or into the water)
 import { dcos, dsin } from '../dmath';
-import { charOf, emit, hit } from '../sim/helpers';
+import { emit, hit } from '../sim/helpers';
 import { immune } from '../sim/effects';
 import { T } from '../tunables';
 import { defineItem } from '../sim/items';
@@ -23,7 +23,7 @@ defineItem({
     const R = T.items.rafaga, ca = dcos(k.a), sa = dsin(k.a);
     for (const [o, lat] of beside(w, k)) {
       if (immune(o, 'control')) continue;
-      const cls = charOf(o).weightClass, m = cls === 'pesado' ? R.heavyMul : cls === 'ligero' ? R.lightMul : 1, s = Math.sign(lat) || 1;
+      const cls = o.st.weightClass, m = cls === 'pesado' ? R.heavyMul : cls === 'ligero' ? R.lightMul : 1, s = Math.sign(lat) || 1;
       o.x += -sa * s * R.push * m;
       o.y += ca * s * R.push * m;
       hit(w, o, R.hit, 0, k.id);

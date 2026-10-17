@@ -5,6 +5,7 @@ import {
   type EngineClass,
 } from '@jpkart/core';
 import { FACES } from '../art/sprites';
+import { openLobbyBuilder, partsCode } from './picker';
 import { isArena, type Mode } from '../app/types';
 import { W } from '../ui/draw';
 import { desktop } from '../net/session';
@@ -101,6 +102,8 @@ export function lobbyInput(g: Game, _code: string, ok: boolean, back: boolean, L
   const me = net.me;
   if (!me) return;
   if (L || R) net.send({ t: 'pick', ch: (me.ch + (L ? CHARS.length - 1 : 1)) % CHARS.length });
+  // the kart builder: K for everybody, ↑↓ too when you are not the host (the host's ↑↓ change the mode)
+  if (_code === 'KeyK' || (!net.isHost && (U || D))) { openLobbyBuilder(g); return; }
   if ((_code === 'KeyJ' || _code === 'Pad8') && net.localSeats.length < 4)
     net.send({ t: 'addSeat', name: (me.name || 'Jugador').slice(0, 9) + ' ' + (net.localSeats.length + 1) });
   if (_code === 'KeyR' || (ok && !net.isHost)) net.send({ t: 'ready', ready: !me.ready });
@@ -222,20 +225,22 @@ export function drawLobby(g: Game, t: number) {
     });
   }
   // up to 12 humans: the rows shrink to fit between the settings and the help line
-  const pitch = Math.min(18, Math.floor((210 - 68 - dy) / Math.max(1, net.players.length))), ph = Math.min(15, pitch - 1), ty = Math.round((ph - 8) / 2);
+  const pitch = Math.min(18, Math.floor((203 - 68 - dy) / Math.max(1, net.players.length))), ph = Math.min(15, pitch - 1), ty = Math.round((ph - 8) / 2);
   net.players.forEach((p, i) => {
     const y = 68 + dy + i * pitch, me = p.id === net.id;
     ui.panel(ox, y, 340, ph, me ? '#3a3478' : '#241f55', me ? '#ffe45e' : '#6d66b0');
     ui.img(FACES[p.ch]!.cv, ox + 4, y + Math.round((ph - Math.min(16, ph)) / 2), Math.min(16, ph), Math.min(16, ph));
     ui.txt(p.name + (p.host ? ' ★' : '') + (p.seat ? ' (pantalla de ' + (net.players.find((q) => q.conn === p.conn && !q.seat)?.name ?? '?') + ')' : ''),
       ox + 26, y + ty, me || p.conn === net.id ? '#ffe45e' : '#fff7e0');
-    ui.txt(CHARS[p.ch]!.short, ox + 200, y + ty, '#9c95d6');
+    ui.txtS(CHARS[p.ch]!.short, ox + 128, y + ty + 1, '#9c95d6', 'left');
+    ui.txtS(partsCode(p.parts), ox + 186, y + ty + 1, '#8fe0ff', 'left');
     ui.txt(p.host ? 'anfitrión' : p.ready ? 'listo ✓' : 'no listo', ox + 334, y + ty, p.ready || p.host ? '#9cff9c' : '#ff8a9a', 8, 'right');
   });
+  if (net.pickIn > 0) ui.txt('¡Elige tu kart! ' + net.pickIn + ' s', W / 2, 54 + dy, net.pickIn <= 10 ? '#ff4d6d' : '#ffe45e', 8, 'center');
   const help = net.isHost
-    ? '←→ piloto · Q/E copa o pista · ↑↓ modo · F IA · X clase · T equipos · Intro'
-    : '←→ personaje · Intro o R: listo · J: otro jugador aquí';
-  ui.txtS(help, W / 2, 214, '#9c95d6');
-  ui.txtS('Esc: salir de la sala', W / 2, 226, '#9c95d6');
+    ? ['←→ piloto · K kart · Q/E copa o pista · ↑↓ modo', 'F IA · X clase · T equipos · Intro: empezar']
+    : ['←→ piloto · ↑ armar kart · Intro o R: listo', 'J: otro jugador en esta pantalla'];
+  help.forEach((h, i) => ui.txtS(h, W / 2, 206 + i * 8, '#9c95d6'));
+  ui.txtS('Esc: salir de la sala', W / 2, 229, '#9c95d6');
   void t;
 }

@@ -1,0 +1,13 @@
+[
+  { "id": "kernel", "type": "body", "name": "Kernel", "vel": 0, "ace": 0, "pes": 0, "man": 0, "tra": 0, "mt": 0, "vue": 0 },
+  { "id": "overdrive", "type": "body", "name": "Overdrive", "vel": 1, "ace": -0.5, "pes": 0, "man": -0.5, "tra": 0, "mt": -0.5, "vue": 0 },
+  { "id": "mainframe", "type": "body", "name": "Mainframe", "vel": 0.5, "ace": -1, "pes": 1, "man": -0.5, "tra": 0, "mt": 0, "vue": -0.5 },
+  { "id": "rover", "type": "body", "name": "Rover", "vel": -0.75, "ace": 0.5, "pes": -0.75, "man": 0, "tra": 1, "mt": 0.5, "vue": 0 },
+  { "id": "std", "type": "wheels", "name": "Estándar", "vel": 0, "ace": 0, "pes": 0, "man": 0, "tra": 0, "mt": 0, "vue": 0 },
+  { "id": "slick", "type": "wheels", "name": "Slick", "vel": 0.5, "ace": 0, "pes": 0, "man": 0.5, "tra": -1, "mt": 0, "vue": 0 },
+  { "id": "offroad", "type": "wheels", "name": "Todoterreno", "vel": -0.5, "ace": -0.5, "pes": 0, "man": 0, "tra": 1, "mt": 0, "vue": 0 },
+  { "id": "mini", "type": "wheels", "name": "Mini", "vel": -1, "ace": 1, "pes": -0.5, "man": 0.5, "tra": 0, "mt": 0.5, "vue": 0 },
+  { "id": "wing", "type": "wing", "name": "Estándar", "vel": 0, "ace": 0, "pes": 0, "man": 0, "tra": 0, "mt": 0, "vue": 0 },
+  { "id": "glider", "type": "wing", "name": "Planeadora", "vel": -0.25, "ace": 0, "pes": 0, "man": 0.25, "tra": 0, "mt": 0, "vue": 2 },
+  { "id": "light", "type": "wing", "name": "Ligera", "vel": 0, "ace": 0.5, "pes": -0.25, "man": -0.25, "tra": 0, "mt": 0, "vue": -1 }
+]

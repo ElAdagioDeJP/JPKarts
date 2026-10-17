@@ -4,7 +4,7 @@
 import {
   ALL_TRACKS, ARENA_INDICES, CLASSIC_CUPS, CUPS, LAPS, ReplayPlayer, ReplayRecorder, TrackCache, prepAuthored,
   SIM_DT, clamp, hAt, hashWorld, lerp, recordRace, wrapA,
-  type EngineClass, type GameEvent, type Input as SimInput, type Kart, type Profile, type Progress, type Replay, type StatKey, type Track, type World,
+  type EngineClass, type GameEvent, type Input as SimInput, type Kart, type Loadout, type Profile, type Progress, type Replay, type StatKey, type Track, type World,
 } from '@jpkart/core';
 import { DebugOverlay } from './dev/debugOverlay';
 import { loadSettings, type Settings } from './settings';
@@ -19,7 +19,7 @@ import { buildMinimap } from './render/trackArt';
 import { WorldRenderer } from './render/world3d';
 import { H, Ui, W } from './ui/draw';
 import { loadProgress, saveGhost, saveProgress } from './meta/store';
-import { loadProfile } from './meta/profile';
+import { loadProfile, saveProfile } from './meta/profile';
 import {
   CAM_H, MENUS, isArena, newView,
   type CupState, type Mode, type Particle, type PlayerView, type Pose, type State,
@@ -34,6 +34,7 @@ import * as ReplayDirector from './race/replayDirector';
 import * as NetRace from './net/netRace';
 import * as NetScreens from './screens/netScreens';
 import * as Menus from './screens/menus';
+import * as Picker from './screens/picker';
 import * as InputRouter from './app/inputRouter';
 import * as Welcome from './screens/welcome';
 import { buzz, isMobileDevice } from './mobile';
@@ -48,6 +49,14 @@ function sameOriginServer() {
 export class Game {
   state: State = 'title';
   sel = 5; trackSel = 0; menuSel = 0; cupSel = 0; diff = 1;
+  /** the kart choice of every local player (V3-3): pilot + parts; see screens/picker.ts */
+  pickers: Picker.Picker[] = [];
+  /** what the next race starts with: the confirmed picks of the local players */
+  loadouts: { ch: number; parts: Loadout }[] = [];
+  /** where the builder was opened from: the pilot grid (local race) or the LAN/online lobby */
+  buildFrom: 'local' | 'lobby' = 'local';
+  /** the lobby already sent this player's remembered kart */
+  lobbyInit = false;
   mode: Mode = 'free';
   /** progression (GDD §9): unlocks and records, saved with versions and migrations */
   progress: Progress = loadProgress();
@@ -295,6 +304,8 @@ export class Game {
       ui.img(BALLS[((t * 8) | 0) % 4]!.cv, W / 2 - 8, H / 2 + 18, 16, 16);
       if (++this.loadF >= 3) { this.tracks.ensureBuilt(this.pendingRace, [this.tr], this.pendingMirror); this.startRace(this.pendingRace); }
     } else if (MENUS.includes(this.state)) {
+      if (this.state === 'select' && this.pickers.length > 1) Picker.updatePickers(this);
+      if (this.state === 'lobby') Picker.lobbyTick(this);
       const want = this.state === 'track' ? this.tracks.get(this.grid[this.trackSel]!) : this.state === 'cup' ? this.tracks.get(CUPS[this.cupSel]!.tracks[0]!) : this.tracks.get(this.grid[((t / 10) | 0) % this.grid.length]!);
       if (want.built && want !== this.tr) { this.tr = want; this.renderer.setTrack(want); const i = Math.floor(this.attract) % want.N; this.cam.a = want.ang[i]!; this.cam.z = want.hc[i]! + CAM_H; }
       const tr = this.tr;
@@ -302,7 +313,7 @@ export class Game {
       const i = Math.floor(this.attract) % tr.N, x = tr.x[i]!, y = tr.y[i]!;
       this.updateCam(dt, x, y, tr.ang[i]!, hAt(tr, x, y));
       this.renderWorld(t, []);
-      this.safeArea(() => ({ title: () => this.drawTitle(t), welcome: () => Welcome.drawWelcome(this, t), menu: () => this.drawMenu(t), options: () => this.drawOptions(), controls: () => this.drawControls(), lan: () => this.drawLan(t), online: () => this.drawOnline(t), lobby: () => this.drawLobby(t), select: () => this.drawSelect(t), cup: () => this.drawCupSel(t), track: () => this.drawTrackSel() } as Record<string, () => void>)[this.state]!());
+      this.safeArea(() => ({ title: () => this.drawTitle(t), welcome: () => Welcome.drawWelcome(this, t), menu: () => this.drawMenu(t), options: () => this.drawOptions(), controls: () => this.drawControls(), lan: () => this.drawLan(t), online: () => this.drawOnline(t), lobby: () => this.drawLobby(t), select: () => this.drawSelect(t), build: () => Menus.drawBuild(this, t), cup: () => this.drawCupSel(t), track: () => this.drawTrackSel() } as Record<string, () => void>)[this.state]!());
       A.engineSet(false, 0);
     } else if (this.world) {
       const w = this.world, p = this.local!;
@@ -425,7 +436,11 @@ export class Game {
   drawTitle(t: number) { Menus.drawTitle(this, t); }
   drawMenu(t: number) { Menus.drawMenu(this, t); }
   statBar10(key: StatKey, v: number, x: number, y: number) { Menus.statBar10(this, key, v, x, y); }
-  drawSelect(t: number) { Menus.drawSelect(this, t); }
+  /** (Re)create the selector state for the current number of local players. */
+  initPickers() { this.pickers = Picker.newPickers(this); }
+  drawSelect(t: number) { if (!this.pickers.length) this.initPickers(); Menus.drawSelect(this, t); }
+  /** Persist the profile (the last kart changed). */
+  saveProfileNow() { saveProfile(this.profile); }
   drawCupSel(t: number) { Menus.drawCupSel(this, t); }
   drawTrackSel() { Menus.drawTrackSel(this); }
   rowList(list: number[], extra: (ch: number, i: number, y: number) => void) { Menus.rowList(this, list, extra); }

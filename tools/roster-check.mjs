@@ -16,20 +16,23 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 const logs = [];
 page.on('console', (m) => { if (m.type() === 'error' || m.text().includes('pageerror')) logs.push(`[${m.type()}] ${m.text()}`); });
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
+// perfil ya creado: sin pantalla de bienvenida
+await page.addInitScript(() => localStorage.setItem('jpkart.profile', JSON.stringify({ version: 2, id: '0123456789abcdef', name: 'Tester', tutorialDone: true, lastCh: -1, lastParts: { body: 'kernel', wheels: 'std', wing: 'wing' } })));
 await page.goto('http://localhost:5173/?webgl');
 await page.waitForFunction(() => !!window.__jpkart, null, { timeout: 30000 });
 const key = async (k, n = 1) => { for (let i = 0; i < n; i++) { await page.keyboard.press(k); await page.waitForTimeout(120); } };
 await key('Enter');
 await key('ArrowDown');
-await key('Enter');
-await key('Enter');
-await key('Enter');
+await key('Enter'); // → pilotos
+await key('Enter'); // → armar kart
+await key('Enter'); // → pista
+await key('Enter'); // → carrera
 await page.waitForFunction(() => window.__jpkart.state === 'race' && window.__jpkart.world?.phase === 'race', null, { timeout: 60000 });
 await page.waitForTimeout(1000);
 // 1) los 8 ch resuelven modelo sin voxel
 const kinds = await page.evaluate(() => {
   const g = window.__jpkart;
-  for (let ch = 0; ch < 8; ch++) g.renderer.kartObj(900 + ch, ch);
+  for (let ch = 0; ch < 12; ch++) g.renderer.kartObj(900 + ch, ch);
   return g.renderer.modelKinds();
 });
 const forced = Object.fromEntries(Object.entries(kinds).filter(([id]) => Number(id) >= 900).map(([id, v]) => [v.ch, v.model]));

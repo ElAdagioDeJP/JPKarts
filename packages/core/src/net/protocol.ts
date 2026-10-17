@@ -3,9 +3,10 @@
 import { Rng } from '../math';
 import { tunablesHash } from '../tunables';
 import type { Track } from '../track/track';
+import type { Loadout } from '../data/parts';
 import type { Ctrl, GameEvent, Input, RaceConfig, World } from '../sim/types';
 
-export const PROTOCOL_VERSION = 6; // 6: snapshots relay the humans' inputs + a periodic hash instead of the world (full state on start/resync); 5: items Overclock/Fork Bomb/Antivirus/Pico de Latencia; 4: load barrier (`loaded`/`go`), race ids, rejoin by `pid`; 3: auto next race (`nextIn`), last call; 2: coins, item charges, Phase 8 items and hazards
+export const PROTOCOL_VERSION = 7; // 7: 12 players, kart parts in `pick`/lobby (+ `pickIn` countdown), `parts` in the grid; 6: snapshots relay the humans' inputs + a periodic hash instead of the world (full state on start/resync); 5: items Overclock/Fork Bomb/Antivirus/Pico de Latencia; 4: load barrier (`loaded`/`go`), race ids, rejoin by `pid`; 3: auto next race (`nextIn`), last call; 2: coins, item charges, Phase 8 items and hazards
 export const LAN_PORT = 7777;
 export const DISCOVERY_PORT = 7778;
 export const SNAPSHOT_EVERY = 3; // server ticks per snapshot (60 Hz / 3 = 20 Hz): clients predict everything, so 20 Hz is plenty
@@ -29,7 +30,7 @@ export const cleanPid = (p: unknown) => (typeof p === 'string' && /^[A-Za-z0-9-]
 export const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const cleanRoomCode = (c: unknown) => (typeof c === 'string' ? c.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5) : '');
 
-export interface LobbyPlayer { id: number; name: string; ch: number; ready: boolean; host: boolean; seat?: number; conn?: number }
+export interface LobbyPlayer { id: number; name: string; ch: number; /** the kart build */ parts: Loadout; ready: boolean; host: boolean; seat?: number; conn?: number }
 export interface LobbySettings {
   mode: 'free' | 'cup' | 'elimination' | 'battle' | 'capture';
   trackIndex: number; cup: number; diff: number; laps: number;
@@ -41,7 +42,8 @@ export interface LobbySettings {
 
 export type ClientMsg =
   | { t: 'hello'; proto: number; name: string; tun: string; room?: string; create?: boolean; /** profile id (see cleanPid) */ pid?: string }
-  | { t: 'pick'; ch: number; seat?: number }
+  /** choose the pilot and (optionally) the kart parts; the server validates both against the data files */
+  | { t: 'pick'; ch: number; parts?: Loadout; seat?: number }
   | { t: 'ready'; ready: boolean }
   /** split screen over the network: one more local player on this connection (seat 1, 2, 3) */
   | { t: 'addSeat'; name: string }
@@ -59,7 +61,7 @@ export type ClientMsg =
 export type ServerMsg =
   | { t: 'welcome'; id: number; proto: number; room?: string }
   | { t: 'reject'; reason: string }
-  | { t: 'lobby'; players: LobbyPlayer[]; settings: LobbySettings; phase: 'lobby' | 'race' | 'standings'; cupRace: number; cupPts: Record<number, number>; room?: string; /** seconds until the next race starts by itself (standings only) */ nextIn?: number; /** while the race waits for the slow clients */ loading?: { done: number; total: number } }
+  | { t: 'lobby'; players: LobbyPlayer[]; settings: LobbySettings; phase: 'lobby' | 'race' | 'standings'; cupRace: number; cupPts: Record<number, number>; room?: string; /** seconds until the next race starts by itself (standings only) */ nextIn?: number; /** while the race waits for the slow clients */ loading?: { done: number; total: number }; /** the host pressed start and somebody has not confirmed their kart: seconds until the server picks for them */ pickIn?: number }
   /** `seats`: the karts of the extra local seats, in seat order */
   | { t: 'start'; cfg: RaceConfig; kart: number; seats?: number[]; /** race id: stale messages of another race are ignored */ rid: number; /** a dropped player coming back to a race already running: no load barrier */ resume?: boolean }
   /** every human is ready: the countdown starts now */

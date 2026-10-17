@@ -1,5 +1,6 @@
 {
   "points": [15, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+  "pickTime": 30,
   "countdown": 3.999,
   "finishDelay": 3,
   "finishTimeout": 30,

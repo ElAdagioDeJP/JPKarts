@@ -1,6 +1,7 @@
 // Race simulation (driving v2, docs/GDD.md §2). Fixed 60 Hz step, deterministic, no DOM.
 import { SIM_DT } from '../constants';
-import { CHARS } from '../data/characters';
+import { CHARS, kartStats } from '../data/characters';
+import { resolveLoadout, type Loadout } from '../data/parts';
 import { datan2, dcos, dhypot, dpow, dsin } from '../dmath';
 import { Rng, clamp, lerp, wrapA } from '../math';
 import { T } from '../tunables';
@@ -12,7 +13,7 @@ import './hazards';
 import { spawnTrackCoins } from './coins';
 import { spawn, updateEntities, zoneAt } from './entities';
 import { isTimed, spawnStaticHazards, spawnTimedHazard, hazardFamily, type HazardSpec } from './hazards';
-import { bumpHooks, charOf, emit, isHuman, kartById, ouch } from './helpers';
+import { bumpHooks, emit, isHuman, kartById, ouch } from './helpers';
 import { giveItem, rollItem, useItem } from './items';
 import '../items';
 import '../modes';
@@ -26,7 +27,7 @@ function makeKart(w: World, id: number, ch: number, ctrl: Ctrl, g: number, aiDif
   const x = tr.x[i]! - dsin(a) * lat, y = tr.y[i]! + dcos(a) * lat;
   const ai = ctrl === 'ai' ? newAiState(w, aiDiff) : null;
   return {
-    id, ch, ctrl, x, y, z: hAt(tr, x, y), vz: 0, air: false, glide: false, a, va: a, speed: 0, idx: i, prog: -back,
+    id, ch, st: kartStats(ch, resolveLoadout(w.cfg.grid[g]?.parts)), ctrl, x, y, z: hAt(tr, x, y), vz: 0, air: false, glide: false, a, va: a, speed: 0, idx: i, prog: -back,
     drift: 0, dc: 0, boost: 0, spin: 0, hop: 0, item: null, roll: 0, finished: false, time: null,
     hold: 0, sv: 0, backT: 0, lastLap: 1, rb: ai ? ai.speed : 1, lapStart: 0, best: null, respawn: 0, off: 0, rank: g, padT: 0,
     fx: [], lapFly: 0,
@@ -36,7 +37,7 @@ function makeKart(w: World, id: number, ch: number, ctrl: Ctrl, g: number, aiDif
 }
 
 /** Grid order for a race. Humans are placed at slot `humanSlot` (free race: 5, cup race 1: 7); cup races after the first sort by points. */
-export function buildGrid(rng: Rng, humans: { ch: number; ctrl: Ctrl }[], opts: { cupPts?: Record<number, number>; humanSlot: number }) {
+export function buildGrid(rng: Rng, humans: { ch: number; ctrl: Ctrl; parts?: Loadout }[], opts: { cupPts?: Record<number, number>; humanSlot: number }) {
   const taken = new Set(humans.map((h) => h.ch));
   if (opts.cupPts) {
     const order = rng.shuffle(CHARS.map((_, i) => i)).sort((a, b) => opts.cupPts![b]! - opts.cupPts![a]!);
@@ -178,7 +179,7 @@ function speedHooks(): SpeedHook[] {
 const ZONE_ORDER = 30;
 
 function updateKart(w: World, k: Kart, input: Input, dt: number) {
-  const st = charOf(k), tr = w.track, th = tr.th, N = tr.N, human = isHuman(k), D = T.driving;
+  const st = k.st, tr = w.track, th = tr.th, N = tr.N, human = isHuman(k), D = T.driving;
   tickFx(k, dt);
   if (k.invuln > 0) k.invuln -= dt;
   if (k.wallT > 0) k.wallT -= dt;
@@ -527,9 +528,9 @@ function updateRace(w: World, inputs: readonly Input[], dt: number) {
       w.pairCD[key] = B.cooldown;
       eachFx(a, (fd) => fd.onBump?.(w, a, b));
       eachFx(b, (fd) => fd.onBump?.(w, b, a));
-      const dw = charOf(a).w - charOf(b).w;
+      const dw = a.st.w - b.st.w;
       if (Math.abs(dw) > 0.01) {
-        const light = dw > 0 ? b : a, s = light === b ? 1 : -1, cls = charOf(light).weightClass;
+        const light = dw > 0 ? b : a, s = light === b ? 1 : -1, cls = light.st.weightClass;
         const ex = B.weightPush * B.size * Math.abs(dw) * (cls === 'ligero' ? WG.lightPushMul : cls === 'pesado' ? WG.heavyPushMul : 1);
         light.x += nx * s * ex; light.y += ny * s * ex; light.speed *= B.lightSlow;
       }

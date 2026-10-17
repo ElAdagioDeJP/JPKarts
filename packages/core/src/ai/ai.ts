@@ -39,7 +39,7 @@ export const aiDiff = (w: World, k?: Kart) => T.ai.difficulty[k?.ai?.diff ?? w.c
 /** Entities the AI steers around. */
 const AVOID = new Set(['mine', 'fakebox', 'ice', 'smoke', 'ola', 'tren', 'vaca', 'auto', 'pinguino', 'roca', 'bug', 'bolanieve', 'geiser', 'laser', 'meteoro', 'aspa', 'seta']);
 const persona = (k: Kart) => T.ai.personality[CHARS[k.ch]!.personality];
-const yawRate = (k: Kart) => T.driving.steer.rate * CHARS[k.ch]!.hnd * 0.92;
+const yawRate = (k: Kart) => T.driving.steer.rate * k.st.hnd * 0.92;
 
 export function newAiState(w: World, diff = w.cfg.diff): AiState {
   const D = T.ai.difficulty[diff]!;

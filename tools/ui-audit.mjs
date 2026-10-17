@@ -49,7 +49,7 @@ await page.evaluate(() => {
 const issues = {};
 const analyse = (fr) => {
   const W = 426, H = 240, res = [], T = fr.filter((e) => e.k === 't'), P = fr.filter((e) => e.k === 'p');
-  const NAMES = new Set(['Marco', 'Guayca', 'Luis', 'Jesús', 'Miguel', 'JP', 'Mario', 'Andrés', 'Edu', 'Dieguito', 'Angelito', 'Henry', 'LAG', '…', '¿?']); // etiquetas 3D sobre los karts: pueden salir de pantalla y pisarse entre sí
+  const NAMES = new Set(['Marco', 'Guayca', 'Luis', 'Jesús', 'Miguel', 'JP', 'Mario', 'Andrés', 'Edu', 'Dieguito', 'Angelito', 'Henry', 'LAG', '…', '¿?', '¡Ay!', '¡Ay, ay!', '¡Auch!']); // etiquetas 3D sobre los karts: pueden salir de pantalla y pisarse entre sí
   for (const t of T) {
     if (!NAMES.has(t.s) && (t.x0 < -0.5 || t.x1 > W + 0.5 || t.y0 < -0.5 || t.y1 > H + 0.5)) res.push(`FUERA "${t.s}" x ${t.x0.toFixed(0)}..${t.x1.toFixed(0)} y ${t.y0.toFixed(0)}..${t.y1.toFixed(0)}`);
     for (const p of P) {
@@ -95,9 +95,13 @@ for (const s of [0, 3, 6, 9]) await shot('options-' + s, go('options', { optSel:
 await shot('controls', go('controls', { ctlSel: 0 }));
 await shot('lan', go('lan', { lanField: 0 }));
 await shot('online', go('online', { onlineField: 1, onlineAddr: 'jp-kart-servidor-online.ejemplo.com', onlineCode: 'ABCD' }));
-await shot('select-1p', go('select', { players: 1, sel: 5 }));
-await shot('select-2p', go('select', { players: 2 }));
-await shot('select-4p', go('select', { players: 4 }));
+const pick = (players, extra = {}) => () => set(({ players, extra }) => { const g = window.__jpkart; g.paused = false; g.state = 'select'; g.players = players; Object.assign(g, extra); g.initPickers(); if (extra.pick) Object.assign(g.pickers[0], extra.pick); }, { players, extra });
+await shot('select-1p', pick(1, { sel: 5 }));
+await shot('select-2p', pick(2));
+await shot('select-4p', pick(4));
+await shot('select-4p-ready', async () => { await pick(4)(); await set(() => { const g = window.__jpkart; g.pickers[1].ready = true; g.pickers[2].row = 3; g.pickers[3].parts = { body: 'mainframe', wheels: 'offroad', wing: 'glider' }; }); });
+await shot('build-1p', async () => { await pick(1, { sel: 11 })(); await set(() => { const g = window.__jpkart; g.state = 'build'; g.buildFrom = 'local'; g.pickers[0].ch = 11; g.pickers[0].row = 2; g.pickers[0].parts = { body: 'overdrive', wheels: 'mini', wing: 'glider' }; }); });
+await shot('build-heavy', async () => { await pick(1)(); await set(() => { const g = window.__jpkart; g.state = 'build'; g.pickers[0].ch = 2; g.pickers[0].row = 5; g.pickers[0].parts = { body: 'mainframe', wheels: 'slick', wing: 'light' }; }); });
 await shot('cup', go('cup', { cupSel: 0 }));
 await shot('cup-2', go('cup', { cupSel: 2 }));
 await shot('track-0', go('track', { trackSel: 0, classic: false, mode: 'free' }));
@@ -112,8 +116,9 @@ async function startMode(menuSel, { slot = 6, keys = [], players = 1 } = {}) {
   await toMenu();
   await page.evaluate(([m, p]) => { const g = window.__jpkart; g.menuSel = m; g.players = p; }, [menuSel, players]);
   await key('Enter'); // → select
-  await page.evaluate((p) => { window.__jpkart.players = p; }, players);
-  await key('Enter'); // → track (or cup)
+  await page.evaluate((p) => { const g = window.__jpkart; g.players = p; g.initPickers(); g.pickers.forEach((q) => { q.ready = true; }); }, players);
+  await key('Enter'); // → builder (1 player) or straight on (split screen: everybody ready)
+  if ((await page.evaluate(() => window.__jpkart.state)) === 'build') await key('Enter'); // → track (or cup)
   for (const k of keys) await key(k);
   await page.evaluate((s) => { window.__jpkart.trackSel = s; window.__jpkart.cupSel = 0; }, slot);
   await key('Enter');

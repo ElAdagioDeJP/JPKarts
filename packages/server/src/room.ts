@@ -1,8 +1,8 @@
 // Authoritative race room, independent of the transport (WebSocket in main.ts, in-memory in tests).
 import {
-  ALL_TRACKS, ARENA_INDICES, CHARS, CLASSES, CUPS, HASH_EVERY, LAPS, PROTOCOL_VERSION, classCfg, cleanName, cleanPid, validPacked, ReplayRecorder, Rng, SIM_DT, SNAPSHOT_EVERY, T, TrackCache, buildGrid, createWorld, handshakeTunables, hashWorld, modeOf,
+  ALL_TRACKS, ARENA_INDICES, CHARS, CLASSES, DEFAULT_LOADOUT, CUPS, HASH_EVERY, LAPS, PROTOCOL_VERSION, classCfg, cleanName, cleanPid, validPacked, ReplayRecorder, Rng, SIM_DT, SNAPSHOT_EVERY, T, TrackCache, buildGrid, createWorld, handshakeTunables, hashWorld, modeOf, randomLoadout, validLoadout,
   newAiState, prepAuthored, serializeWorld, step, takeEvents, unpackInput,
-  type ClientMsg, type Input, type LobbyPlayer, type LobbySettings, type PackedInput, type RaceConfig, type RelayTick, type ServerMsg, type World, type WorldState,
+  type ClientMsg, type Input, type Loadout, type LobbyPlayer, type LobbySettings, type PackedInput, type RaceConfig, type RelayTick, type ServerMsg, type World, type WorldState,
 } from '@jpkart/core';
 
 /** `sendRaw` (optional): the same message already as JSON, so a transport that writes text never stringifies twice. */
@@ -14,6 +14,8 @@ interface Player {
   seat: number;
   name: string;
   ch: number;
+  /** the kart build: validated against core/data/parts.json */
+  parts: Loadout;
   ready: boolean;
   host: boolean;
   queue: PackedInput[];
@@ -56,6 +58,8 @@ export class Room {
   /** humans that dropped mid-race (their kart runs on AI): profile id -> kart, to give it back if they return */
   private away = new Map<string, { kart: number; name: string; ch: number; ttl: number }>();
   private cfg: RaceConfig | null = null;
+  /** seconds left to confirm the karts after the host pressed start (0 = no countdown) */
+  private pickT = 0;
 
   constructor(seed = Date.now() & 0x7fffffff, public log: (m: string) => void = () => {}) {
     this.seed = seed;
@@ -72,8 +76,8 @@ export class Room {
   private broadcast(m: ServerMsg) { for (const p of this.players.values()) if (p.seat === 0) this.send(p, m); }
 
   private lobbyMsg(): ServerMsg {
-    const players: LobbyPlayer[] = [...this.players.entries()].map(([id, p]) => ({ id, name: p.name, ch: p.ch, ready: p.ready, host: p.host, seat: p.seat, conn: p.conn.id }));
-    return { t: 'lobby', players, settings: this.settings, phase: this.phase, cupRace: this.cupRace, cupPts: this.cupPts, room: this.code, ...(this.phase === 'standings' ? { nextIn: Math.ceil(this.nextIn) } : {}), ...(this.loading ? { loading: { done: this.loadTotal - this.loading.size, total: this.loadTotal } } : {}) };
+    const players: LobbyPlayer[] = [...this.players.entries()].map(([id, p]) => ({ id, name: p.name, ch: p.ch, parts: p.parts, ready: p.ready, host: p.host, seat: p.seat, conn: p.conn.id }));
+    return { t: 'lobby', players, settings: this.settings, phase: this.phase, cupRace: this.cupRace, cupPts: this.cupPts, room: this.code, ...(this.phase === 'standings' ? { nextIn: Math.ceil(this.nextIn) } : {}), ...(this.loading ? { loading: { done: this.loadTotal - this.loading.size, total: this.loadTotal } } : {}), ...(this.pickT > 0 ? { pickIn: Math.ceil(this.pickT) } : {}) };
   }
 
   join(conn: Conn) {
@@ -126,7 +130,7 @@ export class Room {
       let ch = 0;
       while (taken.has(ch)) ch++;
       const name = cleanName(m.name);
-      this.players.set(conn.id, { conn, seat: 0, name, ch, ready: false, host: this.players.size === 0, queue: [], last: [0, 0, 0, 0, 0], kart: -1, pid });
+      this.players.set(conn.id, { conn, seat: 0, name, ch, parts: { ...DEFAULT_LOADOUT }, ready: false, host: this.players.size === 0, queue: [], last: [0, 0, 0, 0, 0], kart: -1, pid });
       conn.send({ t: 'welcome', id: conn.id, proto: PROTOCOL_VERSION, room: this.code });
       this.log(`${name} entró` + (this.code ? ` en la sala ${this.code}` : ''));
       this.broadcast(this.lobbyMsg());
@@ -140,7 +144,7 @@ export class Room {
         const taken = new Set([...this.players.values()].map((q) => q.ch));
         let ch = 0;
         while (taken.has(ch)) ch++;
-        const seat = seats.length, q: Player = { conn, seat, name: cleanName(m.name), ch, ready: true, host: false, queue: [], last: [0, 0, 0, 0, 0], kart: -1 };
+        const seat = seats.length, q: Player = { conn, seat, name: cleanName(m.name), ch, parts: { ...DEFAULT_LOADOUT }, ready: true, host: false, queue: [], last: [0, 0, 0, 0, 0], kart: -1 };
         this.players.set(this.idOf(q), q);
         this.broadcast(this.lobbyMsg());
         break;
@@ -148,12 +152,14 @@ export class Room {
       case 'pick': {
         const sp = this.seatPlayer(conn, m.seat);
         if (!sp || this.phase !== 'lobby' || !Number.isInteger(m.ch) || m.ch < 0 || m.ch >= CHARS.length) return;
+        if (m.parts !== undefined && !validLoadout(m.parts)) return; // a bad build is refused whole: nothing changes
         if ([...this.players.values()].some((q) => q !== sp && q.ch === m.ch)) return;
         sp.ch = m.ch; sp.ready = sp.seat > 0;
+        if (m.parts) sp.parts = { body: m.parts.body, wheels: m.parts.wheels, wing: m.parts.wing };
         this.broadcast(this.lobbyMsg());
         break;
       }
-      case 'ready': p.ready = m.ready === true; this.broadcast(this.lobbyMsg()); break;
+      case 'ready': p.ready = m.ready === true; this.broadcast(this.lobbyMsg()); this.maybeStart(); break;
       case 'settings': {
         if (!p.host || this.phase !== 'lobby') return;
         const s = m.s;
@@ -163,15 +169,16 @@ export class Room {
         const arena = ARENA_INDICES.includes(s.trackIndex);
         if ((s.mode === 'battle' || s.mode === 'capture') !== arena) return; // battles only on arenas, races never on them
         this.settings = { ...s, laps: LAPS, teams: !!s.teams && (s.mode === 'free' || s.mode === 'cup') };
+        this.pickT = 0; // new rules: the countdown starts over when the host presses start again
         this.broadcast(this.lobbyMsg());
         break;
       }
       case 'start': {
         if (!p.host || this.phase !== 'lobby') return;
-        if (![...this.players.values()].every((q) => q.ready || q.host)) return;
-        this.cupRace = 0;
-        this.cupPts = Object.fromEntries(Array.from({ length: CHARS.length }, (_, i) => [i, 0]));
-        this.startRace();
+        // everybody confirmed: go now. Otherwise the clock starts: at 0 the server picks a random kart for whoever has not confirmed.
+        if (this.pickT <= 0) this.pickT = T.race.pickTime;
+        this.broadcast(this.lobbyMsg());
+        this.maybeStart();
         break;
       }
       case 'next': if (p.host) this.advance(); break;
@@ -191,13 +198,26 @@ export class Room {
     }
   }
 
+  /** The host pressed start: the race goes when everybody confirmed, or when the clock runs out (`force`). */
+  private maybeStart(force = false) {
+    if ((this.pickT <= 0 && !force) || this.phase !== 'lobby') return;
+    const waiting = [...this.players.values()].filter((q) => !(q.ready || q.host));
+    if (waiting.length && !force) return;
+    const rng = new Rng((this.seed ^ 0x2545f491) >>> 0);
+    for (const q of waiting) { q.parts = randomLoadout(rng); q.ready = true; this.log(`${q.name} no eligió a tiempo: kart aleatorio`); }
+    this.pickT = 0;
+    this.cupRace = 0;
+    this.cupPts = Object.fromEntries(Array.from({ length: CHARS.length }, (_, i) => [i, 0]));
+    this.startRace();
+  }
+
   /** A player that dropped mid-race is back: same kart, the race goes on (no barrier unless the race is still loading). */
   private rejoin(conn: Conn, pid: string, gone: { kart: number; name: string; ch: number }) {
     const w = this.world!, k = w.karts[gone.kart]!;
     this.away.delete(pid);
     k.ctrl = 'remote'; k.ai = null;
     this.fullNext = true;
-    const p: Player = { conn, seat: 0, name: gone.name, ch: gone.ch, ready: true, host: [...this.players.values()].every((q) => !q.host), queue: [], last: [0, 0, 0, 0, 0], kart: gone.kart, pid, needFull: true };
+    const p: Player = { conn, seat: 0, name: gone.name, ch: gone.ch, parts: { ...DEFAULT_LOADOUT }, ready: true, host: [...this.players.values()].every((q) => !q.host), queue: [], last: [0, 0, 0, 0, 0], kart: gone.kart, pid, needFull: true };
     this.players.set(conn.id, p);
     conn.send({ t: 'welcome', id: conn.id, proto: PROTOCOL_VERSION, room: this.code });
     const resume = !this.loading;
@@ -231,7 +251,7 @@ export class Room {
     const cc = classCfg((S.cls ?? '100') as (typeof CLASSES)[number]), mirror = cc.mirror && !!this.tracks.get(ti).authored;
     const track = this.tracks.ensureBuilt(ti, [], mirror);
     const seed = (this.seed = (Math.imul(this.seed ^ 0x9e3779b9, 0x85ebca6b) >>> 0) & 0x7fffffff);
-    const humans = [...this.players.values()].map((p) => ({ ch: p.ch, ctrl: 'remote' as const }));
+    const humans = [...this.players.values()].map((p) => ({ ch: p.ch, ctrl: 'remote' as const, parts: p.parts }));
     let grid = S.mode === 'cup' && this.cupRace > 0 ? buildGrid(new Rng(seed), humans, { cupPts: this.cupPts, humanSlot: 0 }) : buildGrid(new Rng(seed), humans, { humanSlot: CHARS.length - humans.length });
     if (S.teams) grid = grid.map((g, i) => ({ ...g, team: i % 2 }));
     const mode = S.mode === 'free' ? 'race' : S.mode;
@@ -259,6 +279,13 @@ export class Room {
 
   /** One authoritative tick (60 Hz). */
   tick() {
+    if (this.pickT > 0 && this.phase === 'lobby') {
+      const before = Math.ceil(this.pickT);
+      this.pickT -= SIM_DT;
+      if (this.pickT <= 0) this.maybeStart(true);
+      else if (Math.ceil(this.pickT) !== before) this.broadcast(this.lobbyMsg());
+      return;
+    }
     if (this.phase === 'standings') {
       const before = Math.ceil(this.nextIn);
       this.nextIn -= SIM_DT;

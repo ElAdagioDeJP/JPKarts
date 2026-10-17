@@ -8,7 +8,7 @@ import { CameraRig } from '../feel/camera';
 
 export type State =
   | 'title' | 'welcome' | 'menu' | 'options' | 'controls' | 'lan' | 'online' | 'lobby'
-  | 'select' | 'cup' | 'track' | 'loading' | 'race' | 'results'
+  | 'select' | 'build' | 'cup' | 'track' | 'loading' | 'race' | 'results'
   | 'podium' | 'standings' | 'final' | 'replay';
 
 export type Mode = 'free' | 'cup' | 'timetrial' | 'elimination' | 'battle' | 'capture';
@@ -53,7 +53,7 @@ export const TEAM_COL = ['#ff5a6a', '#5aa8ff'];
 export const TEAM_NAME = ['Rojo', 'Azul'];
 
 export const MENUS: State[] = [
-  'title', 'welcome', 'menu', 'options', 'controls', 'lan', 'online', 'lobby', 'select', 'cup', 'track',
+  'title', 'welcome', 'menu', 'options', 'controls', 'lan', 'online', 'lobby', 'select', 'build', 'cup', 'track',
 ];
 
 export const CAM_H = 15, CAM_BACK = 34, ZMAX = 1000;

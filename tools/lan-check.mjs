@@ -36,7 +36,11 @@ const host = await player('Ana');
 const guest = await player('Beto');
 const key = async (p, k) => { await p.keyboard.press(k); await p.waitForTimeout(150); };
 await key(guest, 'ArrowRight'); // pick another character
-await key(guest, 'KeyR'); // ready
+// V3-3: the guest builds a random kart in the builder (↑ opens it, R randomizes, Intro confirms = ready); the host sends its own parts
+await key(guest, 'ArrowUp'); await key(guest, 'KeyR'); await key(guest, 'Enter');
+await host.evaluate(() => { const g = window.__jpkart; g.net.send({ t: 'pick', ch: g.net.me.ch, parts: { body: 'overdrive', wheels: 'mini', wing: 'glider' } }); });
+await host.waitForTimeout(500);
+const lobbyParts = await host.evaluate(() => window.__jpkart.net.players.map((p) => ({ name: p.name, ch: p.ch, parts: p.parts, ready: p.ready })));
 if (seats) { await key(host, 'KeyJ'); await host.waitForTimeout(300); }
 await host.waitForTimeout(400);
 await host.screenshot({ path: `${out}/lan-1-lobby.png` });
@@ -47,6 +51,6 @@ for (const p of [host, guest]) await p.keyboard.down('ArrowUp');
 await host.waitForTimeout(9000);
 await host.screenshot({ path: `${out}/lan-2-host.png` });
 await guest.screenshot({ path: `${out}/lan-3-guest.png` });
-const info = async (p) => p.evaluate(() => { const g = window.__jpkart, r = g.net.race; return { views: g.views.length, seats: r.seats, kart: r.kart, pending: r.pendingCount, serverTick: r.serverTick, tick: r.world.tick, prog: r.world.karts[r.kart].prog, humans: r.world.karts.filter((k) => k.ctrl !== 'ai').length, resyncs: r.resyncs, corrP95: [...r.corrections].sort((a, b) => a - b)[Math.floor(r.corrections.length * 0.95)] ?? 0 }; });
-console.log(JSON.stringify({ room: roomCode || undefined, host: await info(host), guest: await info(guest), errors }));
+const info = async (p) => p.evaluate(() => { const g = window.__jpkart, r = g.net.race; return { views: g.views.length, seats: r.seats, kart: r.kart, pending: r.pendingCount, serverTick: r.serverTick, tick: r.world.tick, prog: r.world.karts[r.kart].prog, humans: r.world.karts.filter((k) => k.ctrl !== 'ai').length, parts: r.world.cfg.grid.filter((x) => x.ctrl !== 'ai').map((x) => x.parts), fly: r.world.karts.filter((k) => k.ctrl !== 'ai').map((k) => k.st.fly), resyncs: r.resyncs, corrP95: [...r.corrections].sort((a, b) => a - b)[Math.floor(r.corrections.length * 0.95)] ?? 0 }; });
+console.log(JSON.stringify({ room: roomCode || undefined, lobbyParts, host: await info(host), guest: await info(guest), errors }));
 await browser.close();

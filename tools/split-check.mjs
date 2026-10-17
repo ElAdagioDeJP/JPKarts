@@ -14,6 +14,8 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+// perfil ya creado: sin pantalla de bienvenida
+await page.addInitScript(() => localStorage.setItem('jpkart.profile', JSON.stringify({ version: 2, id: '0123456789abcdef', name: 'Tester', tutorialDone: true, lastCh: -1, lastParts: { body: 'kernel', wheels: 'std', wing: 'wing' } })));
 await page.goto('http://localhost:5173/' + (webgl ? '?webgl' : ''));
 await page.waitForFunction(() => !!window.__jpkart, null, { timeout: 30000 });
 const key = async (k, n = 1) => { for (let i = 0; i < n; i++) { await page.keyboard.press(k); await page.waitForTimeout(110); } };
@@ -22,9 +24,10 @@ const result = { backend: await page.evaluate(() => window.__jpkart.renderer.bac
 for (const n of [2, 4]) {
   await page.evaluate(() => { const g = window.__jpkart; g.world = null; g.paused = false; g.state = 'menu'; g.menuSel = 1; });
   await key('Enter'); // → select
-  await page.evaluate((n) => { window.__jpkart.players = n; }, n);
+  await page.waitForFunction(() => window.__jpkart.state === 'select', null, { timeout: 30000 });
+  await page.evaluate((n) => { const g = window.__jpkart; g.players = n; g.initPickers(); g.pickers.forEach((p) => { p.ready = true; }); }, n);
   await page.screenshot({ path: `${out}/${n}p-select.png` });
-  await key('Enter'); await page.evaluate(() => { window.__jpkart.trackSel = 0; }); await key('Enter');
+  await key('Enter'); await page.evaluate(() => { window.__jpkart.trackSel = 0; }); await key('Enter'); // split screen: everybody ready → track
   await page.waitForFunction(() => window.__jpkart.world?.phase === 'race', null, { timeout: 60000 });
   // player 1 on the arrows, player 2 on WASD: both accelerate
   await page.keyboard.down('ArrowUp'); await page.keyboard.down('KeyW');

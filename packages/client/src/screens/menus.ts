@@ -8,10 +8,9 @@ import {
 } from '@jpkart/core';
 import { OUT } from '../art/pixel';
 import { BALLS, BUG, FACES, rotFrames } from '../art/sprites';
-import { assignSources } from '../input/players';
-import { SOURCE_NAMES } from '../input/players';
 import { HAZARD_TAG, TEAM_COL, TEAM_NAME, WEATHER_TAG, isArena } from '../app/types';
 import { W } from '../ui/draw';
+import * as Picker from './picker';
 import type { Game } from '../game';
 
 export function drawClassLine(g: Game, y: number) {
@@ -74,29 +73,27 @@ export function statBar10(g: Game, key: StatKey, v: number, x: number, y: number
 }
 
 export function drawSelect(g: Game, t: number) {
-  const ui = g.ui, ox = (W - 320) / 2;
+  const ui = g.ui;
+  // split screen: every player has a panel in their own quadrant (screens/picker.ts)
+  if (g.pickers.length > 1) { Picker.drawPanels(g, t); return; }
   ui.bg();
   ui.txt('Elige piloto', W / 2, 6, '#ffe45e', 16, 'center');
-  if (g.mode !== 'timetrial') {
-    const n = g.players, srcs = assignSources(n);
-    ui.txtS('Jugadores: ' + n + ' (J)', 6, 4, n > 1 ? '#8fe0ff' : '#9c95d6', 'left');
-    if (n > 1) ui.txtS(srcs.map((src, i) => 'J' + (i + 1) + ': ' + SOURCE_NAMES(src).split(' · ')[0]).join('  ·  '), W / 2, 23, '#8fe0ff');
-  }
-  CHARS.forEach((c, i) => {
-    const col = i % 4, row = i >> 2, x = ox + 18 + col * 74, y = 26 + row * 38, on = i === g.sel;
-    ui.panel(x, y, 62, 35, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
-    const b = on ? Math.round(Math.sin(t * 8) * 1) : 0;
-    ui.img(FACES[i]!.cv, x + 19, y + 1 + b, 24, 24);
-    ui.txtS(c.short, x + 31, y + 26, on ? '#ffe45e' : '#fff7e0');
+  if (g.mode !== 'timetrial') ui.txtS('Jugadores: ' + g.players + ' (J)', 6, 4, '#9c95d6', 'left');
+  ui.txtS((g.mode === 'cup' ? 'Torneo' : 'Carrera libre') + ' · ' + DIFFS[g.diff]!.name, W - 6, 4, '#9c95d6', 'right');
+  Picker.drawGrid(g, t);
+  Picker.drawPilotInfo(g, t);
+  const ox = (W - 320) / 2;
+  ui.txtS('Intro: armar el kart', ox + 302, 222, '#9c95d6', 'right');
+}
+
+/** Kart builder (single player): after the pilot grid, or from the LAN/online lobby. */
+export function drawBuild(g: Game, t: number) {
+  if (!g.pickers.length) g.initPickers();
+  const lobby = g.buildFrom === 'lobby';
+  Picker.drawBuilder(g, t, {
+    confirm: lobby ? (g.net?.isHost ? 'Guardar' : '¡Listo!') : 'Seguir',
+    extra: lobby ? '↑↓ elegir · ←→ cambiar pieza · R aleatorio · Intro: aceptar · Esc: volver' : '↑↓ elegir · ←→ cambiar pieza · R aleatorio · Intro: seguir · Esc: atrás',
   });
-  const c = CHARS[g.sel]!;
-  ui.panel(ox + 10, 144, 300, 90, '#1b1740');
-  ui.img(rotFrames(g.sel)[((t * 10) | 0) % rotFrames(g.sel).length]!.cv, ox + 262, 142, 42, 42);
-  ui.txt(c.name, ox + 18, 150, '#ffe45e');
-  ui.txtS(c.desc, ox + 18, 162, '#fff7e0', 'left');
-  (['vel', 'ace', 'pes', 'man', 'tra'] as StatKey[]).forEach((k, i) => statBar10(g, k, c.st[k], ox + 18 + (i % 2) * 124, 176 + ((i / 2) | 0) * 13));
-  ui.txtS('Clase: ' + c.weightClass, ox + 18, 222, '#9c95d6', 'left');
-  ui.txtS((g.mode === 'cup' ? 'Torneo' : 'Carrera libre') + '  ·  ' + DIFFS[g.diff]!.name, ox + 302, 222, '#9c95d6', 'right');
 }
 
 export function drawCupSel(g: Game, t: number) {

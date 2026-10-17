@@ -1,5 +1,6 @@
 import charactersJson from '../../data/characters.json';
 import { T } from '../tunables';
+import { PART_TYPES, partById, type Loadout } from './parts';
 /** Stats visibles (suman 25 por piloto). Las ocultas (mini-turbo, vuelo) se derivan. */
 export type StatKey = 'vel' | 'ace' | 'pes' | 'man' | 'tra';
 export type Stats = Record<StatKey, number>;
@@ -97,9 +98,12 @@ export function autoDesc(s: Stats): string {
 
 const clamp10 = (v: number) => Math.max(0, Math.min(10, v));
 
-/** Fórmula de docs/V3_PLAN.md §2.1: de las 5 stats visibles salen los multiplicadores de física. Coeficientes en tunables/stats.json. */
-export function deriveStats(s: Stats) {
-  const K = T.stats;
+/**
+ * Fórmula de docs/V3_PLAN.md §2.1: de las 5 stats visibles salen los multiplicadores de física. Coeficientes en tunables/stats.json.
+ * `mtPlus` / `vuePlus`: suma de las piezas en las stats ocultas (mini-turbo, vuelo).
+ */
+export function deriveStats(s: Stats, mtPlus = 0, vuePlus = 0) {
+  const K = T.stats, mt = clamp10(K.mtBase - K.mtPerVel * s.vel + mtPlus);
   return {
     spd: (1 + (s.vel - 5) * K.vel) * K.speedGlobal,
     acl: 1 + (s.ace - 5) * K.ace,
@@ -107,13 +111,16 @@ export function deriveStats(s: Stats) {
     w: s.pes,
     gripK: 1 + (s.tra - 5) * K.tra,
     offK: 1 - (s.tra - 5) * K.tra,
-    mt: clamp10(K.mtBase - K.mtPerVel * s.vel),
-    mtCharge: 1 + (clamp10(K.mtBase - K.mtPerVel * s.vel) - 5) * K.mtCharge,
-    mtTime: 1 + (clamp10(K.mtBase - K.mtPerVel * s.vel) - 5) * K.mtTime,
-    fly: clamp10(K.flyBase + (5 - s.pes) * K.flyPerWeight),
+    mt,
+    mtCharge: 1 + (mt - 5) * K.mtCharge,
+    mtTime: 1 + (mt - 5) * K.mtTime,
+    fly: clamp10(K.flyBase + (5 - s.pes) * K.flyPerWeight + vuePlus),
     weightClass: (s.pes < K.lightBelow ? 'ligero' : s.pes >= K.heavyFrom ? 'pesado' : 'medio') as 'ligero' | 'medio' | 'pesado',
   };
 }
+
+/** What the simulation reads per kart (stored in `Kart.st`, plain numbers): the character plus its parts. */
+export type KartStats = ReturnType<typeof deriveStats>;
 
 export const CHARS: Character[] = DEFS.map((c) => {
   const s = c.st;
@@ -145,3 +152,17 @@ function shadeHex(h: string, f: number): string {
 
 /** ¿Este piloto usa cara Mii? Hoy siempre false; el rig lo tolera para el próximo refactor. */
 export const isMii = (c: Character): boolean => !!c.mii?.skin;
+
+/** Stats of a pilot driving a given build: base + Σ part deltas (visible ones clamped to 0-10), then the derived numbers. */
+export function kartStats(ch: number, parts: Loadout): KartStats {
+  const base = CHARS[ch]!.st;
+  const sum = { vel: 0, ace: 0, pes: 0, man: 0, tra: 0, mt: 0, vue: 0 };
+  for (const t of PART_TYPES) {
+    const p = partById(parts[t]);
+    if (!p) continue;
+    for (const k of Object.keys(sum) as (keyof typeof sum)[]) sum[k] += p[k];
+  }
+  const vis: Stats = { vel: clamp10(base.vel + sum.vel), ace: clamp10(base.ace + sum.ace), pes: clamp10(base.pes + sum.pes), man: clamp10(base.man + sum.man), tra: clamp10(base.tra + sum.tra) };
+  return deriveStats(vis, sum.mt, sum.vue);
+}
+

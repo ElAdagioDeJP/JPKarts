@@ -6,6 +6,8 @@ import race from '../data/tunables/race.json';
 import ai from '../data/tunables/ai.json';
 import surfaces from '../data/tunables/surfaces.json';
 import stats from '../data/tunables/stats.json';
+import partsJson from '../data/parts.json';
+import charactersJson from '../data/characters.json';
 
 const clone = <V>(v: V): V => JSON.parse(JSON.stringify(v));
 export const T = { driving: clone(driving), items: clone(items), race: clone(race), ai: clone(ai), surfaces: clone(surfaces), stats: clone(stats) };
@@ -46,7 +48,8 @@ export function setTunables(group: TunableGroup, data: unknown): string[] {
 
 /** Fingerprint of all tunables: peers must agree on it (network handshake, replays). */
 export function tunablesHash(): string {
-  const s = JSON.stringify(T);
+  // rules + the data that shapes the physics (parts and pilots' stats): peers with different data would desync
+  const s = JSON.stringify(T) + JSON.stringify(partsJson) + JSON.stringify(charactersJson.map((c) => c.st));
   let h = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
   return (h >>> 0).toString(16).padStart(8, '0');
