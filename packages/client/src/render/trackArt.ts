@@ -181,6 +181,23 @@ export function buildSkyStrip(tr: Track): HTMLCanvasElement {
     }
   }
   if (th.strip === 'city' || th.aurora || th.stars) for (let i = 0; i < 260; i++) { g.fillStyle = R() < 0.7 ? '#ffffff' : '#ffe45e'; g.fillRect((R() * SW) | 0, (R() * 120) | 0, R() < 0.1 ? 2 : 1, R() < 0.1 ? 2 : 1); }
+  if (th.stars) {
+    // Starry sky (Copa Estrella): its own RNG so the scenery of the other layers does not move.
+    const S = mulberry(tr.N * 13 + 5), pal = ['#ffffff', '#ffffff', '#ffe45e', '#bfe8ff', '#ffb0e0'];
+    // Milky Way: a soft diagonal band of dithered dust
+    for (let i = 0; i < 2600; i++) {
+      const x = (S() * SW) | 0, band = 70 + Math.sin(x * 0.006) * 24, y = (band + (S() + S() - 1) * 34) | 0;
+      if (y < 0 || y > 150 || BAYER[(y & 3) * 4 + (x & 3)]! > 0.55) continue;
+      g.fillStyle = S() < 0.5 ? '#8a7aff' : '#6ad0ff'; g.globalAlpha = 0.5; g.fillRect(x, y, 1, 1); g.globalAlpha = 1;
+    }
+    for (let i = 0; i < 2200; i++) { g.fillStyle = pal[(S() * pal.length) | 0]!; g.fillRect((S() * SW) | 0, (S() * 160) | 0, S() < 0.14 ? 2 : 1, S() < 0.12 ? 2 : 1); }
+    // sparkles: plus-shaped bright stars
+    for (let i = 0; i < 110; i++) {
+      const x = (S() * SW) | 0, y = (6 + S() * 120) | 0;
+      g.fillStyle = '#ffffff'; g.fillRect(x - 2, y, 5, 1); g.fillRect(x, y - 2, 1, 5);
+      g.fillStyle = '#ffe45e'; g.fillRect(x, y, 1, 1);
+    }
+  }
   if (th.strip === 'city') { g.fillStyle = '#fff7e0'; g.beginPath(); g.arc(400, 40, 14, 0, TAU); g.fill(); g.fillStyle = th.sky[1]!; g.beginPath(); g.arc(408, 35, 12, 0, TAU); g.fill(); }
   else if (th.strip === 'volcano') { for (let i = 0; i < 12; i++) { const cx = (R() * SW) | 0, cy = (20 + R() * 60) | 0, w = (60 + R() * 80) | 0; g.fillStyle = '#3a1a22'; g.fillRect(cx, cy, w, 10); g.fillRect(cx + 12, cy - 8, w - 28, 9); g.fillStyle = '#5a2a2e'; g.fillRect(cx + 14, cy - 8, w - 40, 2); } }
   else if (!th.aurora && !th.stars) {

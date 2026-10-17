@@ -81,7 +81,10 @@ async function boot() {
   } catch { /* noop */ }
   // M0: ocultar la pestaña auto-pausa (respeta `paused`, no lo deshace).
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && game.state === 'race' && !game.paused) game.paused = true;
+    // Online the race never waits for you: pausing there froze the camera and nothing could unpause it.
+    if (document.hidden && game.state === 'race' && !game.paused && !game.net) game.paused = true;
+    // Coming back from a throttled/hidden page: the silent-line timer must not count the time spent away.
+    if (!document.hidden && game.net) game.net.lastSnapAt = performance.now();
   });
   // M1/M2: teclado virtual para los campos online/LAN (el canvas no convoca teclado).
   const mtext = document.getElementById('mobile-text') as HTMLInputElement | null;

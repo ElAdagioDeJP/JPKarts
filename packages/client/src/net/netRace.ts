@@ -93,10 +93,12 @@ export function startNetRace(g: Game) {
 
 export function simulateNet(g: Game, dt: number) {
   const net = g.net!, r = net.race;
+  g.paused = false; // a pause flag left over from a local race (or the tab being hidden) must never freeze an online race
   // dropped line or silent server: show it and try to come back (the server keeps our kart on AI meanwhile)
-  if (net.status === 'race' && net.go && net.lastSnapAt && performance.now() - net.lastSnapAt > 4000) net.abandon();
+  if (net.status === 'race' && net.go && net.lastSnapAt && performance.now() - net.lastSnapAt > 8000 && !document.hidden) net.abandon();
   if (!r || net.status !== 'race') { g.acc = 0; reconnectTick(g, dt); return; }
   if (!net.go) { g.acc = 0; return; } // waiting for the other players to finish loading
+  net.flushSnaps(); // all the snapshots that arrived since the last frame are reconciled once
   g.acc = Math.min(g.acc + dt, SIM_DT * 5);
   const t0 = performance.now();
   while (g.acc >= SIM_DT) {

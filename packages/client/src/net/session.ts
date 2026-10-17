@@ -99,14 +99,24 @@ export class NetSession {
         const r = this.race;
         if (!r || m.rid !== this.rid) break;
         this.lastSnapAt = performance.now();
-        const k0 = r.world.karts[r.kart], bx = k0?.x ?? 0, by = k0?.y ?? 0;
-        r.onSnapshot(m);
-        const k1 = r.world.karts[r.kart];
-        if (k1) { this.visOff.x += bx - k1.x; this.visOff.y += by - k1.y; }
+        r.ingest(m); // cheap; the re-simulation happens once per frame in flushSnaps()
+        this.snapDirty = true;
         break;
       }
       case 'end': if (m.rid !== this.rid) break; this.lastEnd = { order: m.order, points: m.points }; this.onEnd(); break;
     }
+  }
+
+  private snapDirty = false;
+  /** Reconcile every snapshot that arrived since the last call, once (a burst after a stall used to re-simulate for each one). */
+  flushSnaps() {
+    const r = this.race;
+    if (!r || !this.snapDirty) return;
+    this.snapDirty = false;
+    const k0 = r.world.karts[r.kart], bx = k0?.x ?? 0, by = k0?.y ?? 0;
+    r.reconcile();
+    const k1 = r.world.karts[r.kart];
+    if (k1) { this.visOff.x += bx - k1.x; this.visOff.y += by - k1.y; }
   }
 
   /** Decay the visual correction offset (exponential, ~120 ms). */

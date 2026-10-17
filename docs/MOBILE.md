@@ -15,7 +15,7 @@
 - `src/audio/audio.ts` se inicia en `input.onFirstGesture` (`game.ts:143`). En iOS el primer toque debe disparar lo mismo.
 - Red: `packages/server/src/online.ts` + `docs/DEPLOY.md` ya dan salas de 5 letras, `pid` con reconexión de 120 s, `start/loaded/go` y `/health`. **`PROTOCOL_VERSION = 4`** (`core/src/net/protocol.ts:8`). El móvil es solo otro cliente `ws`: sin protocolo nuevo.
 - `packages/client/public/` ya existe tras el pull (manifest, `sw.js`, iconos). Vite lo copia al `dist` solo; `vite.config.ts` no se toca.
-- Pistas reales usadas como referencia: `Pradera JP` (`pradera`) y `Volcán Rugiente` (`volcan`) existen en `core/src/data/tracks.ts`.
+- Pistas reales usadas como referencia: `Valle Python` (`pradera`) y `Volcán Promise` (`volcan`) existen en `core/src/data/tracks.ts`.
 
 ## 0b. Estado real tras el pull (validado contra el código)
 
@@ -58,7 +58,7 @@ Rituales: `bun test` + `bun run typecheck` en verde antes de commit. `tools/shot
 
 ## 3. Presupuestos móvil (obligatorios)
 
-Dispositivo de referencia: Android gama media 2021 (Snapdragon 720, 4 GB, Chrome) + iPhone 11 (Safari). Pista más cargada: Volcán Rugiente.
+Dispositivo de referencia: Android gama media 2021 (Snapdragon 720, 4 GB, Chrome) + iPhone 11 (Safari). Pista más cargada: Volcán Promise.
 
 | Métrica | Límite | Cómo se mide |
 |---|---|---|
@@ -101,7 +101,7 @@ Tiers de calidad (auto + manual en Opciones). **El backend se elige al iniciar**
 - Menús: `screens/netScreens.ts` — campo de código con `autocomplete="off"`, botón "Pegar código" (clipboard), QR del código en el lobby. El teclado de iOS no debe tapar el input (`visualViewport`).
 - Test: `packages/client/test/touch.test.ts` (ya hay `models.test.ts` y `music.test.ts`) — secuencia táctil sintética (gas+izq 60 ticks, derrape, objeto) produce el mismo `SimInput` que la secuencia de teclado equivalente; el hash lo cubre el test de replay existente del core.
 
-**Terminado cuando:** prototipo A/B (joystick fijo vs flotante) probado por 2 personas, gana flotante o se documenta por qué no; carrera de 3 vueltas en Pradera JP con 1 PC (teclado) + 1 móvil (táctil) en la misma sala online sin desync (corrección p95 <5u); vuelta móvil dentro de 130 % del tiempo del PC; 5 toques simultáneos no pierden `pointerId`.
+**Terminado cuando:** prototipo A/B (joystick fijo vs flotante) probado por 2 personas, gana flotante o se documenta por qué no; carrera de 3 vueltas en Valle Python con 1 PC (teclado) + 1 móvil (táctil) en la misma sala online sin desync (corrección p95 <5u); vuelta móvil dentro de 130 % del tiempo del PC; 5 toques simultáneos no pierden `pointerId`.
 
 ### M2 — HUD y menús dedo-grande
 **Skills:** `game-ui-ux`, `frontend-design`.
@@ -124,7 +124,7 @@ Tiers de calidad (auto + manual en Opciones). **El backend se elige al iniciar**
 - `race/localRace.ts:89`: en móvil `acc` máx. 4 sub-pasos (no 5) para evitar la espiral en jank. La pantalla dividida se deshabilita en móvil (1 jugador por teléfono).
 - Batería: `navigator.getBattery?.()` (solo Chromium) → si <20 % sugiere ahorro. `document.hidden` pausa el render, no la sim online (el server te pasa a IA 120 s, como ya hace).
 
-**Terminado cuando:** Volcán Rugiente con 8 karts: gama media ≥30 fps p95, render CPU ≤8 ms, draw calls ≤60 en tier ahorro; sin regresión en PC (WebGPU a 60 fps); `bun run bench` sin cambios.
+**Terminado cuando:** Volcán Promise con 8 karts: gama media ≥30 fps p95, render CPU ≤8 ms, draw calls ≤60 en tier ahorro; sin regresión en PC (WebGPU a 60 fps); `bun run bench` sin cambios.
 
 ### M4 — Sonido móvil + game-feel táctil final
 **Skills:** `game-feel`, `audio-design`.
@@ -185,6 +185,36 @@ Detalles verificados:
 - Se regeneró `core/test/golden.json` (las tiradas de objetos cambian) y `itemzones.test.ts` cuenta `lagspike` entre los fuertes. Test nuevo: `core/test/items-computing.test.ts`.
 
 Ideas siguientes (no hechas): **Ctrl+Z** (volver a la posición de hace 2 s; necesita historial serializable en el estado), **Ping** (marca al líder para la IA), **Sudo** (ignora un hazard), **Caché** (guarda un objeto para la siguiente caja). Cada una = fila nueva en el backlog.
+
+### M8 — Conexión floja o poca batería: el cliente no se queda pegado (prioridad 0)
+**Skills:** `diagnosing-bugs`, `tdd`.
+**Síntoma:** con poca batería o poco internet, los demás avanzan y el jugador se queda "pegado": se mueve y controla, pero no ve nada.
+
+Causas encontradas en el código (verificadas leyendo; **no se pudo reproducir en un teléfono**):
+1. **Pausa automática en carreras online.** `main.ts` pausaba la carrera al ocultar la pestaña (`visibilitychange`), también online. Con la carrera pausada `frame()` no llama a `simulate`, la cámara se actualiza con `dt = 0` (se congela) y el router ignora `P`/pausa en red, así que **nada la quitaba**. Modo ahorro de batería, avisos del sistema o cambiar de app lo disparan.
+2. **Ráfaga de snapshots tras un parón.** Cada snapshot hacía `restoreWorld` + re-simular los inputs pendientes. Tras una pestaña congelada llegaban decenas de golpe y se repetía el trabajo por cada uno.
+3. **Línea "muerta" falsa.** `simulateNet` abandonaba el socket tras 4 s sin snapshots, también cuando el navegador había estrangulado la pestaña (el contador seguía corriendo y el mensaje llegaba después).
+
+Hecho:
+- Online nunca se pausa: `visibilitychange` solo pausa carreras locales, `frame()` y `simulateNet` fuerzan `paused = false` en red.
+- `PredictedRace` separa `ingest` (barato, aplica el delta al estado base) de `reconcile` (restaurar + re-simular, una sola vez). `NetSession.flushSnaps()` lo llama una vez por frame, antes de simular; `onSnapshot` sigue existiendo (ingest + reconcile).
+- Umbral de línea muerta 4 s → 8 s, no se aplica con la pestaña oculta, y al volver a primer plano el contador se reinicia.
+- Test nuevo en `server/test/net.test.ts`: un cliente congelado 4 s acumula snapshots, reconcilia una vez y termina a <40 u del servidor.
+
+**Sin resolver / a vigilar:** (a) si la pérdida de gráficos (contexto WebGL/WebGPU perdido) deja el canvas en negro con los controles vivos, no hay manejador: habría que escuchar `webglcontextlost` y reiniciar el renderer; (b) en un móvil lento `frame()` limita `dt` a 1/30 y el acumulador a 5 pasos, así que por debajo de ~12 fps la predicción local va más lenta que el servidor (se corrige con cada snapshot, pero se nota); (c) hace falta una prueba con `tools/stall-check.mjs` en un dispositivo real con red limitada.
+
+### M9 — Estilo desarrolladora (NexTec.plus)
+**Skills:** `frontend-design`.
+**Objetivo:** que el juego se vea hecho para un equipo de software, sin tocar ids (guardados, replays y red usan los ids estables).
+
+Hecho:
+- **Cajas de objeto**: ya no son esferas tipo pelota; ciclan teclado → ratón → portátil con código → taza de Java (`art/devArt.ts`). La **Caja Falsa** es una pantalla azul (BSOD) con cara de enojo. El cursor del menú y la pantalla de carga usan los mismos cuatro sprites.
+- **Escenario** (mismas claves en `D`, así que las pistas no cambian): vaca → ratón, granero → centro de datos, sombrilla → monitor con código, tabla de surf → teclado vertical, camello → portátil, faro → torre de antena, boya → memoria USB, boya rayada → CD.
+- **Copas y pistas por lenguaje** (ids intactos): Copa **Python** (Valle Python, Playa Pandas, Bosque Django, Campus Kernel), Copa **C++** (Valle Puntero, Dunas STL, Bahía Segfault, Glaciar CMake; es la antigua Estrella y mantiene el cielo estrellado), Copa **Rust** (Ciudad Cargo, Estadio Borrow, Pico Crate, Selva Tokio) y Copa **JavaScript** (Autopista Node, Cañón Callback, Cráter Undefined, Volcán Promise). Las clásicas igual. Colores por lenguaje: verde, azul, naranja, amarillo.
+- **Copa Estrella más estrellada**: las 4 pistas (Valle Rust, Dunas del Dato, Bahía Bluetooth, Glaciar Git) activan `stars` y el cielo dibuja ahora una Vía Láctea punteada, ~2200 estrellas de 5 colores y ~110 destellos en cruz, con su propio RNG (el resto del escenario no se mueve).
+- Título: línea "</> Edición NexTec.plus".
+
+Pendiente (decisión): los cascos esféricos de los pilotos se parecen a una pelota (casco azul del jugador); no se tocaron porque son el diseño de cada piloto. Si se quieren cambiar, la opción barata es un casco-monitor o auriculares grandes en `art/codeModels.ts` (`buildCodeHead`). Tampoco se cambiaron las bolas de nieve y las rocas de los obstáculos (`bolanieve`, `roca`).
 
 ## 5. Temática computación (iconos, sprites, logos)
 
@@ -255,5 +285,7 @@ NO TOCAR: packages/core/**, packages/server/src/online.ts (protocolo v4), docs/D
 - [ ] M5 copa PC (fibra) + móvil (4G) + reconexión 10 s, tests verdes
 - [ ] M6 PWA instalada abre tras un deploy; título → tutorial → nombre → carrera solo con el dedo
 - [ ] M7 4 objetos nuevos con test, icono, sonido e IA
+- [ ] M8 online: ni pausa atascada ni ráfaga de snapshots; probar con red limitada y batería baja
+- [ ] M9 estilo NexTec.plus: cajas, escenario, nombres y Copa Estrella
 - [ ] Iconos/favicon/sprites con temática computación
 - [ ] Sin cambios en `core`, protocolo: solo el bump 4 → 5 de M7, `DEPLOY.md` intacto

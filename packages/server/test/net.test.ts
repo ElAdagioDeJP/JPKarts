@@ -39,7 +39,10 @@ class Net {
 
 function lcg(seed: number) { let s = seed; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
 
-function runNetworkRace(latency: number, loss: number, seconds: number, extra: Partial<LobbySettings> = {}) {
+/** `stall`: client 1 freezes for frames [from, to) (throttled tab / dead line): it keeps receiving snapshots but only ingests them, and reconciles once at `to`. */
+function runNetworkRace(latency: number, loss: number, seconds: number, extra: Partial<LobbySettings> = {}, stall?: { from: number; to: number }) {
+  let frame = 0;
+  const stalled = (id: number) => !!stall && id === 2 && frame >= stall.from && frame < stall.to;
   const net = new Net(latency, loss, lcg(42));
   const room = new Room(1234);
   const tracks = new TrackCache(ALL_TRACKS, prepAuthored);
@@ -55,7 +58,7 @@ function runNetworkRace(latency: number, loss: number, seconds: number, extra: P
         if (m.t === 'reject') c.rejected = m.reason;
         if (m.t === 'start') { c.race = new PredictedRace(m.cfg, tracks.ensureBuilt(m.cfg.trackIndex, [], !!m.cfg.mirror), m.kart); toServer(c.id - 1, { t: 'loaded', rid: m.rid }); }
         if (m.t === 'go') c.go = true;
-        if (m.t === 'snap') c.race?.onSnapshot(m);
+        if (m.t === 'snap') { if (stalled(c.id)) c.race?.ingest(m); else c.race?.onSnapshot(m); }
       });
     },
   }));
@@ -70,10 +73,12 @@ function runNetworkRace(latency: number, loss: number, seconds: number, extra: P
   net.now += 0.5; net.flush(); net.now += 0.5; net.flush();
   const dt = 1 / 60;
   for (let f = 0; f < seconds * 60; f++) {
+    frame = f;
     net.now += dt;
     net.flush();
+    if (stall && f === stall.to) clients[1]!.race?.reconcile();
     clients.forEach((c, i) => {
-      if (!c.race || !c.go) return; // the real client waits for `go` before predicting
+      if (!c.race || !c.go || stalled(c.id)) return; // the real client waits for `go` before predicting
       const { packed } = c.race.tick(pilot(c.race.world, c.race.kart, f + i * 37));
       toServer(i, { t: 'in', i: [packed] });
     });
@@ -107,6 +112,14 @@ test('red: con 50 ms de latencia la corrección del kart local es < 5 u en el p9
   const p95 = corr[Math.floor(corr.length * 0.95)] ?? 0;
   console.log(`50 ms: correcciones p95 ${p95.toFixed(2)} u`);
   expect(p95).toBeLessThan(5);
+}, 120000);
+
+test('red: un cliente congelado 4 s reconcilia todos los snapshots acumulados de una vez y vuelve al estado del servidor', () => {
+  const { room, clients } = runNetworkRace(0.08, 0, 30, {}, { from: 600, to: 840 });
+  const c = clients[1]!, w = room.world!, sk = w.karts[c.race!.kart]!, ck = c.race!.world.karts[c.race!.kart]!;
+  // the frozen client missed 4 s of driving (the server repeated its last input) and still ends up where the server has it
+  expect(Math.hypot(sk.x - ck.x, sk.y - ck.y)).toBeLessThan(40);
+  expect(c.race!.serverTick).toBeGreaterThan(1500);
 }, 120000);
 
 test('red: versión de protocolo o tunables distintos → rechazo con mensaje en español', () => {

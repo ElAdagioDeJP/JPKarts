@@ -1,9 +1,10 @@
 {
   "id": "valle-molino",
-  "name": "Valle Molino",
+  "name": "Valle Puntero",
   "cup": "estrella",
   "theme": "grass",
   "themeOverrides": {
+    "stars": true,
     "ground": [
       "#5cbc4c",
       "#4fae44",

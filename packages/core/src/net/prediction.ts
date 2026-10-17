@@ -43,25 +43,44 @@ export class PredictedRace {
     return { packed: packInput(this.seq, input), seats: extra.map((e) => packInput(this.seq, e)), events: takeEvents(this.world) };
   }
 
-  /** Apply a server snapshot: restore, drop acknowledged inputs, re-simulate the rest (events discarded). */
-  onSnapshot(m: Extract<ServerMsg, { t: 'snap' }>) {
-    const me = this.world.karts[this.kart];
-    const before = me ? { x: me.x, y: me.y } : null;
+  /** local kart position before the first snapshot that is waiting to be reconciled */
+  private before: { x: number; y: number } | null = null;
+  private dirty = false;
+
+  /**
+   * Take a server snapshot into the authoritative base WITHOUT re-simulating. Several can queue up between two frames
+   * (slow line, throttled tab): apply them all here and call `reconcile()` once.
+   */
+  ingest(m: Extract<ServerMsg, { t: 'snap' }>) {
+    if (!this.dirty) { const me = this.world.karts[this.kart]; this.before = me ? { x: me.x, y: me.y } : null; }
     this.serverTick = m.tick;
     for (const [id, p] of Object.entries(m.last)) if (Number(id) !== this.kart && !this.seats.includes(Number(id))) this.others[Number(id)] = unpackInput(p);
     if (m.state) this.base = m.state;
     else if (m.delta && this.base) this.base = patchJson(this.base, m.delta) as WorldState;
+    this.pending = this.pending.filter((q) => q.seq > m.ack);
+    this.dirty = true;
+  }
+
+  /** Restore the latest base and re-simulate the inputs the server has not processed yet (events discarded). */
+  reconcile() {
+    if (!this.dirty) return;
+    this.dirty = false;
     if (!this.base) return;
     restoreWorld(this.world, this.base);
-    this.pending = this.pending.filter((p) => p.seq > m.ack);
-    for (const p of this.pending) step(this.world, this.inputsFor(p.input, p.extra));
+    for (const q of this.pending) step(this.world, this.inputsFor(q.input, q.extra));
     takeEvents(this.world);
-    const after = this.world.karts[this.kart];
+    const after = this.world.karts[this.kart], before = this.before;
     if (before && after) {
       this.lastCorrection = dhypot(after.x - before.x, after.y - before.y);
       this.corrections.push(this.lastCorrection);
       if (this.corrections.length > 600) this.corrections.shift();
     }
+  }
+
+  /** Apply a server snapshot: ingest + reconcile (one at a time; the client batches with ingest/reconcile). */
+  onSnapshot(m: Extract<ServerMsg, { t: 'snap' }>) {
+    this.ingest(m);
+    this.reconcile();
   }
 
   get pendingCount() { return this.pending.length; }

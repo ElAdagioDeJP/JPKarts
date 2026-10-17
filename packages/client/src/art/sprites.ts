@@ -3,6 +3,7 @@
 import { CHARS, type Character } from '@jpkart/core';
 import { OUT, P, PX, cyl, miniText, miniW, mk, mulberry, shade, sph, type PXBuf, type Spr } from './pixel';
 import { BEARD as MK7_BEARD, mk7Voxels } from './mk7';
+import { BALLS, BIGBALL, DEV_DECOR, FAKEBOX } from './devArt';
 export type { Voxel } from './mk7';
 export const BEARD = MK7_BEARD;
 function drawAcc(p: PXBuf, c: Character, cx: number, cy: number, r: number) {
@@ -92,32 +93,8 @@ export function rotFrames(ci: number): Spr[] {
 }
 export const FACES: Spr[] = CHARS.map(portrait);
 
-// ---- balls and items ----
-export const BALL = '#5de6c8';
-function ballSprite(size: number, phase: number, colr = BALL, face?: string): Spr {
-  return mk(size, size, (p) => {
-    const c = size / 2, r = size / 2 - 1, f = sph(colr), R = mulberry(size * 7 + Math.round(phase * 10));
-    P.ell(p, c, c, r, r, (dx, dy) => {
-      const seam = Math.abs(dx - 0.5 * Math.sin(phase) - 0.42 * Math.cos(dy * 1.7 + phase)) < 0.13;
-      if (seam) { const l = -(dx * 0.62 + dy * 0.78); return l > -0.3 ? '#ffffff' : '#c8ccd8'; }
-      return f(dx, dy);
-    });
-    for (let i = 0; i < size; i++) { const x = c + (R() * 2 - 1) * r * 0.7, y = c + (R() * 2 - 1) * r * 0.7; if (P.get(p, x | 0, y | 0) === colr) P.set(p, x, y, shade(colr, 1.12)); }
-    if (face === 'angry') {
-      const e = Math.max(1, Math.round(size / 12));
-      P.rect(p, c - r * 0.5, c - r * 0.15, e * 2, e * 2, OUT); P.rect(p, c + r * 0.2, c - r * 0.15, e * 2, e * 2, OUT);
-      P.line(p, c - r * 0.65, c - r * 0.45, c - r * 0.15, c - r * 0.25, OUT, e); P.line(p, c + r * 0.65, c - r * 0.45, c + r * 0.15, c - r * 0.25, OUT, e); P.rect(p, c - r * 0.3, c + r * 0.35, r * 0.6, e, OUT);
-    }
-  });
-}
-export const BALLS = [0, 1, 2, 3].map((i) => ballSprite(16, (i * Math.PI) / 2));
-export const BIGBALL = mk(28, 28, (p) => {
-  // Boya a rayas (decoración neutra: playa, estadio).
-  const c = 14, r = 13;
-  P.ell(p, c, c, r, r, (dx, dy) => (((dy * r + c) / 4 | 0) % 2 ? '#fff7e0' : '#e8455a'));
-  P.ell(p, c - 4, c - 5, 3, 4, (_dx, dy) => (dy < 0 ? '#ffffff' : 0));
-  P.rect(p, 12, 0, 4, 3, '#9aa0b4');
-});
+// ---- item boxes and developer scenery (NexTec.plus): see art/devArt.ts ----
+export { BALLS, BIGBALL, FAKEBOX };
 /** Bug rodante (peligro del Campus Kernel y del estadio): escarabajo rojo con patas y ojos. */
 export const BUG = mk(28, 28, (p) => {
   const c = 14, r = 12;
@@ -264,7 +241,6 @@ export const COIN = [1, 0.66, 0.25, 0.66].map((wf) => mk(10, 10, (p) => {
   if (wf > 0.5) P.rect(p, 4, 3, 2, 4, '#c89a1a');
 }));
 /** Caja Falsa: an item ball with an angry face (the readable detail, GDD §3.2). */
-export const FAKEBOX = ballSprite(16, 0.4, BALL, 'angry');
 export const BOOMER = [0, 1, 2, 3].map((i) => mk(14, 14, (p) => {
   const a0 = (i * Math.PI) / 2;
   for (const sg of [-1, 1]) P.line(p, 7, 7, 7 + Math.cos(a0 + sg * 0.95) * 6, 7 + Math.sin(a0 + sg * 0.95) * 6, sg > 0 ? '#e8455a' : '#ff8a9a', 2);
@@ -319,6 +295,8 @@ export const GATE = mk(56, 18, (p) => {
   P.rect(p, 0, 0, 4, 18, cyl('#3a3848')); P.rect(p, 52, 0, 4, 18, cyl('#3a3848'));
   P.rect(p, 4, 4, 48, 8, (i) => (((i / 6) | 0) % 2 ? '#fff7e0' : '#e8455a'));
 });
+// developer scenery replaces the farm/beach props that share these keys
+Object.assign(D, DEV_DECOR);
 // item icons (16×16)
 ICONS.falsa = FAKEBOX;
 ICONS.turbo3 = mk(16, 16, (p) => { for (const x of [1, 6, 11]) { P.rect(p, x, 4, 4, 9, cyl('#2f6bff')); P.rect(p, x + 1, 2, 2, 2, '#9aa0b4'); P.tri(p, x, 13, x + 4, 13, x + 2, 16, '#ff8a1f'); } });

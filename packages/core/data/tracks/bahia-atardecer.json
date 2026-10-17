@@ -1,9 +1,10 @@
 {
   "id": "bahia-atardecer",
-  "name": "Bahía Atardecer",
+  "name": "Bahía Segfault",
   "cup": "estrella",
   "theme": "sand",
   "themeOverrides": {
+    "stars": true,
     "ground": [
       "#f2d58a",
       "#ecce80",

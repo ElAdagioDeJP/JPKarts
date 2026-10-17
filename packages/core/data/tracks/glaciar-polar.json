@@ -1,9 +1,10 @@
 {
   "id": "glaciar-polar",
-  "name": "Glaciar Polar",
+  "name": "Glaciar CMake",
   "cup": "estrella",
   "theme": "snow",
   "themeOverrides": {
+    "stars": true,
     "ground": [
       "#eef4ff",
       "#e2ebfb",

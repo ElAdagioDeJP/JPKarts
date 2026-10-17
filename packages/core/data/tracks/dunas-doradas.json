@@ -1,9 +1,10 @@
 {
   "id": "dunas-doradas",
-  "name": "Dunas Doradas",
+  "name": "Dunas STL",
   "cup": "estrella",
   "theme": "dunes",
   "themeOverrides": {
+    "stars": true,
     "ground": [
       "#e8c07a",
       "#dcb06a",

@@ -1,6 +1,6 @@
 {
   "id": "autopista-laser",
-  "name": "Autopista Láser",
+  "name": "Autopista Node",
   "cup": "fuego",
   "theme": "grid",
   "themeOverrides": {

@@ -1,6 +1,6 @@
 {
   "id": "bosque-encantado",
-  "name": "Bosque Encantado",
+  "name": "Bosque Django",
   "cup": "hoja",
   "theme": "grass",
   "themeOverrides": {

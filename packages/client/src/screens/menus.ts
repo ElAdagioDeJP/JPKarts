@@ -32,6 +32,7 @@ export function drawTitle(g: Game, t: number) {
   ctx.fillStyle = '#ffe45e'; ctx.fillText('JP KART', W / 2, y + 1);
   ctx.fillStyle = '#ff8a1f'; ctx.fillRect(W / 2 - 128, y + 46, 256, 2);
   ui.txt('Gran Premio Pixel', W / 2, y + 56, '#fff7e0', 8, 'center');
+  ui.txt('</> Edición NexTec.plus', W / 2, y + 74, '#5de6c8', 8, 'center');
   const b = Math.round(Math.abs(Math.sin(t * 3)) * 14);
   ui.img(BUG.cv, W / 2 + 104, y - 14 - b, 20, 20);
   CHARS.forEach((_, i) => {
@@ -123,7 +124,7 @@ export function drawTrackSel(g: Game) {
   const ui = g.ui, ctx = ui.ctx, ox = (W - 320) / 2;
   ui.bg();
   ui.txt(isArena(g.mode) ? (g.mode === 'battle' ? 'Batalla: Globos' : 'Batalla: Captura') : 'Elige circuito', W / 2, 6, '#ffe45e', 16, 'center');
-  g.trackCups.forEach((c, r) => ui.txtS(c.name.replace('Copa ', '').replace('Clásica ', ''), ox + 38, 28 + r * 44 + 16, c.col));
+  g.trackCups.forEach((c, r) => ui.txtS(c.name.replace('Copa ', '').replace('Clásica ', ''), ox + 33, 28 + r * 44 + 16, c.col));
   g.grid.forEach((ti, i) => {
     const trk = g.tracks.get(ti);
     const r = i >> 2, x = ox + 66 + (i % 4) * 62, y = 26 + r * 44, on = i === g.trackSel;

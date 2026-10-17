@@ -299,6 +299,7 @@ export class Game {
     } else if (this.world) {
       const w = this.world, p = this.local!;
       for (const v of this.views) v.input?.poll();
+      if (this.net) this.paused = false; // online the race does not wait: a stuck pause froze the camera for good
       if (!this.paused) this.simulate(dt);
       if (this.hitStop > 0) { this.hitStop -= dt; if (this.hitStop <= 0) this.held = null; }
       for (const v of this.views) {
@@ -445,4 +446,3 @@ export class Game {
   drawPodiumFree(t: number) { Menus.drawPodiumFree(this, t); }
   drawFinal(t: number) { Menus.drawFinal(this, t); }
 }
-
