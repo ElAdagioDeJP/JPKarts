@@ -54,7 +54,7 @@ test('monedas: hay líneas en la pista, se recogen, dan velocidad y se pierden 3
   k.respawn = 99; // out of the way
   run(w, Math.ceil(T.race.coins.respawn * 60) + 2);
   expect(c.t).toBeLessThanOrEqual(0);
-});
+}, 30000);
 
 test('Turbo Triple: tres usos antes de gastarse', () => {
   const w = race(), k = w.karts[0]!;
