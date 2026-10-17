@@ -49,7 +49,7 @@ await page.evaluate(() => {
 const issues = {};
 const analyse = (fr) => {
   const W = 426, H = 240, res = [], T = fr.filter((e) => e.k === 't'), P = fr.filter((e) => e.k === 'p');
-  const NAMES = new Set(['Marco', 'Guayca', 'Luis', 'Jesús', 'Miguel', 'JP', 'Mario', 'Andrés']); // etiquetas 3D sobre los karts: pueden salir de pantalla
+  const NAMES = new Set(['Marco', 'Guayca', 'Luis', 'Jesús', 'Miguel', 'JP', 'Mario', 'Andrés', 'Edu', 'Dieguito', 'Angelito', 'Henry', 'LAG', '…', '¿?']); // etiquetas 3D sobre los karts: pueden salir de pantalla y pisarse entre sí
   for (const t of T) {
     if (!NAMES.has(t.s) && (t.x0 < -0.5 || t.x1 > W + 0.5 || t.y0 < -0.5 || t.y1 > H + 0.5)) res.push(`FUERA "${t.s}" x ${t.x0.toFixed(0)}..${t.x1.toFixed(0)} y ${t.y0.toFixed(0)}..${t.y1.toFixed(0)}`);
     for (const p of P) {
@@ -60,7 +60,7 @@ const analyse = (fr) => {
   for (let i = 0; i < T.length; i++) for (let j = i + 1; j < T.length; j++) {
     const a = T[i], b = T[j];
     const ix = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0), iy = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
-    if (ix > 1 && iy > 2 && ix * iy > 0.3 * Math.min((a.x1 - a.x0) * (a.y1 - a.y0), (b.x1 - b.x0) * (b.y1 - b.y0)) && a.s !== b.s) res.push(`SE PISAN "${a.s}" y "${b.s}"`);
+    if (ix > 1 && iy > 2 && ix * iy > 0.3 * Math.min((a.x1 - a.x0) * (a.y1 - a.y0), (b.x1 - b.x0) * (b.y1 - b.y0)) && a.s !== b.s && !(NAMES.has(a.s) || NAMES.has(b.s))) res.push(`SE PISAN "${a.s}" y "${b.s}"`);
   }
   return [...new Set(res)];
 };

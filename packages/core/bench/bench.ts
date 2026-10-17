@@ -1,4 +1,4 @@
-// Headless simulation benchmark: 8 AI karts, full races on several tracks. Prints p50/p95/max per tick.
+// Headless simulation benchmark: 12 AI karts, full races on several tracks. Prints p50/p95/max per tick.
 // Budget (docs/PLAN.md): full tick ≤ 2.0 ms p95 on the reference PC.
 import { ALL_TRACKS, LAPS, Rng, TrackCache, buildGrid, createWorld, prepAuthored, step, takeEvents } from '../src';
 

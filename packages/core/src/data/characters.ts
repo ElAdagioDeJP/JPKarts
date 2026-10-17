@@ -36,13 +36,17 @@ export interface CharacterDef {
   helmet: string;
   kart: string;
   skin: string;
-  acc: 'mohawk' | 'none' | 'headphones' | 'tuft' | 'antenna' | 'glasses' | 'spikes';
+  acc: 'mohawk' | 'none' | 'headphones' | 'tuft' | 'antenna' | 'glasses' | 'spikes' | 'cap';
   accCol: string;
   mouth: string;
   beard?: boolean;
+  /** perilla (Henry); se dibuja con `beardCol` */
+  goatee?: boolean;
+  /** color de la barba/perilla; por defecto el castaño oscuro de siempre */
+  beardCol?: string;
   voice: number;
   st: Stats;
-  personality: 'agresivo' | 'defensivo' | 'oportunista' | 'equilibrado';
+  personality: 'agresivo' | 'defensivo' | 'oportunista' | 'equilibrado' | 'limpio' | 'caotico';
   suit?: string;
   glove?: string;
   boot?: string;

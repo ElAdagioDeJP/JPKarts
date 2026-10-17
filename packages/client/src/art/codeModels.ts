@@ -9,10 +9,12 @@ export interface CodeModelDef {
   helmet: string;
   kart: string;
   skin: string;
-  acc: 'mohawk' | 'none' | 'headphones' | 'tuft' | 'antenna' | 'glasses' | 'spikes';
+  acc: 'mohawk' | 'none' | 'headphones' | 'tuft' | 'antenna' | 'glasses' | 'spikes' | 'cap';
   accCol: string;
   mouth: string;
   beard?: boolean;
+  goatee?: boolean;
+  beardCol?: string;
   suit: string;
   glove: string;
   boot: string;
@@ -117,7 +119,11 @@ export function buildCodeHead(c: CodeModelDef): THREE.BufferGeometry | null {
     parts.push(painted(part(new THREE.CylinderGeometry(0.25, 0.25, 3, 6), 2, 12.5, 0), DARK));
     parts.push(painted(part(new THREE.SphereGeometry(0.7, 8, 6), 2, 14.2, 0), A));
   }
-  if (c.beard) parts.push(box(1, 1.8, 3, 2.4, 7.2, 0, BEARD));
+  if (c.beard) parts.push(box(1, 1.8, 3, 2.4, 7.2, 0, c.beardCol ?? BEARD));
+  if (c.goatee) parts.push(box(0.8, 1.2, 1.2, 2.9, 7.1, 0, c.beardCol ?? BEARD));
+  if (c.acc === 'cap') {
+    parts.push(painted(part(new THREE.SphereGeometry(3.4, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2.3), -0.5, 9.5, 0), A), box(1.8, 0.4, 4.2, 3.2, 10.6, 0, shadeHex(A, 0.75)));
+  }
   return mergeGeometries(parts);
 }
 

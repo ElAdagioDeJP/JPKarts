@@ -83,11 +83,11 @@ export function drawSelect(g: Game, t: number) {
     if (n > 1) ui.txtS(srcs.map((src, i) => 'J' + (i + 1) + ': ' + SOURCE_NAMES(src).split(' · ')[0]).join('  ·  '), W / 2, 23, '#8fe0ff');
   }
   CHARS.forEach((c, i) => {
-    const col = i % 4, row = i >> 2, x = ox + 18 + col * 74, y = 28 + row * 56, on = i === g.sel;
-    ui.panel(x, y, 62, 48, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
-    const b = on ? Math.round(Math.sin(t * 8) * 1.5) : 0;
-    ui.img(FACES[i]!.cv, x + 15, y + 2 + b, 32, 32);
-    ui.txtS(c.short, x + 31, y + 37, on ? '#ffe45e' : '#fff7e0');
+    const col = i % 4, row = i >> 2, x = ox + 18 + col * 74, y = 26 + row * 38, on = i === g.sel;
+    ui.panel(x, y, 62, 35, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
+    const b = on ? Math.round(Math.sin(t * 8) * 1) : 0;
+    ui.img(FACES[i]!.cv, x + 19, y + 1 + b, 24, 24);
+    ui.txtS(c.short, x + 31, y + 26, on ? '#ffe45e' : '#fff7e0');
   });
   const c = CHARS[g.sel]!;
   ui.panel(ox + 10, 144, 300, 90, '#1b1740');
@@ -114,7 +114,7 @@ export function drawCupSel(g: Game, t: number) {
     c.tracks.forEach((ti, j) => { const d = g.tracks.get(ti).def; ui.txtS(d.name + (d.flight ? ' *' : ''), x + 38, y + 26 + j * 13, '#fff7e0', 'left'); });
   });
   drawClassLine(g, 212);
-  ui.txtS('Puntos: 15 12 10 8 6 4 2 1', W / 2, 224, '#9c95d6');
+  ui.txtS('Puntos: ' + POINTS.join(' '), W / 2, 224, '#9c95d6');
 }
 
 export function drawTrackSel(g: Game) {
@@ -143,15 +143,20 @@ export function drawTrackSel(g: Game) {
   ui.txtS(isArena(g.mode) ? 'Enter: luchar  ·  C: ' + (g.mode === 'battle' ? 'Captura' : 'Globos') + '  ·  Esc: volver' : 'Enter: correr  ·  C: ' + (g.classic ? 'pistas nuevas' : 'pistas clásicas') + '  ·  Esc: volver', W / 2, 228, '#9c95d6');
 }
 
+/** Rows of the results/standings lists: up to 8 as before, 12 compact (they must still fit in 240 px). */
+export function rowLayout(n: number) {
+  return n > 8 ? { y0: 36, rh: 13, ph: 11, face: 11 } : { y0: 40, rh: 17, ph: 14, face: 16 };
+}
+
 export function rowList(g: Game, list: number[], extra: (ch: number, i: number, y: number) => void) {
-  const ui = g.ui, ox = (W - 320) / 2;
+  const ui = g.ui, ox = (W - 320) / 2, o = rowLayout(list.length);
   list.forEach((ch, i) => {
-    const y = 40 + i * 17, me = ch === g.sel;
-    ui.panel(ox + 28, y, 264, 14, me ? '#3a3478' : '#241f55', me ? '#ffe45e' : '#6d66b0');
-    ui.txt(i + 1 + 'º', ox + 34, y + 3, me ? '#ffe45e' : '#fff7e0');
-    ui.img(FACES[ch]!.cv, ox + 60, y - 1, 16, 16);
-    ui.txt(CHARS[ch]!.name, ox + 80, y + 3, me ? '#ffe45e' : '#fff7e0');
-    extra(ch, i, y);
+    const y = o.y0 + i * o.rh, me = ch === g.sel, ty = y + Math.round((o.ph - 8) / 2);
+    ui.panel(ox + 28, y, 264, o.ph, me ? '#3a3478' : '#241f55', me ? '#ffe45e' : '#6d66b0');
+    ui.txt(i + 1 + 'º', ox + 34, ty, me ? '#ffe45e' : '#fff7e0');
+    ui.img(FACES[ch]!.cv, ox + 60, y + Math.round((o.ph - o.face) / 2), o.face, o.face);
+    ui.txt(CHARS[ch]!.name, ox + 80, ty, me ? '#ffe45e' : '#fff7e0');
+    extra(ch, i, ty - 4);
   });
 }
 
@@ -168,7 +173,8 @@ export function drawResults(g: Game) {
     if (g.mode === 'cup') ui.txt('+' + (modeOf(w).scoring?.(w, w.finalOrder).get(w.finalOrder[i]!) ?? 0), ox + 284, y + 4, '#2ec46b', 8, 'right');
   });
   const p = g.local!;
-  let ly = 178;
+  const rl = rowLayout(w.finalOrder.length);
+  let ly = Math.max(178, rl.y0 + w.finalOrder.length * rl.rh + 2);
   if (p.best != null) { ui.txtS('Tu mejor vuelta: ' + fmtTime(p.best), W / 2, ly); ly += 8; }
   if (w.cfg.teams) {
     const tot = [0, 0];
@@ -181,7 +187,7 @@ export function drawResults(g: Game) {
     ? (g.net.nextIn > 0 ? (g.net.settings.mode === 'cup' && g.net.cupRace < CUPS[g.net.settings.cup]!.tracks.length - 1 ? 'Siguiente carrera en ' : 'Volviendo a la sala en ') + g.net.nextIn + ' s' : 'Esperando...') + (g.net.isHost ? '    Intro: saltar' : '') + '    Esc: salir'
     : g.mode === 'cup' ? 'Enter: ver clasificación    R: repetición'
     : g.mode === 'timetrial' ? 'Enter: otra vez    R: repetición    Esc: menú'
-    : 'Enter: ver podio    R: repetición    Esc: menú', W / 2, 220, '#9c95d6');
+    : 'Enter: ver podio    R: repetición    Esc: menú', W / 2, rl.y0 > 36 ? 231 : 220, '#9c95d6');
 }
 
 export function standingsList(g: Game) {

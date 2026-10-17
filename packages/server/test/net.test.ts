@@ -153,7 +153,7 @@ function modeSmoke(extra: Partial<LobbySettings>) {
 test('red: Eliminación en Espejo — servidor = replay y pista reflejada en todos', () => {
   const w = modeSmoke({ mode: 'elimination', cls: 'espejo', trackIndex: 17 });
   expect(w.cfg.mode).toBe('elimination');
-  expect(w.cfg.laps).toBe(7);
+  expect(w.cfg.laps).toBe(11); // 12 karts: una vuelta menos que karts
   expect(w.cfg.mirror).toBe(true);
 }, 120000);
 

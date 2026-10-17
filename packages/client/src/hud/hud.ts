@@ -118,18 +118,21 @@ export function drawHUDScaled(g: Game, dt: number, Wv: number, Hv: number) {
   for (const k of w.karts) {
     const x = mx + k.x * m.k, y = my + k.y * m.k, r = k.id === g.localId ? 3 : 2;
     ctx.fillStyle = OUT; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    // accent colour ring: tells apart the helmets that look alike (12 karts)
+    ctx.fillStyle = CHARS[k.ch]!.accCol; ctx.fillRect(x - 2, y - 2, 4, 4);
     if (k.id === g.localId) { ctx.fillStyle = '#fff7e0'; ctx.fillRect(x - 2, y - 2, 4, 4); }
     ctx.fillStyle = CHARS[k.ch]!.helmet; ctx.fillRect(x - 1, y - 1, 2, 2);
     if (k.rank === 0) { ctx.fillStyle = '#ffd23a'; ctx.fillRect(x - 2, y - r - 2, 1, 1); ctx.fillRect(x, y - r - 3, 1, 1); ctx.fillRect(x + 1, y - r - 2, 1, 1); }
   }
-  // móvil: solo líder + rival delante + tú + rival detrás (la lista de 8 tapaba media pista en pantallas pequeñas)
+  // móvil: solo líder + rival delante + tú + rival detrás (la lista de 12 tapaba media pista en pantallas pequeñas)
   const me = w.ranked.indexOf(g.localId), n8 = w.ranked.length;
   const rows = !mob || n8 <= 4 ? w.ranked.map((_, i) => i) : me < 0 ? [0, 1, 2, 3] : [...new Set([0, me - 1, me, me + 1])].filter((i) => i >= 0 && i < n8);
-  const rowH = mob ? 17 : Math.min(17, Math.max(12, (Hv - 48) / Math.max(1, n8))); // 8 pilotos siempre caben
+  const rowH = mob ? 17 : Math.min(17, Math.max(12, (Hv - 48) / Math.max(1, n8))); // 12 pilotos caben: 44 + 12 × 16 ≤ 240
   rows.forEach((i, r) => {
     const id = w.ranked[i]!, k = w.karts[id]!, y = 44 + r * rowH;
     if (id === g.localId) { ctx.fillStyle = 'rgba(255,228,94,0.35)'; ctx.fillRect(4, y - 1, 34, 17); }
     ui.img(FACES[k.ch]!.cv, 5, y, 16, 16);
+    ctx.fillStyle = CHARS[k.ch]!.accCol; ctx.fillRect(3, y + 2, 2, 12);
     if (w.cfg.mode === 'battle' && !k.out) ui.txtS('●'.repeat(k.balloons), 38, y + 5, CHARS[k.ch]!.helmet, 'left');
     if (w.cfg.mode === 'capture') ui.txtS(k.score.toFixed(0), 38, y + 5, '#ffd23a', 'left');
     ui.txtS(String(i + 1), 26, y + 5, k.out ? '#6d66b0' : id === g.localId ? '#ffe45e' : k.team >= 0 ? TEAM_COL[k.team]! : '#fff7e0', 'left');

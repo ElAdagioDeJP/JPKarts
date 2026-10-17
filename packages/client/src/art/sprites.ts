@@ -21,6 +21,7 @@ function drawAcc(p: PXBuf, c: Character, cx: number, cy: number, r: number) {
   }
 }
 function drawAccPost(p: PXBuf, c: Character, cx: number, cy: number, r: number) {
+  if (c.acc === 'cap') { const A = c.accCol; P.ell(p, cx, cy - r * 0.78, r * 1.02, r * 0.44, sph(A)); P.rect(p, Math.round(cx - r * 0.72), Math.round(cy - r * 0.38), Math.round(r * 1.44), 2, shade(A, 0.75)); }
   if (c.acc === 'headphones') for (const s of [-1, 1]) P.ell(p, cx + s * r * 0.98, cy + r * 0.12, r * 0.3, r * 0.44, sph(c.accCol));
 }
 export const suitOf = (c: Character) => c.suit ?? shade(c.helmet, 0.72);
@@ -32,7 +33,8 @@ function portrait(c: Character): Spr {
   drawAcc(p, c, 16, 15, 11);
   P.ell(p, 16, 15, 11, 11, sph(c.helmet));
   P.ell(p, 16, 18, 8.2, 7, (dx, dy) => (dy > 0.62 ? shade(c.skin, 0.8) : dx < -0.45 && dy < -0.1 ? shade(c.skin, 1.1) : c.skin));
-  if (c.beard) P.ell(p, 16, 22.4, 7.4, 3.4, (_dx, dy) => (dy > -0.7 ? BEARD : 0));
+  if (c.beard) P.ell(p, 16, 22.4, 7.4, 3.4, (_dx, dy) => (dy > -0.7 ? (c.beardCol ?? BEARD) : 0));
+  if (c.goatee) P.ell(p, 16, 24, 2.6, 2, c.beardCol ?? BEARD);
   // ojos grandes: esclerótica + iris + pupila + brillo
   for (const ex of [9, 18]) {
     P.rect(p, ex, 13, 5, 7, '#ffffff');

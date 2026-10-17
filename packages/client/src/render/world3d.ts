@@ -189,7 +189,7 @@ export class WorldRenderer {
   private shotPool: THREE.Mesh[] = [];
   private shotUsed = 0;
   private extLoading = false;
-  private hubMat = new Map<number, THREE.MeshStandardMaterial>();
+  private wheelGeos = new Map<number, THREE.BufferGeometry>();
   private kartMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.08 });
   private outlineMat = new THREE.MeshBasicMaterial({ color: OUT, side: THREE.BackSide });
   private shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false });
@@ -666,13 +666,22 @@ export class WorldRenderer {
     }
   }
 
-  private hubMatOf(ch: number): THREE.Material {
-    let m = this.hubMat.get(ch);
-    if (!m) {
-      m = new THREE.MeshStandardMaterial({ color: new THREE.Color(CHARS[ch]!.kart), roughness: 0.35, metalness: 0.45 });
-      this.hubMat.set(ch, m);
+  /** One wheel per pilot: dark tyre + hub cap in the kart colour, fused with per-vertex colours. */
+  private wheelGeoOf(ch: number): THREE.BufferGeometry {
+    let g = this.wheelGeos.get(ch);
+    if (!g) {
+      const paint = (src: THREE.BufferGeometry, col: THREE.Color) => {
+        const c = src.clone().toNonIndexed();
+        const n = c.attributes.position!.count, a = new Float32Array(n * 3);
+        for (let i = 0; i < n; i++) { a[i * 3] = col.r; a[i * 3 + 1] = col.g; a[i * 3 + 2] = col.b; }
+        c.setAttribute('color', new THREE.BufferAttribute(a, 3));
+        c.deleteAttribute('uv');
+        return c;
+      };
+      g = mergeGeometries([paint(this.wheelGeo, new THREE.Color(0x232330)), paint(this.hubGeo, new THREE.Color(CHARS[ch]!.kart))])!;
+      this.wheelGeos.set(ch, g);
     }
-    return m;
+    return g;
   }
 
   private kartObj(id: number, ch: number, ghost = false): KartObj {
@@ -705,16 +714,17 @@ export class WorldRenderer {
     // la velocidad y las delanteras orientan con el derrape/dirección.
     // Van en `body` (no en `root`) para heredar barrel-roll del truco y squash:
     // posiciones en el mismo marco que el voxel (origen de body = origen de root).
-    const hub = this.hubMatOf(ch);
+    const wheelG = this.wheelGeoOf(ch);
     const wheels: WheelRig[] = [];
     for (const [wx, wz] of [[4.2, 4.4], [4.2, -4.4], [-4.2, 4.4], [-4.2, -4.4]]) {
       const grp = new THREE.Group();
       grp.position.set(wx, 1.9, wz);
       const front = wx > 0;
-      const tire = new THREE.Mesh(this.wheelGeo, ghost ? this.ghostMat : this.wheelMat);
+      // tyre + hub cap fused into one mesh (vertex colours): half the draw calls per wheel, 12 karts must fit
+      const tire = new THREE.Mesh(wheelG, ghost ? this.ghostMat : this.kartMat);
       tire.castShadow = true;
-      const cap = new THREE.Mesh(this.hubGeo, ghost ? this.ghostMat : hub);
-      grp.add(tire, cap);
+      const cap = tire;
+      grp.add(tire);
       grp.rotation.order = 'YZX';
       grp.userData.front = front;
       body.add(grp);

@@ -1,3 +1,4 @@
+import { T } from '../tunables';
 import { LIQ_LAVA, LIQ_RIVER, LIQ_WATER, th, type Liquid, type Theme } from './themes';
 
 export type SongId = 'sol' | 'noche' | 'fuego' | 'brisa' | 'turbo' | 'menu';
@@ -58,7 +59,8 @@ export const CLASSIC_CUPS: Cup[] = [
   { id: 'rayo-c', name: 'Clásica Rust', tracks: [8, 9, 10, 11], col: '#ff8a3a' },
   { id: 'fuego-c', name: 'Clásica JavaScript', tracks: [12, 13, 14, 15], col: '#ffe45e' },
 ];
-export const POINTS = [15, 12, 10, 8, 6, 4, 2, 1];
+/** Cup points by finishing position (12 karts, MK8 style); tunables/race.json → points. */
+export const POINTS: readonly number[] = T.race.points;
 
 export interface Difficulty {
   name: string;

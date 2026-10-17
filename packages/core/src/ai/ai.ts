@@ -108,7 +108,7 @@ export const rankRel = (w: World, k: Kart) => (w.karts.length > 1 ? k.rank / (w.
 function think(w: World, k: Kart, dbg: AiDebug) {
   const tr = w.track, line = tr.line!, A = T.ai, P = persona(k), D = aiDiff(w, k), s = k.ai!;
   const myLat = lateralAt(tr, k.idx, k.x, k.y), lineOff = line.off[k.idx]!;
-  const scores: Record<AiAct, number> = { linea: 0.5, adelantar: 0, bloquear: 0, esquivar: 0, rebufo: 0 };
+  const scores: Record<AiAct, number> = { linea: 0.5 * P.lineFocus, adelantar: 0, bloquear: 0, esquivar: 0, rebufo: 0 };
   const tOff: Record<AiAct, number> = { linea: 0, adelantar: 0, bloquear: 0, esquivar: 0, rebufo: 0 };
   const ah = rivalAhead(w, k, A.overtake.range * 2);
   if (ah) {
@@ -144,9 +144,9 @@ function think(w: World, k: Kart, dbg: AiDebug) {
   for (const a of Object.keys(scores) as AiAct[]) if (scores[a] > scores[best]) best = a;
   s.act = best;
   s.tOff = tOff[best];
-  s.noise = s.noise * 0.6 + w.rng.range(-D.lineNoise, D.lineNoise) * 0.4;
+  s.noise = s.noise * 0.6 + w.rng.range(-D.lineNoise, D.lineNoise) * P.lineErr * 0.4;
   // simulated mistakes: `mistakes` per ~55 s lap
-  if (s.mistake <= 0 && w.rng.next() < D.mistakes / (55 * A.tacticsHz)) s.mistake = 0.5;
+  if (s.mistake <= 0 && w.rng.next() < (D.mistakes * P.lineErr) / (55 * A.tacticsHz)) s.mistake = 0.5;
   // shortcuts: decide once when approaching the entry (forced when a gate closes the main road this lap)
   const lap = Math.floor(k.prog / tr.N) + 1;
   for (let bi = 0; bi < tr.branches.length; bi++) {
@@ -228,7 +228,7 @@ export function aiItems(w: World, k: Kart, dt: number) {
   if (!k.item || k.roll > 0 || k.finished || k.spin > 0) return;
   k.hold += dt;
   const D = aiDiff(w, k), def = itemDef(k.item);
-  if (k.hold < D.reaction) return;
+  if (k.hold < D.reaction * persona(k).hold) return;
   if (def.aiNotWhenFirst && k.rank === 0) return;
   const score = def.aiScore ? def.aiScore(w, k) : defaultScore(w, k, def.role);
   const dbg = aiDebug.get(k.id);
@@ -244,7 +244,7 @@ export function defaultScore(w: World, k: Kart, role: string): number {
     case 'defensa': return Math.max(threatBehind(w, k) * 1.2 * P.defend, k.hold > 8 ? 0.7 : 0);
     case 'movilidad': return straightAhead(w, k) * 0.9 + rankRel(w, k) * 0.2;
     case 'trampa': { const b = rivalBehind(w, k, 160); return Math.max(b ? 0.9 * (1 - b[1] / 160) + 0.2 : 0, k.hold * 0.04); }
-    default: return 0.45 + rankRel(w, k) * 0.4 + k.hold * 0.02;
+    default: return (0.45 + rankRel(w, k) * 0.4 + k.hold * 0.02) * (role === 'caos' ? P.chaos : 1);
   }
 }
 

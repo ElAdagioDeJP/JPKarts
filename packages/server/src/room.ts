@@ -1,6 +1,6 @@
 // Authoritative race room, independent of the transport (WebSocket in main.ts, in-memory in tests).
 import {
-  ALL_TRACKS, ARENA_INDICES, CLASSES, CUPS, HASH_EVERY, LAPS, PROTOCOL_VERSION, classCfg, cleanName, cleanPid, validPacked, ReplayRecorder, Rng, SIM_DT, SNAPSHOT_EVERY, T, TrackCache, buildGrid, createWorld, handshakeTunables, hashWorld, modeOf,
+  ALL_TRACKS, ARENA_INDICES, CHARS, CLASSES, CUPS, HASH_EVERY, LAPS, PROTOCOL_VERSION, classCfg, cleanName, cleanPid, validPacked, ReplayRecorder, Rng, SIM_DT, SNAPSHOT_EVERY, T, TrackCache, buildGrid, createWorld, handshakeTunables, hashWorld, modeOf,
   newAiState, prepAuthored, serializeWorld, step, takeEvents, unpackInput,
   type ClientMsg, type Input, type LobbyPlayer, type LobbySettings, type PackedInput, type RaceConfig, type RelayTick, type ServerMsg, type World, type WorldState,
 } from '@jpkart/core';
@@ -25,7 +25,7 @@ interface Player {
   needFull?: boolean;
 }
 
-const MAX_PLAYERS = 8, MAX_QUEUE = 6;
+const MAX_PLAYERS = CHARS.length, MAX_QUEUE = 6; // one character per human: 12 humans at most
 
 export class Room {
   players = new Map<number, Player>();
@@ -120,7 +120,7 @@ export class Room {
       if (stale) this.leave(stale.conn.id);
       const gone = pid ? this.away.get(pid) : undefined;
       if (gone && pid && this.phase === 'race' && this.world) { this.rejoin(conn, pid, gone); return; }
-      if (this.players.size >= MAX_PLAYERS) { conn.send({ t: 'reject', reason: 'La sala está llena (8 jugadores).' }); return; }
+      if (this.players.size >= MAX_PLAYERS) { conn.send({ t: 'reject', reason: `La sala está llena (${MAX_PLAYERS} jugadores).` }); return; }
       if (this.phase !== 'lobby') { conn.send({ t: 'reject', reason: 'La carrera ya empezó. Espera a que termine.' }); return; }
       const taken = new Set([...this.players.values()].map((q) => q.ch));
       let ch = 0;
@@ -147,7 +147,7 @@ export class Room {
       }
       case 'pick': {
         const sp = this.seatPlayer(conn, m.seat);
-        if (!sp || this.phase !== 'lobby' || !Number.isInteger(m.ch) || m.ch < 0 || m.ch > 7) return;
+        if (!sp || this.phase !== 'lobby' || !Number.isInteger(m.ch) || m.ch < 0 || m.ch >= CHARS.length) return;
         if ([...this.players.values()].some((q) => q !== sp && q.ch === m.ch)) return;
         sp.ch = m.ch; sp.ready = sp.seat > 0;
         this.broadcast(this.lobbyMsg());
@@ -170,7 +170,7 @@ export class Room {
         if (!p.host || this.phase !== 'lobby') return;
         if (![...this.players.values()].every((q) => q.ready || q.host)) return;
         this.cupRace = 0;
-        this.cupPts = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [i, 0]));
+        this.cupPts = Object.fromEntries(Array.from({ length: CHARS.length }, (_, i) => [i, 0]));
         this.startRace();
         break;
       }
@@ -232,7 +232,7 @@ export class Room {
     const track = this.tracks.ensureBuilt(ti, [], mirror);
     const seed = (this.seed = (Math.imul(this.seed ^ 0x9e3779b9, 0x85ebca6b) >>> 0) & 0x7fffffff);
     const humans = [...this.players.values()].map((p) => ({ ch: p.ch, ctrl: 'remote' as const }));
-    let grid = S.mode === 'cup' && this.cupRace > 0 ? buildGrid(new Rng(seed), humans, { cupPts: this.cupPts, humanSlot: 0 }) : buildGrid(new Rng(seed), humans, { humanSlot: 8 - humans.length });
+    let grid = S.mode === 'cup' && this.cupRace > 0 ? buildGrid(new Rng(seed), humans, { cupPts: this.cupPts, humanSlot: 0 }) : buildGrid(new Rng(seed), humans, { humanSlot: CHARS.length - humans.length });
     if (S.teams) grid = grid.map((g, i) => ({ ...g, team: i % 2 }));
     const mode = S.mode === 'free' ? 'race' : S.mode;
     const laps = modeOf({ cfg: { mode } } as World).laps?.(grid.length) ?? S.laps;

@@ -12,7 +12,7 @@ test('carrera solo-IA completa en Bun sin navegador', () => {
     for (const e of takeEvents(w)) if (e.type === 'lap') laps++;
   }
   expect(w.phase).toBe('results');
-  expect(w.finalOrder.length).toBe(8);
+  expect(w.finalOrder.length).toBe(12);
   expect(laps).toBeGreaterThan(8);
   const winner = w.karts[w.finalOrder[0]!]!;
   // all pilots now run at Miguel's speed: 3 laps between 1:30 and 3:00

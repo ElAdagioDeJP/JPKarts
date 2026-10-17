@@ -100,7 +100,7 @@ export function lobbyInput(g: Game, _code: string, ok: boolean, back: boolean, L
   }
   const me = net.me;
   if (!me) return;
-  if (L || R) net.send({ t: 'pick', ch: (me.ch + (L ? 7 : 1)) % 8 });
+  if (L || R) net.send({ t: 'pick', ch: (me.ch + (L ? CHARS.length - 1 : 1)) % CHARS.length });
   if ((_code === 'KeyJ' || _code === 'Pad8') && net.localSeats.length < 4)
     net.send({ t: 'addSeat', name: (me.name || 'Jugador').slice(0, 9) + ' ' + (net.localSeats.length + 1) });
   if (_code === 'KeyR' || (ok && !net.isHost)) net.send({ t: 'ready', ready: !me.ready });
@@ -211,7 +211,7 @@ export function drawLobby(g: Game, t: number) {
     ox + 6, 34 + dy, '#fff7e0');
   ui.txtS(
     'IA: ' + DIFFS[S.diff]!.name + ' · ' + CLASS_NAMES[(S.cls ?? '100') as EngineClass] + (S.teams ? ' · Equipos' : '') +
-    ' · ' + net.players.length + ' humano(s) + ' + (8 - net.players.length) + ' IA',
+    ' · ' + net.players.length + ' humano(s) + ' + (CHARS.length - net.players.length) + ' IA',
     ox + 6, 45 + dy, '#9c95d6', 'left');
   if (S.mode === 'cup') {
     const cw = 340 / CUPS.length;
@@ -221,14 +221,16 @@ export function drawLobby(g: Game, t: number) {
       ui.txtS(c.name.replace('Copa ', ''), ox + i * cw + (cw - 2) / 2, 56 + dy, on ? c.col : '#9c95d6', 'center');
     });
   }
+  // up to 12 humans: the rows shrink to fit between the settings and the help line
+  const pitch = Math.min(18, Math.floor((210 - 68 - dy) / Math.max(1, net.players.length))), ph = Math.min(15, pitch - 1), ty = Math.round((ph - 8) / 2);
   net.players.forEach((p, i) => {
-    const y = 68 + dy + i * 18, me = p.id === net.id;
-    ui.panel(ox, y, 340, 15, me ? '#3a3478' : '#241f55', me ? '#ffe45e' : '#6d66b0');
-    ui.img(FACES[p.ch]!.cv, ox + 4, y - 1, 16, 16);
+    const y = 68 + dy + i * pitch, me = p.id === net.id;
+    ui.panel(ox, y, 340, ph, me ? '#3a3478' : '#241f55', me ? '#ffe45e' : '#6d66b0');
+    ui.img(FACES[p.ch]!.cv, ox + 4, y + Math.round((ph - Math.min(16, ph)) / 2), Math.min(16, ph), Math.min(16, ph));
     ui.txt(p.name + (p.host ? ' ★' : '') + (p.seat ? ' (pantalla de ' + (net.players.find((q) => q.conn === p.conn && !q.seat)?.name ?? '?') + ')' : ''),
-      ox + 26, y + 4, me || p.conn === net.id ? '#ffe45e' : '#fff7e0');
-    ui.txt(CHARS[p.ch]!.short, ox + 200, y + 4, '#9c95d6');
-    ui.txt(p.host ? 'anfitrión' : p.ready ? 'listo ✓' : 'no listo', ox + 334, y + 4, p.ready || p.host ? '#9cff9c' : '#ff8a9a', 8, 'right');
+      ox + 26, y + ty, me || p.conn === net.id ? '#ffe45e' : '#fff7e0');
+    ui.txt(CHARS[p.ch]!.short, ox + 200, y + ty, '#9c95d6');
+    ui.txt(p.host ? 'anfitrión' : p.ready ? 'listo ✓' : 'no listo', ox + 334, y + ty, p.ready || p.host ? '#9cff9c' : '#ff8a9a', 8, 'right');
   });
   const help = net.isHost
     ? '←→ piloto · Q/E copa o pista · ↑↓ modo · F IA · X clase · T equipos · Intro'

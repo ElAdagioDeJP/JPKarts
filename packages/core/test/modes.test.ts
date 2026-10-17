@@ -52,10 +52,10 @@ test('Contrarreloj: 1 kart, 10 monedas y Turbo Triple; sin monedas ni cajas; ter
   expect(replayHash).toBe(hashWorld(w));
 }, 120000);
 
-test('Eliminación: 7 vueltas fijas en pista corta, sale el último de cada vuelta y queda uno', () => {
+test('Eliminación: una vuelta menos que karts en pista corta, sale el último de cada vuelta y queda uno', () => {
   const grid = buildGrid(new Rng(4), [], { humanSlot: 0 }).slice(0, 4);
   const laps = modeOf({ cfg: { mode: 'elimination' } } as World).laps!(grid.length);
-  expect(laps).toBe(7);
+  expect(laps).toBe(3);
   const cfg: RaceConfig = { trackIndex: trackIndexById('anillo-turbo'), diff: 2, seed: 4, laps, mode: 'elimination', grid };
   const { w, ev, replayHash, mismatch } = raceAndReplay(cfg);
   const outs = ev.filter((e): e is Extract<GameEvent, { type: 'eliminated' }> => e.type === 'eliminated');

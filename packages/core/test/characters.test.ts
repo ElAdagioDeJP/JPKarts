@@ -3,8 +3,8 @@ import { describe, expect, test } from 'bun:test';
 import { CHARS, isMii } from '../src/data/characters';
 
 describe('personajes MK7 + base Mii', () => {
-  test('8 pilotos con visuales resueltos', () => {
-    expect(CHARS.length).toBe(8);
+  test('12 pilotos con visuales resueltos', () => {
+    expect(CHARS.length).toBe(12);
     for (const c of CHARS) {
       expect(c.suit).toMatch(/^#[0-9a-f]{6}$/);
       expect(c.glove).toMatch(/^#[0-9a-f]{6}$/);

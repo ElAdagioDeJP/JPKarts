@@ -64,9 +64,10 @@ export function onPress(g: Game, code: string) {
     case 'lobby': g.lobbyInput(code, ok, back, L, R, U, D); break;
     case 'controls': g.controlsInput(code, ok, back, U, D); break;
     case 'select':
-      if (R) { g.sel = (g.sel + 1) % 8; A.blip(); }
-      if (L) { g.sel = (g.sel + 7) % 8; A.blip(); }
-      if (U || D) { g.sel = (g.sel + 4) % 8; A.blip(); }
+      if (R) { g.sel = (g.sel + 1) % CHARS.length; A.blip(); }
+      if (L) { g.sel = (g.sel + CHARS.length - 1) % CHARS.length; A.blip(); }
+      if (D) { g.sel = (g.sel + 4) % CHARS.length; A.blip(); } // grid of 4 columns
+      if (U) { g.sel = (g.sel + CHARS.length - 4) % CHARS.length; A.blip(); }
       if ((code === 'KeyJ' || code === 'Pad8') && g.mode !== 'timetrial') { g.players = (g.players % 4) + 1; A.blip(); }
       if (ok) { g.state = g.mode === 'cup' ? 'cup' : 'track'; A.beep(780, 0.1); }
       if (back) g.state = 'menu';

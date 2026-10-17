@@ -26,6 +26,11 @@ const nearFinish = () => page.evaluate(() => {
 });
 const result = {};
 
+// perfil nuevo: tutorial + nombre (como tools/shot.mjs)
+if ((await page.evaluate(() => window.__jpkart.state)) === 'welcome') {
+  await key('Escape'); await page.waitForTimeout(400); await page.keyboard.type('Modos');
+  for (let i = 0; i < 40 && (await page.evaluate(() => window.__jpkart.state)) !== 'title'; i++) await key('Enter');
+}
 await key('Enter'); // title → menu
 await shot('01-menu');
 // Torneo: locked cups and the class line

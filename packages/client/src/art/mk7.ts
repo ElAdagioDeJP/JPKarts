@@ -140,7 +140,8 @@ function buildHead(c: Character, b: VB) {
         // sombra inferior de la cara (barbilla)
         if (inFace && z === 10) col = shadeHex(c.skin, 0.85);
         // barba
-        if (c.beard && front && z === 10 && Math.abs(x) <= 2) col = BEARD;
+        if (c.beard && front && z === 10 && Math.abs(x) <= 2) col = c.beardCol ?? BEARD;
+        if (c.goatee && front && z === 10 && Math.abs(x) <= 1) col = c.beardCol ?? BEARD;
         // --- ojos MK7: esclerótica blanca grande + iris + brillo ---
         // ojo izq x -3..-1, ojo der x 1..3, filas z 12..14
         const ax = Math.abs(x);
@@ -211,6 +212,11 @@ function buildHead(c: Character, b: VB) {
     b.box(-5, -4, -2, 0, 12, 15, A);
     b.box(4, 5, -2, 0, 12, 15, A);
     for (let x = -4; x <= 4; x++) b.add(x, -1, Math.round(13 + Math.sqrt(Math.max(0, 20 - x * x)) * 1.05), '#2a2833');
+  }
+  if (c.acc === 'cap') {
+    // gorra: cubre la parte alta del casco y saca la visera hacia delante
+    for (const [k, v] of b.m) if (v[2] >= 16) b.add(v[0], v[1], v[2], A);
+    b.box(-3, 3, 3, 5, 16, 16, Ad);
   }
   if (c.acc === 'glasses') {
     // patillas sobre el casco

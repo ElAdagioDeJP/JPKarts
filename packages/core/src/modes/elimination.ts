@@ -1,4 +1,4 @@
-// Eliminación: 7 vueltas fijas en pistas cortas; cada vuelta, el último en cruzar meta queda fuera.
+// Eliminación: una vuelta menos que karts (11 con 12) en pistas cortas; cada vuelta, el último en cruzar meta queda fuera.
 import { emit, isHuman } from '../sim/helpers';
 import { defineMode } from '../sim/modes';
 import type { Kart, World } from '../sim/types';
@@ -11,7 +11,7 @@ function knockOut(w: World, k: Kart, left: number) {
 
 defineMode({
   id: 'elimination', name: 'Eliminación',
-  laps: () => 7,
+  laps: (players) => Math.max(2, players - 1), // one knock-out per lap: the last one standing wins
   tick(w) {
     const N = w.track.N, alive = w.karts.filter((k) => !k.out);
     if (alive.length <= 1) return;
