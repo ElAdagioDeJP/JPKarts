@@ -94,6 +94,7 @@ test('web: sirve el cliente, cae a index.html y no sale de la carpeta', async ()
   writeFileSync(join(dir, 'index.html'), '<h1>jp</h1>');
   mkdirSync(join(dir, 'assets'));
   writeFileSync(join(dir, 'assets', 'a.js'), 'x');
+  writeFileSync(join(dir, 'manifest.webmanifest'), '{}');
   const h = webHandler(dir);
   const call = (url: string, method = 'GET') => {
     const out = { status: 0, headers: {} as Record<string, unknown>, body: '' };
@@ -105,6 +106,8 @@ test('web: sirve el cliente, cae a index.html y no sale de la carpeta', async ()
   expect(call('/sala/ABCDE').body).toBe('<h1>jp</h1>'); // SPA fallback
   expect(call('/assets/a.js').headers['content-type']).toContain('javascript');
   expect(call('/%2e%2e/%2e%2e/package.json').handled).toBe(false); // traversal is not served
+  expect(call('/assets/old-hash.js')).toMatchObject({ handled: true, status: 404 }); // a stale hashed asset must not come back as index.html (broke installed PWAs)
+  expect(call('/manifest.webmanifest').headers['content-type']).toContain('manifest+json');
   expect(call('/', 'POST').handled).toBe(false);
   expect(webHandler(undefined)({ url: '/', method: 'GET' } as never, {} as never)).toBe(false); // no WEB_DIR: only /health and WS
 });

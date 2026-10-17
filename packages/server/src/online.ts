@@ -23,7 +23,7 @@ export const ONLINE_LIMITS = {
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml',
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.glb': 'model/gltf-binary', '.wasm': 'application/wasm', '.map': 'application/json',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.glb': 'model/gltf-binary', '.wasm': 'application/wasm', '.map': 'application/json', '.webmanifest': 'application/manifest+json',
 };
 
 /** Static web client (vite build) served next to the WebSocket: the same domain gives the game and the rooms. */
@@ -35,7 +35,11 @@ export function webHandler(dir: string | undefined) {
     try { path = decodeURIComponent((req.url ?? '/').split('?')[0]!); } catch { return false; }
     let file = normalize(join(root, path));
     if (file !== root && !file.startsWith(root + sep)) return false; // path traversal
-    if (!existsSync(file) || statSync(file).isDirectory()) file = join(root, 'index.html');
+    if (!existsSync(file) || statSync(file).isDirectory()) {
+      // a missing file with an extension (a stale hashed asset) is a 404: serving index.html there broke old installed apps
+      if (extname(file)) { res.writeHead(404, { 'content-type': 'text/plain' }); res.end('not found'); return true; }
+      file = join(root, 'index.html');
+    }
     const ext = extname(file), body = readFileSync(file);
     // hashed vite assets never change; index.html always revalidates
     res.writeHead(200, { 'content-type': MIME[ext] ?? 'application/octet-stream', 'cache-control': file.includes(sep + 'assets' + sep) ? 'public, max-age=31536000, immutable' : 'no-cache' });

@@ -137,3 +137,22 @@ defineEffect({
   type: 'fog', tags: ['control'],
   input(k, inp, _f, human) { if (!human) inp.s = clamp(inp.s + dsin(k.prog * 0.37) * T.items.humo.aiNoise, -1, 1); },
 });
+/** Overclock: sustained top-speed boost (no immunity, unlike the juggernaut). */
+defineEffect({
+  type: 'oc', tags: ['buff'],
+  speed: {
+    order: 15,
+    apply(c) {
+      const O = T.items.overclock;
+      c.max = Math.max(c.max, c.base * O.maxMul);
+      if (c.inp.t > 0 && c.k.speed < c.max) c.k.speed += O.accel * c.dt;
+    },
+  },
+});
+/** Antivirus: immune to new control/slow debuffs while it lasts. */
+defineEffect({ type: 'av', tags: ['shield'], blocks: ['control', 'slow'] });
+/** Lag spike: slower top speed. */
+defineEffect({
+  type: 'lag', tags: ['slow'],
+  speed: { order: 20, apply(c) { c.max *= T.items.lagspike.slowMul; } },
+});

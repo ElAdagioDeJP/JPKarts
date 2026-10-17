@@ -93,7 +93,7 @@ export function rotFrames(ci: number): Spr[] {
 export const FACES: Spr[] = CHARS.map(portrait);
 
 // ---- balls and items ----
-export const BALL = '#d8f03a';
+export const BALL = '#5de6c8';
 function ballSprite(size: number, phase: number, colr = BALL, face?: string): Spr {
   return mk(size, size, (p) => {
     const c = size / 2, r = size / 2 - 1, f = sph(colr), R = mulberry(size * 7 + Math.round(phase * 10));
@@ -334,6 +334,11 @@ ICONS.ciego3 = mk(16, 16, (p) => { for (const [x, y] of [[8, 4], [4, 11], [12, 1
 ICONS.rafaga = mk(16, 16, (p) => { for (const y of [4, 8, 12]) P.rect(p, 1 + (y % 8), y, 11 - (y % 8), 2, '#bff0ff'); P.ell(p, 13, 6, 2, 2, (dx, dy) => (dx * dx + dy * dy > 0.4 ? '#8fe0ff' : 0)); });
 ICONS.cadena = mk(16, 16, (p) => { P.line(p, 9, 0, 4, 7, '#ffe45e', 2); P.line(p, 4, 7, 11, 7, '#ffe45e', 2); P.line(p, 11, 7, 6, 15, '#ffe45e', 2); P.ell(p, 3, 13, 2, 2, sph('#3df0ff')); P.ell(p, 13, 3, 2, 2, sph('#3df0ff')); });
 ICONS.bala = mk(16, 16, (p) => { P.ell(p, 10, 8, 5.5, 4.5, sph('#2a2833')); P.rect(p, 2, 4, 8, 9, cyl('#2a2833')); P.rect(p, 0, 6, 3, 5, '#ff8a1f'); P.ell(p, 11, 6, 1.4, 1.2, '#ffffff'); P.rect(p, 12, 8, 2, 1, '#ff3a3a'); });
+// computing-themed icons: Overclock (CPU + flame), Fork Bomb (three bombs in a row), Antivirus (shield + check), Lag Spike (signal bars + cut)
+ICONS.overclock = mk(16, 16, (p) => { P.rect(p, 3, 4, 10, 10, cyl('#26305c')); P.rect(p, 5, 6, 6, 6, '#5de6c8'); for (const x of [4, 7, 10]) { P.rect(p, x, 1, 2, 3, '#ffd54a'); P.rect(p, x, 14, 2, 2, '#ffd54a'); } P.tri(p, 6, 13, 10, 13, 8, 16, '#ff8a1f'); });
+ICONS.forkbomb = mk(16, 16, (p) => { for (const x of [3, 8, 13]) { P.ell(p, x, 10, 3, 3, sph('#3a3848')); P.rect(p, x, 5, 1, 3, '#d8dce8'); P.rect(p, x, 4, 1, 1, '#ff3a3a'); } });
+ICONS.antivirus = mk(16, 16, (p) => { P.ell(p, 8, 7, 6.5, 7, (dx, dy) => (dy > 0.55 ? 0 : '#3d8bff')); P.tri(p, 2, 9, 14, 9, 8, 16, '#3d8bff'); P.line(p, 5, 8, 7, 11, '#ffffff', 2); P.line(p, 7, 11, 12, 4, '#ffffff', 2); });
+ICONS.lagspike = mk(16, 16, (p) => { for (let i = 0; i < 4; i++) P.rect(p, 1 + i * 3, 12 - i * 3, 2, 3 + i * 3, i < 2 ? '#5de6c8' : '#ff3a3a'); P.line(p, 2, 14, 14, 2, '#ffe45e', 1); });
 ICONS.coin = COIN[0]!;
 
 // ---- Phase 9: battle ----

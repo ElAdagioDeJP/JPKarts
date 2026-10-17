@@ -115,7 +115,12 @@
 | 62 | Repetición final con cámara de highlights | Feel | Could | 1, 51 | M | — | 9 | ART §7 |
 | 63 | Pantalla dividida local (2–4) | Input/Render | Could | 49, 53 | L | — | 10 | §10 |
 
-**Total: 63 entradas.**
+| 64 | Overclock | Objeto · movilidad | Should | 5 | S | B bajo · R bajo | 8a | §3.3 |
+| 65 | Fork Bomb | Objeto · trampa | Should | 20 | S | B bajo · R bajo | 8a | §3.3 |
+| 66 | Antivirus | Objeto · defensa | Should | 5 | S | B bajo · R bajo | 8a | §3.3 |
+| 67 | Pico de Latencia | Objeto · ataque | Should | 5 | S | B medio · R bajo | 8a | §3.3 |
+
+**Total: 67 entradas.**
 - Must: 40 · Should: 13 · Could: 10.
 - La numeración es estable para referenciarla en commits (`backlog #20`). Las entradas nuevas se añaden al final (64, 65…); no se renumera.
 

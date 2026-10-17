@@ -30,7 +30,7 @@ test('el Intercambio Cuántico es el objeto con menos peso de toda la tabla y so
 });
 
 test('los objetos fuertes tienen más probabilidad cuanto más atrás vas', () => {
-  const strong = ['ciego3', 'dron', 'gancho', 'rafaga', 'cadena', 'inversor', 'pem', 'jugger', 'agujero', 'bala'];
+  const strong = ['ciego3', 'dron', 'gancho', 'lagspike', 'rafaga', 'cadena', 'inversor', 'pem', 'jugger', 'agujero', 'bala'];
   const sum = (r: number) => strong.reduce((a, id) => a + odds(r)[id]!, 0);
   expect(sum(0)).toBeLessThan(sum(3));
   expect(sum(3)).toBeLessThan(sum(7));

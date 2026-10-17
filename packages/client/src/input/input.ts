@@ -113,6 +113,11 @@ export class Input {
     this.touchDrift = s.drift;
     this.touchActive = true;
   }
+  /** Táctil en menús/pausa: encola un código de tecla como si se hubiera pulsado (Enter, Escape, flechas, KeyP). */
+  pressCode(code: string) {
+    this.pressedQ.push(code);
+    this.onFirstGesture?.();
+  }
   /** M1: flanco de subida del botón OBJETO táctil. */
   pressTouchItem() {
     this.touchItemQ = true;

@@ -17,24 +17,28 @@
     "muelle": [26, 22, 6],
     "nitro": [30, 26, 8],
     "turbo3": [8, 22, 24],
+    "overclock": [26, 24, 8],
+    "forkbomb": [12, 24, 16],
     "hielo": [22, 22, 10],
     "mina": [24, 24, 10],
     "humo": [16, 14, 4],
     "reflector": [14, 20, 14],
+    "antivirus": [0, 10, 22],
     "alquitran": [22, 20, 8],
     "iman": [14, 10, 4],
     "bumeran": [14, 18, 14],
     "ciego3": [0, 16, 30],
     "dron": [0, 16, 30],
     "gancho": [0, 10, 26],
+    "lagspike": [0, 8, 24],
     "rafaga": [0, 6, 24],
     "cadena": [0, 5, 22],
     "inversor": [0, 5, 20],
     "pem": [0, 4, 20],
     "jugger": [0, 0, 18],
     "agujero": [0, 0, 16],
-    "bala": [0, 0, 20],
-    "cuantico": [0, 0, 3]
+    "cuantico": [0, 0, 3],
+    "bala": [0, 0, 20]
   },
   "bocina": {
     "radius": 160,
@@ -58,7 +62,7 @@
     "life": 3,
     "radius": 10,
     "offRoad": 14,
-    "hit": 1.0,
+    "hit": 1,
     "bounces": 2
   },
   "nitro": {
@@ -113,20 +117,20 @@
     "anim": 1
   },
   "distribution": {
-    "highTier": 16,
+    "highTier": 19,
     "highTierCooldown": 12,
     "noRepeatFromTier": 3,
-    "firstMaxTier": 11
+    "firstMaxTier": 13
   },
   "muelle": {
     "vz": 165
   },
   "mina": {
     "behind": 16,
-    "arm": 1.0,
+    "arm": 1,
     "radius": 40,
     "life": 30,
-    "hit": 1.0
+    "hit": 1
   },
   "reflector": {
     "time": 6
@@ -139,7 +143,7 @@
   },
   "cuantico": {
     "lastFrac": 0.1,
-    "warn": 1.0
+    "warn": 1
   },
   "bala": {
     "time": 5,
@@ -151,7 +155,7 @@
     "bumpHit": 1.2
   },
   "turbo3": {
-    "boost": 1.0
+    "boost": 1
   },
   "ciego3": {
     "blocks": true
@@ -161,7 +165,7 @@
     "range": 220,
     "life": 4,
     "radius": 11,
-    "hit": 1.0,
+    "hit": 1,
     "catch": 18,
     "returnTurn": 6
   },
@@ -197,5 +201,23 @@
     "heavyMul": 0.5,
     "lightMul": 1.3,
     "hit": 0.4
+  },
+  "overclock": {
+    "time": 5,
+    "maxMul": 1.18,
+    "accel": 120
+  },
+  "forkbomb": {
+    "count": 3,
+    "behind": 18,
+    "spacing": 36,
+    "radius": 34
+  },
+  "antivirus": {
+    "time": 4
+  },
+  "lagspike": {
+    "time": 4,
+    "slowMul": 0.82
   }
 }

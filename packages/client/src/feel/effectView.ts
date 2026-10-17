@@ -26,6 +26,9 @@ export const EFFECT_VIEW: Record<string, EffectView> = {
   bala: { prio: 4, label: { text: () => '»»', color: '#ffd23a', self: false }, hud: { text: (f) => '¡Turbo Bala! ' + Math.ceil(f.t), color: '#ffd23a' } },
   magnet: { prio: 9, hud: { text: (f) => 'Imán ' + Math.ceil(f.t), color: '#ff8a9a' } },
   orbit: { prio: 9 },
+  oc: { prio: 9, hud: { text: (f) => 'Overclock ' + Math.ceil(f.t), color: '#5de6c8' } },
+  av: { prio: 9, hud: { text: (f) => 'Antivirus ' + Math.ceil(f.t), color: '#3d8bff' } },
+  lag: { prio: 5, label: { text: () => 'LAG', color: '#ff6a6a', self: false }, hud: { text: () => 'Lag: vas lento', color: '#ff6a6a' } },
 };
 
 /** Label over a kart: the highest-priority effect that has one. */

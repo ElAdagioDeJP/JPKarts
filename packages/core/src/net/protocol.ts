@@ -5,7 +5,7 @@ import { tunablesHash } from '../tunables';
 import type { Track } from '../track/track';
 import type { Ctrl, GameEvent, Input, RaceConfig, World } from '../sim/types';
 
-export const PROTOCOL_VERSION = 4; // 4: load barrier (`loaded`/`go`), race ids, rejoin by `pid`; 3: auto next race (`nextIn`), last call; 2: coins, item charges, Phase 8 items and hazards
+export const PROTOCOL_VERSION = 5; // 5: items Overclock/Fork Bomb/Antivirus/Pico de Latencia; 4: load barrier (`loaded`/`go`), race ids, rejoin by `pid`; 3: auto next race (`nextIn`), last call; 2: coins, item charges, Phase 8 items and hazards
 export const LAN_PORT = 7777;
 export const DISCOVERY_PORT = 7778;
 export const SNAPSHOT_EVERY = 3; // server ticks per snapshot (60 Hz / 3 = 20 Hz): clients predict everything, so 20 Hz is plenty

@@ -158,3 +158,47 @@ body.mobile.racing #touch { display: block; }
   background: rgba(60, 120, 60, 0.8);
 }
 #touch .tbtn.item { background: rgba(150, 90, 10, 0.85); }
+/* ---- Táctil en menús, tutorial y pausa ---- */
+#menupad, #pausebtn, #exitbtn { display: none; }
+body.mobile.can-exit #exitbtn { display: flex; }
+body.mobile.menu-nav #menupad { display: block; }
+body.mobile.can-pause #pausebtn { display: flex; }
+#menupad { position: absolute; inset: 0; z-index: 25; pointer-events: none; }
+#menupad .mp-group {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  display: flex;
+  gap: 8px;
+}
+#menupad .mp-left { left: calc(env(safe-area-inset-left, 0px) + 10px); }
+#menupad .mp-right { right: calc(env(safe-area-inset-right, 0px) + 10px); }
+#menupad .mp-btn, #pausebtn, #exitbtn {
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  min-height: 56px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 10px;
+  color: var(--ink);
+  background: rgba(47, 42, 107, 0.85);
+  border: 2px solid var(--keyedge);
+  border-radius: 12px;
+  pointer-events: auto;
+  touch-action: none;
+}
+#menupad .mp-btn { display: flex; }
+#menupad .mp-btn.ok { min-width: 84px; background: rgba(60, 120, 60, 0.9); }
+#menupad .mp-btn:active, #pausebtn:active, #exitbtn:active { transform: scale(0.92); }
+#pausebtn {
+  position: absolute;
+  z-index: 25;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  right: calc(env(safe-area-inset-right, 0px) + 68px);
+}
+#exitbtn {
+  position: absolute;
+  z-index: 25;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  right: calc(env(safe-area-inset-right, 0px) + 68px);
+}

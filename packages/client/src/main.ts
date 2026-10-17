@@ -5,7 +5,7 @@ import { loadDesktopProgress } from './meta/store';
 import { loadDesktopProfile } from './meta/profile';
 import { Game } from './game';
 import { Input } from './input/input';
-import { TouchControls } from './input/touch';
+import { TouchControls, attachMenuPad } from './input/touch';
 import { initialTier, isMobileDevice, lockLandscape, registerSW } from './mobile';
 import { WorldRenderer } from './render/world3d';
 import { Ui } from './ui/draw';
@@ -51,6 +51,8 @@ async function boot() {
       onGesture: () => input.onFirstGesture?.(),
     });
   }
+  // Menús, tutorial y pausa: sin esto el móvil no pasa de la pantalla de título.
+  if (mobile) attachMenuPad(stage, (code) => input.pressCode(code), (msg) => game.toast(msg));
   game.applySettings();
   // M4 iOS: el primer tap táctil desbloquea el audio igual que el teclado.
   const prevGesture = input.onFirstGesture;
@@ -64,7 +66,10 @@ async function boot() {
   (window as any).__jpkart = game;
   installHotTunables((msg) => { console.info(msg); game.toast(msg); });
   const toUi = (e: PointerEvent): [number, number] => { const r = uiCv.getBoundingClientRect(); return [((e.clientX - r.left) / r.width) * 426, ((e.clientY - r.top) / r.height) * 240]; };
-  stage.addEventListener('pointerdown', (e) => game.pointer('down', ...toUi(e)));
+  stage.addEventListener('pointerdown', (e) => {
+    game.pointer('down', ...toUi(e));
+    if (mobile && (game.state === 'title' || (game.state === 'welcome' && (game.welcome?.page ?? 9) < 5))) input.pressCode('Enter');
+  });
   stage.addEventListener('pointermove', (e) => game.pointer('move', ...toUi(e)));
   stage.addEventListener('pointerup', (e) => game.pointer('up', ...toUi(e)));
   // M0: el viewport virtual redimensiona el canvas; portrait no arranca (overlay).
@@ -98,8 +103,9 @@ async function boot() {
     stage.addEventListener('pointerdown', () => {
       const st = (window as any).__jpkart?.state;
       const tm = (window as any).__jpkart?.input?.textMode;
-      document.body.classList.toggle('typing', !!tm && (st === 'online' || st === 'lan'));
-      if (mobile && tm && (st === 'online' || st === 'lan')) {
+      const typingScreen = st === 'online' || st === 'lan' || st === 'welcome';
+      document.body.classList.toggle('typing', !!tm && typingScreen);
+      if (mobile && tm && typingScreen) {
         try { mtext.focus({ preventScroll: false }); } catch { try { mtext.focus(); } catch { /* noop */ } }
       } else mtext.blur();
     });
@@ -124,6 +130,9 @@ async function boot() {
     game.frame(now);
     try {
       document.body.classList.toggle('racing', game.state === 'race');
+      document.body.classList.toggle('menu-nav', game.state !== 'race' || game.paused);
+      document.body.classList.toggle('can-pause', game.state === 'race' && !game.paused && !game.net);
+      document.body.classList.toggle('can-exit', game.state === 'race' && !!game.net);
       if (game.settings.touch.autoGas !== lastAutoGas) {
         lastAutoGas = game.settings.touch.autoGas;
         touch.setAutoGas(lastAutoGas);

@@ -241,3 +241,48 @@ export class TouchControls {
     });
   }
 }
+
+/**
+ * Navegación táctil de menús, tutorial y pausa: botones DOM que encolan los mismos códigos de tecla
+ * que el teclado (`Input.pressCode`), así que cada pantalla funciona sin cambios. Visibilidad por CSS
+ * (`body.mobile.menu-nav`, `body.mobile.can-pause`).
+ */
+export function attachMenuPad(stage: HTMLElement, press: (code: string) => void, toast: (m: string) => void = () => {}): void {
+  const pad = document.createElement('div');
+  pad.id = 'menupad';
+  const group = (cls: string, items: [string, string, string][]) => {
+    const g = document.createElement('div');
+    g.className = 'mp-group ' + cls;
+    for (const [label, code, aria] of items) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mp-btn' + (code === 'Enter' ? ' ok' : '');
+      b.textContent = label;
+      b.setAttribute('aria-label', aria);
+      b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); buzz(8); press(code); });
+      g.appendChild(b);
+    }
+    pad.appendChild(g);
+  };
+  group('mp-left', [['◀', 'ArrowLeft', 'Izquierda'], ['▲', 'ArrowUp', 'Arriba'], ['▼', 'ArrowDown', 'Abajo'], ['▶', 'ArrowRight', 'Derecha']]);
+  group('mp-right', [['ATRÁS', 'Escape', 'Atrás'], ['OK', 'Enter', 'Aceptar']]);
+  const pause = document.createElement('button');
+  pause.type = 'button';
+  pause.id = 'pausebtn';
+  pause.textContent = 'II';
+  pause.setAttribute('aria-label', 'Pausa');
+  pause.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); press('KeyP'); });
+  // online race: leaving is Escape, so it needs a second tap within 2 s (no accidental exits)
+  const exit = document.createElement('button');
+  exit.type = 'button';
+  exit.id = 'exitbtn';
+  exit.textContent = 'SALIR';
+  exit.setAttribute('aria-label', 'Salir de la carrera');
+  let armed = 0;
+  exit.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const now = Date.now();
+    if (now - armed < 2000) { armed = 0; press('Escape'); } else { armed = now; toast('Toca SALIR otra vez para dejar la carrera'); }
+  });
+  stage.append(pad, pause, exit);
+}

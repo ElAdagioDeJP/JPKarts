@@ -50,12 +50,24 @@ function png(size, draw) {
     chunk('IEND', Buffer.alloc(0)),
   ]);
 }
-const BG = [27, 23, 64], FG = [216, 240, 58];
-const disc = (rFrac) => (x, y, s) => {
-  const dx = (x - s / 2) / s, dy = (y - s / 2) / s;
-  return Math.hypot(dx, dy) <= rFrac ? FG : BG;
+// CPU chip, 16x16 pixel-art grid (same drawing as apps/desktop/scripts/icon.ts). `pad` shrinks it inside the maskable safe zone.
+const BG = [27, 23, 64], EDGE = [26, 16, 38], BODY = [38, 48, 92], DIE = [93, 230, 200], PIN = [255, 213, 74];
+const pinAt = (v) => v === 5 || v === 7 || v === 9;
+function cell(gx, gy) {
+  if (gx >= 4 && gx <= 11 && gy >= 4 && gy <= 11) {
+    if (gx === 4 || gx === 11 || gy === 4 || gy === 11) return EDGE;
+    return gx >= 6 && gx <= 9 && gy >= 6 && gy <= 9 ? DIE : BODY;
+  }
+  if (pinAt(gx) && (gy === 2 || gy === 3 || gy === 12 || gy === 13)) return PIN;
+  if (pinAt(gy) && (gx === 2 || gx === 3 || gx === 12 || gx === 13)) return PIN;
+  return BG;
+}
+const chip = (scale) => (x, y, s) => {
+  const u = (v) => Math.floor(((v / s - 0.5) / scale + 0.5) * 16);
+  const gx = u(x), gy = u(y);
+  return gx < 0 || gy < 0 || gx > 15 || gy > 15 ? BG : cell(gx, gy);
 };
-writeFileSync(resolve(root, 'icon-192.png'), png(192, disc(0.31)));
-writeFileSync(resolve(root, 'icon-512.png'), png(512, disc(0.31)));
-writeFileSync(resolve(root, 'maskable-512.png'), png(512, disc(0.25)));
+writeFileSync(resolve(root, 'icon-192.png'), png(192, chip(1)));
+writeFileSync(resolve(root, 'icon-512.png'), png(512, chip(1)));
+writeFileSync(resolve(root, 'maskable-512.png'), png(512, chip(0.8)));
 console.log('iconos PWA generados en', root);
