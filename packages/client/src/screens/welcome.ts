@@ -55,7 +55,7 @@ function pageLines(g: Game, page: number): { title: string; lines: string[] } {
   if (ph) return ph;
   switch (page) {
     case 0: return { title: '¡Bienvenido a JP Kart!', lines: [
-      'Carreras de karts con 8 pilotos.',
+      'Carreras de karts con 12 pilotos.',
       'Juega solo contra la IA, con amigos en LAN',
       'o por internet con un código de sala.',
       '',

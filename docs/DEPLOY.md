@@ -4,7 +4,7 @@ El servidor online (`packages/server/src/online.ts`) usa la misma `Room` autorit
 
 - **Salas con código** de 5 caracteres, sin letras que se confundan (no hay I, O, 0 ni 1). Una sala vacía se cierra sola.
 - **Límites:**
-  - 200 salas por proceso y 8 jugadores por sala.
+  - 200 salas por proceso y 12 jugadores por sala.
   - 150 mensajes por segundo por conexión (los inputs llegan a 60 Hz) y mensajes de 8 KB como máximo.
   - Se cierra la conexión que no saluda en 10 s.
 - **Validación:** el servidor no confía en el cliente.
