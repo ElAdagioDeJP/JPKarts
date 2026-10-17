@@ -53,7 +53,7 @@ export function drawMenu(g: Game, t: number) {
   items.forEach((s, i) => {
     const on = i === g.menuSel, y = 40 + i * 17;
     ui.panel(W / 2 - 90, y, 180, 15, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
-    if (on) ui.img(BALLS[((t * 8) | 0) % 4]!.cv, W / 2 - 84, y + 1, 13, 13);
+    if (on) ui.img(BALLS[1]!.cv, W / 2 - 84, y + 1, 13, 13); // el selector es siempre el ratón (BALLS[1]); el ciclo teclado/ratón/portátil/taza queda para las cajas de objeto
     ui.txt(i === 7 ? (on ? '< ' : '') + s + (on ? ' >' : '') : s, W / 2, y + 3, on ? '#ffe45e' : '#fff7e0', 8, 'center');
   });
   ui.txtS(help[g.menuSel]!, W / 2, 200);
