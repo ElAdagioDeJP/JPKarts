@@ -1,0 +1,15 @@
+{
+  "speedGlobal": 1.08,
+  "vel": 0.04,
+  "ace": 0.05,
+  "man": 0.04,
+  "tra": 0.06,
+  "mtCharge": 0.06,
+  "mtTime": 0.05,
+  "mtBase": 15,
+  "mtPerVel": 2,
+  "flyBase": 5,
+  "flyPerWeight": 0.5,
+  "lightBelow": 4,
+  "heavyFrom": 6
+}

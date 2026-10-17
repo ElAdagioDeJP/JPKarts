@@ -247,7 +247,9 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
   if (k.burnout > 0) inp.t = 0;
   // speed pipeline: boost, effects with order < 30, zones + surfaces, effects with order ≥ 30
   ctx.w = w; ctx.k = k; ctx.base = base; ctx.dt = dt;
-  ctx.max = off === 2 ? th.offMax : off === 1 ? D.edgeMax : base;
+  // traction softens the off-road penalty (the gap between full speed and the rough-surface cap)
+  const rough = (cap: number) => base - Math.max(0, base - cap) * st.offK;
+  ctx.max = off === 2 ? rough(th.offMax) : off === 1 ? rough(D.edgeMax) : base;
   if (k.boost > 0 && !noBoost) { k.boost -= dt; ctx.max = Math.max(ctx.max, base * D.boostMaxMul); if (k.speed < ctx.max) k.speed += D.boostAccel * dt; }
   let zoneDone = false;
   const applyZone = () => {
@@ -315,7 +317,7 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
   if (k.drift && (!inp.d || k.speed < DR.exitSpeed || off === 2 || k.air)) {
     const lvl = k.dLvl;
     if (lvl === 1 || lvl === 2 || lvl === 3) {
-      k.boost = Math.max(k.boost, lvl === 3 ? DR.boost3 : lvl === 2 ? DR.boost2 : DR.boost1);
+      k.boost = Math.max(k.boost, (lvl === 3 ? DR.boost3 : lvl === 2 ? DR.boost2 : DR.boost1) * st.mtTime);
       emit(w, { type: 'miniTurbo', kart: k.id, level: lvl });
     }
     k.drift = 0; k.dc = 0; k.dLvl = 0;
@@ -323,7 +325,7 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
   let steer = inp.s;
   if (k.drift) {
     steer = k.drift * DR.steerBase + inp.s * DR.steerInput;
-    k.dc += dt * (Math.sign(inp.s) === k.drift ? DR.chargeWith : DR.chargeAgainst) * (S ? S.drift : 1);
+    k.dc += dt * (Math.sign(inp.s) === k.drift ? DR.chargeWith : DR.chargeAgainst) * (S ? S.drift : 1) * st.mtCharge;
     const lvl = k.dc > DR.level3 ? 3 : k.dc > DR.level2 ? 2 : k.dc > DR.level1 ? 1 : 0;
     if (lvl > k.dLvl) { k.dLvl = lvl; emit(w, { type: 'driftLevel', kart: k.id, level: lvl as 1 | 2 | 3 }); }
   }
@@ -334,6 +336,7 @@ function updateKart(w: World, k: Kart, input: Input, dt: number) {
   if (S) grip *= S.grip;
   grip *= weatherGrip(w, k);
   if (zone?.zoneEffect?.grip) grip *= zone.zoneEffect.grip();
+  grip *= st.gripK;
   if (k.air) grip = k.glide ? D.grip.glide : D.grip.air;
   const tgtA = k.a - k.drift * DR.slip;
   k.va = wrapA(k.va + wrapA(tgtA - k.va) * Math.min(1, grip * dt));

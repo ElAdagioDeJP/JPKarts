@@ -1,5 +1,7 @@
 import charactersJson from '../../data/characters.json';
-export type StatKey = 'vel' | 'ace' | 'man' | 'pes' | 'vue';
+import { T } from '../tunables';
+/** Stats visibles (suman 25 por piloto). Las ocultas (mini-turbo, vuelo) se derivan. */
+export type StatKey = 'vel' | 'ace' | 'pes' | 'man' | 'tra';
 export type Stats = Record<StatKey, number>;
 
 /**
@@ -54,6 +56,16 @@ export interface Character extends CharacterDef {
   acl: number;
   hnd: number;
   w: number;
+  /** multiplicador de agarre (tracción) */
+  gripK: number;
+  /** multiplicador de la penalización fuera de pista (menos = pierdes menos) */
+  offK: number;
+  /** stat oculta de mini-turbo 0-10 (inverso a la velocidad) */
+  mt: number;
+  /** multiplicadores de carga y duración del mini-turbo */
+  mtCharge: number;
+  mtTime: number;
+  /** stat oculta de vuelo 0-10 (energía de planeo) */
   fly: number;
   desc: string;
   weightClass: 'ligero' | 'medio' | 'pesado';
@@ -66,8 +78,9 @@ export interface Character extends CharacterDef {
   visualScale: number;
 }
 
-export const STAT_NAMES: Record<StatKey, string> = { vel: 'Velocidad', ace: 'Aceleración', man: 'Manejo', pes: 'Peso', vue: 'Vuelo' };
-export const STAT_SHORT: Record<StatKey, string> = { vel: 'Veloc.', ace: 'Acel.', man: 'Manejo', pes: 'Peso', vue: 'Vuelo' };
+export const STAT_NAMES: Record<StatKey, string> = { vel: 'Velocidad', ace: 'Aceleración', pes: 'Peso', man: 'Manejo', tra: 'Tracción' };
+export const STAT_SHORT: Record<StatKey, string> = { vel: 'Veloc.', ace: 'Acel.', pes: 'Peso', man: 'Manejo', tra: 'Tracc.' };
+export const STAT_KEYS: StatKey[] = ['vel', 'ace', 'pes', 'man', 'tra'];
 
 // Characters are data: core/data/characters.json
 const DEFS = charactersJson as CharacterDef[];
@@ -78,16 +91,32 @@ export function autoDesc(s: Stats): string {
   return 'Fuerte en ' + STAT_NAMES[e[0]![0]].toLowerCase() + ', flojo en ' + STAT_NAMES[e[e.length - 1]![0]].toLowerCase() + '.';
 }
 
+const clamp10 = (v: number) => Math.max(0, Math.min(10, v));
+
+/** Fórmula de docs/V3_PLAN.md §2.1: de las 5 stats visibles salen los multiplicadores de física. Coeficientes en tunables/stats.json. */
+export function deriveStats(s: Stats) {
+  const K = T.stats;
+  return {
+    spd: (1 + (s.vel - 5) * K.vel) * K.speedGlobal,
+    acl: 1 + (s.ace - 5) * K.ace,
+    hnd: 1 + (s.man - 5) * K.man,
+    w: s.pes,
+    gripK: 1 + (s.tra - 5) * K.tra,
+    offK: 1 - (s.tra - 5) * K.tra,
+    mt: clamp10(K.mtBase - K.mtPerVel * s.vel),
+    mtCharge: 1 + (clamp10(K.mtBase - K.mtPerVel * s.vel) - 5) * K.mtCharge,
+    mtTime: 1 + (clamp10(K.mtBase - K.mtPerVel * s.vel) - 5) * K.mtTime,
+    fly: clamp10(K.flyBase + (5 - s.pes) * K.flyPerWeight),
+    weightClass: (s.pes < K.lightBelow ? 'ligero' : s.pes >= K.heavyFrom ? 'pesado' : 'medio') as 'ligero' | 'medio' | 'pesado',
+  };
+}
+
 export const CHARS: Character[] = DEFS.map((c) => {
   const s = c.st;
-  const weightClass = s.pes < 5 ? 'ligero' : s.pes >= 8 ? 'pesado' : 'medio';
+  const { weightClass, ...d } = deriveStats(s);
   return {
     ...c,
-    spd: 0.85 + s.vel * 0.03,
-    acl: 0.75 + s.ace * 0.05,
-    hnd: 0.8 + s.man * 0.04,
-    w: s.pes,
-    fly: s.vue,
+    ...d,
     desc: autoDesc(s),
     weightClass,
     suit: c.suit ?? shadeHex(c.helmet, 0.72),
@@ -97,6 +126,11 @@ export const CHARS: Character[] = DEFS.map((c) => {
     visualScale: weightClass === 'ligero' ? 0.92 : weightClass === 'pesado' ? 1.08 : 1,
   };
 });
+
+/** Recalcula las stats derivadas en sitio (tras cambiar tunables/stats.json en caliente o en herramientas de calibración). */
+export function refreshChars(): void {
+  for (const c of CHARS) Object.assign(c, deriveStats(c.st));
+}
 
 /** Sombreador hex puro (core no depende del client). Duplica pixel.shade. */
 function shadeHex(h: string, f: number): string {

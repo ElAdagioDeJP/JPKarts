@@ -11,7 +11,7 @@ describe('personajes MK7 + base Mii', () => {
       expect(c.boot).toMatch(/^#[0-9a-f]{6}$/);
       expect(c.eye).toMatch(/^#[0-9a-f]{6}$/);
       expect([0.92, 1, 1.08]).toContain(c.visualScale);
-      expect(c.weightClass).toBe(c.st.pes < 5 ? 'ligero' : c.st.pes >= 8 ? 'pesado' : 'medio');
+      expect(c.weightClass).toBe(c.st.pes < 4 ? 'ligero' : c.st.pes >= 6 ? 'pesado' : 'medio');
       // Mii inactivo: el rig debe tolerar su ausencia
       expect(isMii(c)).toBe(false);
       expect(c.mii ?? null).toBeNull();

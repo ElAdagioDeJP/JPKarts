@@ -14,9 +14,11 @@ function setup() {
 const load = (room: Room, conns: Conn[]) => { for (const c of conns) room.onMessage(c, { t: 'loaded', rid: room.rid }); };
 const ticks = (room: Room, s: number) => { for (let i = 0; i < Math.round(s * 60); i++) room.tick(); };
 
-test('todos los personajes tienen la misma velocidad (la de Miguel)', () => {
-  const miguel = CHARS.find((c) => c.name === 'Miguel')!;
-  for (const c of CHARS) expect(c.spd).toBe(miguel.spd);
+// V3-1 sustituye la "velocidad única" por la regla de Mario: los pesados tienen más punta (docs/V3_PLAN.md §1)
+test('la velocidad punta sale del stat: pesado > medio > ligero', () => {
+  const spd = (n: string) => CHARS.find((c) => c.name === n)!.spd;
+  expect(spd('Luis')).toBeGreaterThan(spd('Guaycaipuro'));
+  expect(spd('Guaycaipuro')).toBeGreaterThan(spd('Marco'));
 });
 
 test('copa por defecto en la sala', () => {

@@ -1,5 +1,5 @@
-import { expect, test } from 'bun:test';
-import { ALL_TRACKS, LAPS, Rng, T, TrackCache, addFx, arenaGust, buildGrid, createWorld, lateralAt, prepAuthored, step, takeEvents, type GameEvent, type Kart, type World } from '../src';
+import { afterEach, expect, test } from 'bun:test';
+import { ALL_TRACKS, CHARS, LAPS, Rng, T, TrackCache, addFx, arenaGust, buildGrid, createWorld, lateralAt, prepAuthored, step, takeEvents, type GameEvent, type Kart, type World } from '../src';
 import { hit } from '../src/sim/helpers';
 import { SCENARIOS, runScenario } from './golden';
 
@@ -56,10 +56,15 @@ test('choques: ambos karts rebotan; la goma protege al dueño y frena al atacant
   expect(b.speed).toBeGreaterThan(a.speed);
 }, 60000);
 
+// La mecanica de planeo se prueba con un planeador bueno (vuelo 9, p. ej. un chasis con ala planeadora, V3-3); se restaura al acabar.
+const FLY0 = CHARS[0]!.fly;
+afterEach(() => { CHARS[0]!.fly = FLY0; });
 test('parapente: trepar cambia altura por velocidad, picar da velocidad, en pérdida cae', () => {
+  CHARS[0]!.fly = 9;
   const cache = new TrackCache(ALL_TRACKS, prepAuthored), tr = cache.ensureBuilt(0);
   const mkGlider = () => {
-    const grid = buildGrid(new Rng(3), [{ ch: 5, ctrl: 'local' }], { humanSlot: 0 });
+    // Marco: ligero, el mejor planeador de los 8 actuales (vuelo 6); los pesados planean menos (V3-1)
+    const grid = buildGrid(new Rng(3), [{ ch: 0, ctrl: 'local' }], { humanSlot: 0 });
     const w = createWorld({ trackIndex: 0, diff: 0, seed: 3, laps: LAPS, grid }, tr);
     const idle = [{ t: 0, s: 0, d: false, item: false }];
     for (let i = 0; i < 60 * 5 && w.phase !== 'race'; i++) step(w, idle);

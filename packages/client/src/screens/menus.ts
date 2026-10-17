@@ -70,7 +70,7 @@ export function statBar10(g: Game, key: StatKey, v: number, x: number, y: number
     ctx.fillStyle = '#3a3478'; ctx.fillRect(x + 41 + i * 6, y, 3, 5);
     if (f > 0) { ctx.fillStyle = i < 4 ? '#2ec46b' : i < 7 ? '#ffe45e' : '#ff8a1f'; ctx.fillRect(x + 41 + i * 6, y, Math.max(1, Math.round(3 * f)), 5); }
   }
-  ui.txtS(String(v), x + 104, y, '#fff7e0', 'left');
+  ui.txtS(String(Math.round(v * 10) / 10), x + 104, y, '#fff7e0', 'left');
 }
 
 export function drawSelect(g: Game, t: number) {
@@ -94,7 +94,7 @@ export function drawSelect(g: Game, t: number) {
   ui.img(rotFrames(g.sel)[((t * 10) | 0) % rotFrames(g.sel).length]!.cv, ox + 262, 142, 42, 42);
   ui.txt(c.name, ox + 18, 150, '#ffe45e');
   ui.txtS(c.desc, ox + 18, 162, '#fff7e0', 'left');
-  (['vel', 'ace', 'man', 'pes', 'vue'] as StatKey[]).forEach((k, i) => statBar10(g, k, c.st[k], ox + 18 + (i % 2) * 124, 176 + ((i / 2) | 0) * 13));
+  (['vel', 'ace', 'pes', 'man', 'tra'] as StatKey[]).forEach((k, i) => statBar10(g, k, c.st[k], ox + 18 + (i % 2) * 124, 176 + ((i / 2) | 0) * 13));
   ui.txtS('Clase: ' + c.weightClass, ox + 18, 222, '#9c95d6', 'left');
   ui.txtS((g.mode === 'cup' ? 'Torneo' : 'Carrera libre') + '  ·  ' + DIFFS[g.diff]!.name, ox + 302, 222, '#9c95d6', 'right');
 }
