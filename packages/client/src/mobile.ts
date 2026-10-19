@@ -61,11 +61,11 @@ export async function pasteText(): Promise<string> {
   } catch { return ''; }
 }
 
-/** Registra el service worker solo en móvil + contexto seguro (https o localhost). */
+/** Registra el service worker en contexto seguro (https o localhost), salvo en Electron (el .exe sirve por app://). */
 export function registerSW(): void {
   try {
     if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
-    if (!isMobileDevice()) return;
+    if (typeof window !== 'undefined' && (window as { jpkartDesktop?: unknown }).jpkartDesktop) return;
     const proto = typeof location !== 'undefined' ? location.protocol : '';
     const host = typeof location !== 'undefined' ? location.hostname : '';
     const secure = proto === 'https:' || host === 'localhost' || host === '127.0.0.1';
