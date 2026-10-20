@@ -13,6 +13,8 @@ export interface DesktopBridge {
   discover(): Promise<{ name: string; address: string; port: number; players: number }[]>;
   read(key: string): Promise<string | null>;
   write(key: string, value: string): Promise<boolean>;
+  /** Open an external URL (download page); only implemented in newer desktop builds. */
+  openUrl?(url: string): Promise<boolean>;
 }
 export const desktop = (): DesktopBridge | undefined => (globalThis as { jpkartDesktop?: DesktopBridge }).jpkartDesktop;
 

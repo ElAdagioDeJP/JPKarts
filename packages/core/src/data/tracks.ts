@@ -62,6 +62,13 @@ export const CLASSIC_CUPS: Cup[] = [
 /** Cup points by finishing position (12 karts, MK8 style); tunables/race.json → points. */
 export const POINTS: readonly number[] = T.race.points;
 
+/** The cup is on its last race: after it come the results and the podium, not another race. */
+export function isLastCupRace(mode: string, cup: number, cupRace: number): boolean {
+  if (mode !== 'cup') return false;
+  const tracks = CUPS[cup]?.tracks.length ?? 0;
+  return tracks > 0 && cupRace >= tracks - 1;
+}
+
 export interface Difficulty {
   name: string;
   sk: [number, number];

@@ -1,7 +1,7 @@
 // Network race lifecycle: LAN + online (WebSocket to the authoritative server).
 // Transport details stay in net/session.ts; this module wires a NetSession to a Game.
 // Game delegates here so LAN/online changes don't touch the orchestrator.
-import { SIM_DT, T } from '@jpkart/core';
+import { CUPS, SIM_DT, T, isLastCupRace } from '@jpkart/core';
 import { newView } from '../app/types';
 import type { Mode } from '../app/types';
 import { assignSources, PlayerInput } from '../input/players';
@@ -62,6 +62,7 @@ export function leaveNet(g: Game) {
   if (g.lanHosting) { void desktop()?.stopHost(); g.lanHosting = null; }
   g.net?.close();
   g.net = null;
+  g.netEndT = 0;
   g.world = null;
   g.renderer.clearKarts();
   g.state = 'menu';
@@ -91,12 +92,45 @@ export function startNetRace(g: Game) {
   g.state = 'race';
 }
 
+/** The race (or the whole cup) is over and the server is back in the room. */
+export function backToLobby(g: Game) {
+  g.world = null;
+  g.renderer.clearKarts();
+  if (g.net) g.net.race = null;
+  g.cup = null;
+  g.netEndT = 0;
+  g.state = 'lobby';
+}
+
+/** The server went back to the room after the results: the last race of a cup shows the cup podium first. */
+export function raceOver(g: Game) {
+  const net = g.net!, S = net.settings;
+  if (isLastCupRace(S.mode, S.cup, net.cupRace)) {
+    const def = CUPS[S.cup]!;
+    g.cup = { def, race: net.cupRace, pts: { ...net.cupPts }, gain: {}, committed: true };
+    g.resultNotes = [];
+    g.netEndT = 0; // el podio tiene sus propios 5 s
+    g.state = 'final';
+    g.audio.jingle();
+  } else backToLobby(g);
+}
+
 export function simulateNet(g: Game, dt: number) {
   const net = g.net!, r = net.race;
   g.paused = false; // a pause flag left over from a local race (or the tab being hidden) must never freeze an online race
+  // every mode: the server is back in the room (also if the `end` never reached a client still watching the race)
+  if ((g.state === 'results' || g.state === 'race') && net.phase === 'lobby') { raceOver(g); return; }
+  // Timed ending of the last cup race (online/LAN): 5 s of results, 5 s of podium, then back to the room.
+  // The server takes ~10 s to come back by itself; this also un-sticks clients it left behind.
+  if (g.net && (g.state === 'results' || g.state === 'final') && isLastCupRace(net.settings.mode, net.settings.cup, net.cupRace)) {
+    g.netEndT += dt;
+    if (g.state === 'results' && g.netEndT >= 5) raceOver(g); // raceOver deja netEndT en 0 para el podio
+    else if (g.state === 'final' && g.netEndT >= 5) { backToLobby(g); return; }
+  } else g.netEndT = 0;
   // dropped line or silent server: show it and try to come back (the server keeps our kart on AI meanwhile)
   if (net.status === 'race' && net.go && net.lastSnapAt && performance.now() - net.lastSnapAt > 8000 && !document.hidden) net.abandon();
-  if (!r || net.status !== 'race') { g.acc = 0; reconnectTick(g, dt); return; }
+  // 'lobby' = standings or the cup podium: the line is fine, nothing to reconnect (it used to time out and leave the room)
+  if (!r || net.status !== 'race') { g.acc = 0; if (net.status !== 'lobby') reconnectTick(g, dt); return; }
   if (!net.go) { g.acc = 0; return; } // waiting for the other players to finish loading
   net.flushSnaps(); // all the snapshots that arrived since the last frame are reconciled once
   g.acc = Math.min(g.acc + dt, SIM_DT * 5);

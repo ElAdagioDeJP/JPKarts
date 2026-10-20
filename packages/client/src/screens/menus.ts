@@ -2,21 +2,24 @@
 // Each screen is a pure draw function of (Game, t); navigation lives in app/inputRouter.ts.
 // New menus register here and in the frame dispatch, without touching race/net code.
 import {
-  ALL_TRACKS, CHARS, CLASSES, CLASS_NAMES, CUPS, DIFFS, POINTS, STAT_SHORT,
+  ALL_TRACKS, CHARS, CLASSES, CLASS_NAMES, CUPS, DIFFS, POINTS, STAT_SHORT, isLastCupRace,
   classUnlocked, cupUnlocked, fmtTime, modeOf, clamp,
-  type StatKey,
+  type EngineClass, type StatKey,
 } from '@jpkart/core';
 import { OUT } from '../art/pixel';
 import { BALLS, BUG, FACES, rotFrames } from '../art/sprites';
 import { HAZARD_TAG, TEAM_COL, TEAM_NAME, UIK, WEATHER_TAG, isArena } from '../app/types';
 import { W } from '../ui/draw';
 import * as Picker from './picker';
+import { desktop } from '../net/session';
+import { BUILD_REF, GAME_VERSION, exeDownloadUrl, isTaggedBuild } from '../version';
 import type { Game } from '../game';
 
 export function drawClassLine(g: Game, y: number) {
   const ui = g.ui, next = CLASSES.filter((c) => classUnlocked(g.progress, c, g.allUnlocked)).length > 1;
   const parts = ['Clase: ' + CLASS_NAMES[g.cls] + (next ? ' (X)' : '')];
   if (g.mode === 'free' || g.mode === 'cup') parts.push('Equipos: ' + (g.teams ? 'sí' : 'no') + ' (E)');
+  parts.push('Dif: ' + DIFFS[g.diff]!.name + ' (F)');
   ui.txtS(parts.join('    '), W / 2, y, '#8fe0ff');
 }
 
@@ -33,31 +36,53 @@ export function drawTitle(g: Game, t: number) {
   ui.txt('Gran Premio Pixel', W / 2, y + 56, '#fff7e0', 8, 'center');
   const b = Math.round(Math.abs(Math.sin(t * 3)) * 14);
   ui.img(BUG.cv, W / 2 + 104, y - 14 - b, 20, 20);
+  // La parrilla del título muestra a todos (12): caras de 28 px repartidas en el ancho.
+  const n = CHARS.length, fw = 28, step = (W - 20 - fw) / Math.max(1, n - 1);
   CHARS.forEach((_, i) => {
-    const x = W / 2 - 140 + i * 35, bb = Math.round(Math.sin(t * 5 + i) * 2);
-    ui.img(FACES[i]!.cv, x, 146 + bb, 32, 32);
+    const x = Math.round(10 + i * step), bb = Math.round(Math.sin(t * 5 + i) * 2);
+    ui.img(FACES[i]!.cv, x, 146 + bb, fw, fw);
   });
   if (((t * 2) | 0) % 2 === 0) ui.txt('Pulsa Enter para jugar', W / 2, 202, '#fff7e0', 8, 'center');
+  ui.txtS(GAME_VERSION, W / 2, 228, '#6d66b0');
+}
+
+/** Main menu rows: the 9 base ones plus the .exe download (browser only; the desktop app already is the .exe). */
+export function menuItems(g: Game): string[] {
+  const items = ['Torneo', 'Carrera libre', 'Contrarreloj', 'Eliminación', 'Batalla', 'Online', 'Multijugador LAN', 'Dificultad: ' + DIFFS[g.diff]!.name, 'Opciones'];
+  if (!desktop()) items.push('Descargar .exe (Windows)');
+  return items;
+}
+
+/** Open the .exe download: the tag matching this build when known, `latest` otherwise. */
+export function openExeDownload(g: Game) {
+  const url = exeDownloadUrl();
+  const d = desktop();
+  if (d?.openUrl) { void d.openUrl(url); }
+  else if (typeof window !== 'undefined') { try { window.open(url, '_blank', 'noopener'); } catch { /* noop */ } }
+  g.toast(isTaggedBuild
+    ? 'Descarga el .exe de ' + BUILD_REF + ' (idéntico a esta web)'
+    : 'Ojo: esta web es ' + BUILD_REF + ' (sin tag); el .exe latest puede no coincidir');
 }
 
 export function drawMenu(g: Game, t: number) {
   const ui = g.ui;
   ui.bg(0.6);
   ui.txt('JP KART', W / 2, 10, '#ffe45e', 24, 'center');
-  const items = ['Torneo', 'Carrera libre', 'Contrarreloj', 'Eliminación', 'Batalla', 'Online', 'Multijugador LAN', 'Dificultad: ' + DIFFS[g.diff]!.name, 'Opciones'];
+  const items = menuItems(g);
   const help = [
     '4 copas de 4 carreras. Se suman los puntos.', 'Elige cualquiera de las pistas, nuevas o clásicas.',
     'Tú solo contra el reloj y tu fantasma.', 'El último de cada vuelta queda fuera.',
     'Globos o captura de la bandera en 4 arenas.', 'Crea una sala en internet y comparte su código.',
-    'Juega con amigos en la misma red.', 'Qué tan rápidos y listos son los rivales.', 'Sonido, accesibilidad, gráficos y controles.'];
+    'Juega con amigos en la misma red.', 'Qué tan rápidos y listos son los rivales.', 'Sonido, accesibilidad, gráficos y controles.',
+    'El .exe de ' + (isTaggedBuild ? BUILD_REF : 'la release') + ': mismo juego para jugar en LAN.'];
   items.forEach((s, i) => {
-    const on = i === g.menuSel, y = 40 + i * 17;
-    ui.panel(W / 2 - 90, y, 180, 15, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
-    if (on) ui.img(BALLS[1]!.cv, W / 2 - 84, y + 1, 13, 13); // el selector es siempre el ratón (BALLS[1]); el ciclo teclado/ratón/portátil/taza queda para las cajas de objeto
+    const on = i === g.menuSel, y = 34 + i * 16;
+    ui.panel(W / 2 - 90, y, 180, 14, on ? '#3a3478' : '#241f55', on ? '#ffe45e' : '#6d66b0');
+    if (on) ui.img(BALLS[1]!.cv, W / 2 - 84, y + 1, 12, 12); // el selector es siempre el ratón (BALLS[1]); el ciclo teclado/ratón/portátil/taza queda para las cajas de objeto
     ui.txt(i === 7 ? (on ? '< ' : '') + s + (on ? ' >' : '') : s, W / 2, y + 3, on ? '#ffe45e' : '#fff7e0', 8, 'center');
   });
-  ui.txtS(help[g.menuSel]!, W / 2, 200);
-  ui.txtS('Flechas para moverte, Enter para elegir', W / 2, 214, '#9c95d6');
+  ui.txtS(help[g.menuSel] ?? '', W / 2, 200);
+  ui.txtS(GAME_VERSION + ' · Flechas para moverte, Enter para elegir', W / 2, 214, '#9c95d6');
 }
 
 export function statBar10(g: Game, key: StatKey, v: number, x: number, y: number) {
@@ -83,7 +108,7 @@ export function drawSelect(g: Game, t: number) {
   Picker.drawGrid(g, t);
   Picker.drawPilotInfo(g, t);
   const ox = (W - 320) / 2;
-  ui.txtS('Intro: armar el kart', ox + 302, 222, '#9c95d6', 'right');
+  ui.txtS('F: dificultad · Intro: armar el kart', ox + 302, 222, '#9c95d6', 'right');
 }
 
 /** Kart builder (single player): after the pilot grid, or from the LAN/online lobby. */
@@ -180,8 +205,12 @@ export function drawResults(g: Game) {
     ly += 8;
   }
   g.resultNotes.forEach((n, i) => ui.txtS(n, W / 2, ly + i * 8, '#ffe45e'));
+  // last race of the cup online/LAN: the timer moves to the podium by itself in 5 s
+  const lastCup = g.net && isLastCupRace(g.net.settings.mode, g.net.settings.cup, g.net.cupRace);
   ui.txtS(g.net
-    ? (g.net.nextIn > 0 ? (g.net.settings.mode === 'cup' && g.net.cupRace < CUPS[g.net.settings.cup]!.tracks.length - 1 ? 'Siguiente carrera en ' : 'Volviendo a la sala en ') + g.net.nextIn + ' s' : 'Esperando...') + (g.net.isHost ? '    Intro: saltar' : '') + '    Esc: salir'
+    ? (lastCup
+      ? 'Al podio en ' + Math.max(1, Math.ceil(5 - g.netEndT)) + ' s · Intro: saltar'
+      : (g.net.nextIn > 0 ? (!lastCup && g.net.settings.mode === 'cup' ? 'Siguiente carrera en ' : 'Volviendo a la sala en ') + g.net.nextIn + ' s' : 'Esperando...') + (g.net.isHost ? '    Intro: saltar' : '')) + '    Esc: salir'
     : g.mode === 'cup' ? 'Enter: ver clasificación    R: repetición'
     : g.mode === 'timetrial' ? 'Enter: otra vez    R: repetición    Esc: menú'
     : 'Enter: ver podio    R: repetición    Esc: menú', W / 2, rl.y0 > 36 ? 231 : 220, '#9c95d6');
@@ -243,12 +272,15 @@ export function drawPodiumFree(g: Game, t: number) {
   ui.txtS('Enter: otra carrera    R: repetición    Esc: menú', W / 2, 216, '#9c95d6');
 }
 
+/** The pilot the cup podium talks about: online it is this screen's kart (the local picker is not used there). */
+export const finalPilot = (g: Game) => (g.net && g.local ? g.local.ch : g.sel);
+
 export function drawFinal(g: Game, t: number) {
-  const c = g.cup!, ui = g.ui, st = standingsList(g);
+  const c = g.cup!, ui = g.ui, st = standingsList(g), me = finalPilot(g), net = g.net;
   drawPodium(g, st, c.def.name, c.def.col, (ch) => c.pts[ch] + ' pts', t);
-  const pos = st.indexOf(g.sel) + 1, name = CHARS[g.sel]!.name;
+  const pos = st.indexOf(me) + 1, name = CHARS[me]!.name;
   ui.txt(pos === 1 ? '¡' + name + ' gana la copa!' : pos <= 3 ? '¡Al podio, ' + name + '!' : 'Quedaste ' + pos + 'º. ¡A por la revancha!', W / 2, 192, '#ff8a1f', 8, 'center');
-  ui.txtS('Dificultad: ' + DIFFS[g.diff]!.name + '  ·  ' + CLASS_NAMES[g.cls], W / 2, 204);
+  ui.txtS('Dificultad: ' + DIFFS[net ? net.settings.diff : g.diff]!.name + '  ·  ' + CLASS_NAMES[net ? (net.settings.cls ?? '100') as EngineClass : g.cls], W / 2, 204);
   if (g.resultNotes.length) ui.txtS(g.resultNotes.join('  ·  '), W / 2, 212, '#ffe45e');
-  ui.txtS('Enter para volver al menú', W / 2, 220, '#9c95d6');
+  ui.txtS(net ? 'A la sala en ' + Math.max(1, Math.ceil(5 - g.netEndT)) + ' s · Enter: ya · Esc: salir' : 'Enter para volver al menú', W / 2, 220, '#9c95d6');
 }

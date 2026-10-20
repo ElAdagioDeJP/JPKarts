@@ -238,6 +238,18 @@ export class WorldRenderer {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.1;
     this.backend = (this.renderer.backend as any).isWebGPUBackend ? 'WebGPU' : 'WebGL2';
+    // PWA: al volver de segundo plano Android puede haber matado el contexto GPU (pantalla negra).
+    // Recargar es mejor que quedarse ciego; sessionStorage (limpiado en cada arranque sano) evita bucles.
+    const ctxLost = () => {
+      try {
+        const n = Number(sessionStorage.getItem('jpkart.ctxlost') ?? 0);
+        if (n >= 2) return;
+        sessionStorage.setItem('jpkart.ctxlost', String(n + 1));
+      } catch { /* sigue a la recarga */ }
+      setTimeout(() => { try { location.reload(); } catch { /* noop */ } }, 800);
+    };
+    try { canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); ctxLost(); }); } catch { /* noop */ }
+    try { (this.renderer.backend as unknown as { device?: { lost?: Promise<unknown> } })?.device?.lost?.then?.(() => ctxLost()); } catch { /* noop */ }
     this.wheelGeo.rotateX(Math.PI / 2); // cylinder axle (Y) → kart right axis (Z)
     this.hubGeo.rotateX(Math.PI / 2);
     // key sun with shadows + sky/ground fill

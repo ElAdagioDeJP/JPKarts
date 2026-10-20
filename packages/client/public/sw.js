@@ -1,6 +1,6 @@
 // JP Kart PWA worker. Navegación y manifest: red primero (así un deploy nuevo se ve al abrir; sin red, el último shell).
 // Solo los assets con hash (/assets/*) van cache-first: son inmutables. La red del juego (/health, ws/wss) nunca se toca.
-const CACHE = 'jpkart-shell-v2';
+const CACHE = 'jpkart-shell-v3';
 const SHELL = ['./', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {

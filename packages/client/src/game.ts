@@ -133,6 +133,8 @@ export class Game {
   specId = -1;
   /** online: the connection dropped mid-race and we are trying to come back (seconds lost, seconds to the next try) */
   recon: { t: number; next: number } | null = null;
+  /** online/LAN cup ending: seconds since the last race's results showed (5 s results → 5 s podium → room) */
+  netEndT = 0;
   specT = 0;
   trickAnim = new Map<number, number>();
   /** 0..1 progress of the pilot's 'hit' reaction per kart (0.8 s clip) */
@@ -487,7 +489,7 @@ export class Game {
       return { file: songFile(this.tr.def.id), ...ui, rate: (lastLap ? 1.06 : 1) * (this.local && hasFx(this.local, 'god') ? 1.15 : 1), vol: this.paused ? 0 : 1 };
     }
     if (st === 'results' || st === 'standings') return { file: 'results', ...ui, vol: 0.8 };
-    const won = st === 'final' ? this.standingsList().indexOf(this.sel) < 3 : (this.local?.rank ?? 9) < 3;
+    const won = st === 'final' ? this.standingsList().indexOf(Menus.finalPilot(this)) < 3 : (this.local?.rank ?? 9) < 3;
     return { file: won ? 'victory' : 'defeat', ...ui, loop: false };
   }
   drawResults() { Menus.drawResults(this); }

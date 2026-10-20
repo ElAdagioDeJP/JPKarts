@@ -1,5 +1,5 @@
 // Electron main process: window, embedded LAN server, UDP discovery and settings storage.
-import { app, BrowserWindow, ipcMain, Menu, net, protocol } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, net, protocol, shell } from 'electron';
 import dgram from 'node:dgram';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -106,6 +106,12 @@ ipcMain.handle('store:write', (_e, key: string, value: string) => {
   if (fs.existsSync(f)) fs.copyFileSync(f, f + '.bak');
   fs.writeFileSync(f + '.tmp', value);
   fs.renameSync(f + '.tmp', f);
+  return true;
+});
+
+// ---- external URLs (download page): allow-listed so the renderer can't open arbitrary schemes ----
+ipcMain.handle('open:url', (_e, url: string) => {
+  if (typeof url === 'string' && /^https:\/\/github\.com\/ElAdagioDeJP\/JPKarts\//.test(url)) void shell.openExternal(url);
   return true;
 });
 

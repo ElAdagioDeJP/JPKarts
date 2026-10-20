@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('jpkartDesktop', {
   discover: () => ipcRenderer.invoke('discover') as Promise<{ name: string; address: string; port: number; players: number }[]>,
   read: (key: string) => ipcRenderer.invoke('store:read', key) as Promise<string | null>,
   write: (key: string, value: string) => ipcRenderer.invoke('store:write', key, value) as Promise<boolean>,
+  openUrl: (url: string) => ipcRenderer.invoke('open:url', url) as Promise<boolean>,
 });

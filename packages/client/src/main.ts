@@ -10,6 +10,17 @@ import { initialTier, isMobileDevice, lockLandscape, registerSW } from './mobile
 import { WorldRenderer } from './render/world3d';
 import { Ui } from './ui/draw';
 
+/** WebGPU real (no solo `navigator.gpu`): pide el adapter con timeout, porque en
+ * Android el init colgado tras matar la PWA = pantalla negra para siempre. */
+async function webgpuReady(): Promise<boolean> {
+  try {
+    const gpu = (navigator as unknown as { gpu?: { requestAdapter: () => Promise<unknown> } }).gpu;
+    if (!gpu) return false;
+    const adapter = await Promise.race([gpu.requestAdapter(), new Promise((r) => setTimeout(() => r(null), 4000))]);
+    return !!adapter;
+  } catch { return false; }
+}
+
 async function boot() {
   await document.fonts.load('8px "Press Start 2P"');
   const stage = document.getElementById('stage') as HTMLElement;
@@ -20,7 +31,22 @@ async function boot() {
   if (mobile) document.body.classList.add('mobile');
   const renderer = new WorldRenderer();
   // M3: en móvil se arranca en ahorro (batería/calor); auto-downgrade si <40fps 3s.
-  await renderer.init(worldCv, params.has('webgl'), { tier: initialTier(mobile ? 'ahorro' : 'alta'), antialias: !mobile });
+  // PWA: tras matar la app desde recientes el init WebGPU puede colgarse (negro eterno).
+  // Se sondea el adapter con timeout, hay fallback a WebGL2 y se recuerda el backend que funcionó.
+  try { sessionStorage.removeItem('jpkart.ctxlost'); } catch { /* noop */ }
+  let forceGL = params.has('webgl');
+  try { if (!forceGL && localStorage.getItem('jpkart.webgl') === '1') forceGL = true; } catch { /* private mode */ }
+  if (!forceGL && !(await webgpuReady())) forceGL = true;
+  try {
+    await renderer.init(worldCv, forceGL, { tier: initialTier(mobile ? 'ahorro' : 'alta'), antialias: !mobile });
+  } catch (e) {
+    if (forceGL) throw e;
+    await renderer.init(worldCv, true, { tier: 'ahorro', antialias: false });
+  }
+  try {
+    if (renderer.backend === 'WebGL2') localStorage.setItem('jpkart.webgl', '1');
+    else localStorage.removeItem('jpkart.webgl');
+  } catch { /* noop */ }
   const input = new Input();
   input.attach(window, stage);
   const game = new Game(renderer, new Ui(uiCv), input, new Audio());
@@ -84,7 +110,8 @@ async function boot() {
     // Online the race never waits for you: pausing there froze the camera and nothing could unpause it.
     if (document.hidden && game.state === 'race' && !game.paused && !game.net) game.paused = true;
     // Coming back from a throttled/hidden page: the silent-line timer must not count the time spent away.
-    if (!document.hidden && game.net) game.net.lastSnapAt = performance.now();
+    // PWA: al volver de recientes el canvas puede haber cambiado de tamaño (o de contexto): se reafirma.
+    if (!document.hidden) { try { game.renderer.assertSize(); } catch { /* noop */ } if (game.net) game.net.lastSnapAt = performance.now(); }
   });
   // M1/M2: teclado virtual para los campos online/LAN (el canvas no convoca teclado).
   const mtext = document.getElementById('mobile-text') as HTMLInputElement | null;

@@ -10,7 +10,7 @@ El servidor online (`packages/server/src/online.ts`) usa la misma `Room` autorit
 - **Validación:** el servidor no confía en el cliente.
   - Un input empaquetado tiene que ser de 5 enteros en rango; si no, se descarta (un `NaN` rompería el determinismo).
   - Los nombres se limpian y los ajustes de la sala se validan.
-- **`GET /health`** responde `ok N salas`, para el proxy y para el `HEALTHCHECK` de Docker.
+- **`GET /health`** responde `ok N salas <ref>`, para el proxy y para el `HEALTHCHECK` de Docker (`ref` = tag o commit del build).
 
 - **Cliente web:** el mismo proceso sirve el juego (`vite build`, carpeta `WEB_DIR`, en la imagen `/app/web`) en `/`. Con un dominio `https` el cliente usa ese mismo dominio como servidor online, así que entrar a `https://kart.tudominio.com` y pulsar *Crear sala nueva* basta.
 - **Final de carrera:** cuando el primer humano cruza la meta, los demás tienen `race.finishTimeout` (30 s) para terminar; los que no llegan quedan como «Sin meta». Tras los resultados, la siguiente carrera de la copa (o el regreso a la sala) arranca sola a los `race.nextRaceDelay` (10 s); Intro del anfitrión la adelanta. Quien termina antes pasa a modo espectador.
@@ -50,6 +50,14 @@ La CI construye la imagen y la prueba con `tools/online-check.mjs` en cada push 
 4. **Comprobar:** `bun tools/online-check.mjs wss://kart.tudominio.com`.
 5. **En el juego:** Online → Servidor: `kart.tudominio.com` → *Crear sala nueva*. Comparte el código; los amigos eligen *Unirse con el código*.
    - Para una build web propia, la variable `VITE_ONLINE_SERVER` deja el servidor ya escrito.
+
+## Release web + .exe idénticos
+
+La web y el `.exe` solo son el mismo juego si salen del mismo commit (el servidor rechaza otra versión o tunables distintos). Procedimiento:
+
+1. **Tag:** `git tag v0.2.1 && git push origin v0.2.1` → la CI publica `JP-Kart-*-portable.exe` en *Releases* y estampa ese tag en el build (`VITE_BUILD_REF`).
+2. **Web:** en Dokploy redesplegar ese mismo tag (no `main`). Título y menú muestran `v7 · v0.2.1`; `/health` también dice el `ref`.
+3. **Descarga:** el menú del navegador (última fila) abre la release de ese tag. Si la web no es de un tag, avisa de que el `.exe` puede no coincidir.
 
 ## Notas
 

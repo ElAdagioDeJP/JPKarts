@@ -68,7 +68,10 @@ jobs:
           bun-version: 1.4.2
 
       - name: Construir la imagen del servidor online
-        run: docker build -t jpkart-online .
+        run: |
+          ref="${GITHUB_REF#refs/tags/}"
+          if [[ "$GITHUB_REF" != refs/tags/* ]]; then ref="dev-${GITHUB_SHA::7}"; fi
+          docker build --build-arg VITE_BUILD_REF="$ref" -t jpkart-online .
 
       - name: Arrancar y comprobar (health, crear sala, unirse, código erróneo)
         run: |

@@ -112,7 +112,7 @@ export function startOnlineServer(port = Number(process.env.PORT ?? LAN_PORT), l
   const core = createOnline(log, limits);
   const web = webHandler(process.env.WEB_DIR);
   const server = http.createServer((req, res) => {
-    if (req.url === '/health') { res.writeHead(200, { 'content-type': 'text/plain' }); res.end(`ok ${core.rooms.size} salas`); return; }
+    if (req.url === '/health') { res.writeHead(200, { 'content-type': 'text/plain' }); res.end(`ok ${core.rooms.size} salas ${process.env.BUILD_REF ?? 'dev'}`); return; }
     if (web(req, res)) return;
     res.writeHead(404); res.end();
   });

@@ -1,12 +1,14 @@
 // Input router: key/pad presses become screen transitions (extracted from game.ts).
 // One switch per state; each case is 1-3 lines and delegates to its screen module.
 // New states register a case here without touching race/render code.
-import { CHARS, CLASSES, CUPS, classUnlocked, cupUnlocked, recordCup } from '@jpkart/core';
+import { CHARS, CLASSES, CUPS, classUnlocked, cupUnlocked, isLastCupRace, recordCup } from '@jpkart/core';
 import { saveProgress } from '../meta/store';
 import { welcomeInput } from '../screens/welcome';
 import { allReady, commit, confirmLobbyKart, navigate, newPickers, randomize, type Nav } from '../screens/picker';
 import { isArena, type Mode } from './types';
 import { spectateStep, spectating } from '../race/spectate';
+import { backToLobby, raceOver } from '../net/netRace';
+import { menuItems, openExeDownload } from '../screens/menus';
 import type { Game } from '../game';
 
 /** Cup/track screens: X cycles the engine class (only unlocked ones), E toggles teams (race and cup). */
@@ -45,13 +47,14 @@ export function onPress(g: Game, code: string) {
     case 'title': if (ok) { g.state = 'menu'; A.blip(); } break;
     case 'welcome': welcomeInput(g, code, ok, back, L, R); break;
     case 'menu':
-      if (U) { g.menuSel = (g.menuSel + 8) % 9; A.blip(); }
-      if (D) { g.menuSel = (g.menuSel + 1) % 9; A.blip(); }
+      if (U) { g.menuSel = (g.menuSel + menuItems(g).length - 1) % menuItems(g).length; A.blip(); }
+      if (D) { g.menuSel = (g.menuSel + 1) % menuItems(g).length; A.blip(); }
       if (g.menuSel === 7 && (L || R || ok)) { g.diff = (g.diff + (L ? 2 : 1)) % 3; A.blip(); break; }
       if (g.menuSel === 8 && ok) { g.state = 'options'; g.optSel = 0; A.blip(); break; }
+      if (g.menuSel === 9 && g.menuSel < menuItems(g).length && ok) { openExeDownload(g); A.blip(); break; }
       if (g.menuSel === 6 && ok) { g.state = 'lan'; g.lanField = 0; g.input.textMode = true; A.blip(); break; }
       if (g.menuSel === 5 && ok) { g.state = 'online'; g.onlineField = g.onlineAddr ? 2 : 1; g.input.textMode = true; A.blip(); break; }
-      if (ok) {
+      if (ok && g.menuSel < 5) {
         g.mode = (['cup', 'free', 'timetrial', 'elimination', 'battle'] as Mode[])[g.menuSel]!;
         g.trackSel = 0;
         if (g.mode !== 'free' && g.mode !== 'cup') g.teams = false;
@@ -66,6 +69,7 @@ export function onPress(g: Game, code: string) {
     case 'lobby': g.lobbyInput(code, ok, back, L, R, U, D); break;
     case 'controls': g.controlsInput(code, ok, back, U, D); break;
     case 'select': {
+      if (code === 'KeyF') { g.diff = (g.diff + 1) % 3; A.blip(); break; }
       if ((code === 'KeyJ' || code === 'Pad8') && g.mode !== 'timetrial') { g.players = (g.players % 4) + 1; g.pickers = newPickers(g); A.blip(); break; }
       if (back) { g.state = 'menu'; break; }
       const ps = g.pickers;
@@ -96,6 +100,7 @@ export function onPress(g: Game, code: string) {
       break;
     }
     case 'cup':
+      if (code === 'KeyF') { g.diff = (g.diff + 1) % 3; A.blip(); break; }
       if (classKeys(g, code)) break;
       if (R) { g.cupSel = (g.cupSel + 1) % 4; A.blip(); }
       if (L) { g.cupSel = (g.cupSel + 3) % 4; A.blip(); }
@@ -112,6 +117,7 @@ export function onPress(g: Game, code: string) {
       break;
     case 'track': {
       const n = g.grid.length;
+      if (code === 'KeyF') { g.diff = (g.diff + 1) % 3; A.blip(); break; }
       if (R) { g.trackSel = (g.trackSel + 1) % n; A.blip(); }
       if (L) { g.trackSel = (g.trackSel + n - 1) % n; A.blip(); }
       if (D && n > 4) { g.trackSel = (g.trackSel + 4) % n; A.blip(); }
@@ -137,7 +143,13 @@ export function onPress(g: Game, code: string) {
       if (!g.paused && g.views.length === 1 && I.is(code, 'objeto')) g.itemPressed = true;
       break;
     case 'results':
-      if (g.net) { if (ok && g.net.isHost) g.net.send({ t: 'next' }); if (back) g.leaveNet(); break; } // the server starts the next race by itself; the host's Enter only skips the wait
+      if (g.net) {
+        // last race of the cup: Enter jumps to the podium (the timer does it by itself in 5 s)
+        if (ok && isLastCupRace(g.net.settings.mode, g.net.settings.cup, g.net.cupRace)) { if (g.net.isHost) g.net.send({ t: 'next' }); raceOver(g); }
+        else if (ok && g.net.isHost) g.net.send({ t: 'next' });
+        if (back) g.leaveNet();
+        break;
+      } // the server starts the next race by itself; the host's Enter only skips the wait
       if (code === 'KeyR' && g.lastReplay) { g.startReplayView(); break; }
       if (ok) {
         if (g.mode === 'cup') { g.commitPoints(); g.state = 'standings'; }
@@ -164,6 +176,9 @@ export function onPress(g: Game, code: string) {
         }
       }
       break;
-    case 'final': if (ok || back) g.toMenu(); break;
+    case 'final':
+      if (g.net) { if (back) g.leaveNet(); else if (ok) backToLobby(g); break; }
+      if (ok || back) g.toMenu();
+      break;
   }
 }
