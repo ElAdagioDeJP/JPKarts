@@ -43,6 +43,10 @@ jobs:
         run: bun run dist:win
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          # El .exe corre en app:// (sameOriginServer no aplica): sin esto el campo
+          # servidor sale vacío, se escribe a mano y un typo queda guardado en
+          # localStorage y todo intento online falla en silencio (ERR_NAME_NOT_RESOLVED).
+          VITE_ONLINE_SERVER: 'jpkart.delfostrading.com'
 
       - name: Subir el .exe
         uses: actions/upload-artifact@v4
