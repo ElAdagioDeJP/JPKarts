@@ -152,7 +152,7 @@ async function boot() {
     });
     sync();
   }
-  // M0 PWA: registro solo en móvil + https.
+  // M0 PWA: registro en contexto seguro (móvil y escritorio; en Electron lo salta registerSW).
   registerSW();
   setTimeout(() => stage.focus(), 50);
   let lastAutoGas = game.settings.touch.autoGas;

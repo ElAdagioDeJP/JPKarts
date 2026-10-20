@@ -1,6 +1,6 @@
 {
   "name": "@jpkart/desktop",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "JP Kart — juego de karts pixel art para jugar en LAN",
   "author": "JP Kart",
