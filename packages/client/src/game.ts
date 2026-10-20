@@ -329,7 +329,7 @@ export class Game {
       const i = Math.floor(this.attract) % tr.N, x = tr.x[i]!, y = tr.y[i]!;
       this.updateCam(dt, x, y, tr.ang[i]!, hAt(tr, x, y));
       this.renderWorld(t, []);
-      this.safeArea(() => ({ title: () => this.drawTitle(t), welcome: () => Welcome.drawWelcome(this, t), menu: () => this.drawMenu(t), options: () => this.drawOptions(), controls: () => this.drawControls(), lan: () => this.drawLan(t), online: () => this.drawOnline(t), lobby: () => this.drawLobby(t), select: () => this.drawSelect(t), build: () => Menus.drawBuild(this, t), cup: () => this.drawCupSel(t), track: () => this.drawTrackSel() } as Record<string, () => void>)[this.state]!());
+      this.safeScreen(() => ({ title: () => this.drawTitle(t), welcome: () => Welcome.drawWelcome(this, t), menu: () => this.drawMenu(t), options: () => this.drawOptions(), controls: () => this.drawControls(), lan: () => this.drawLan(t), online: () => this.drawOnline(t), lobby: () => this.drawLobby(t), select: () => this.drawSelect(t), build: () => Menus.drawBuild(this, t), cup: () => this.drawCupSel(t), track: () => this.drawTrackSel() } as Record<string, () => void>)[this.state]!());
       A.engineSet(false, 0);
     } else if (this.world) {
       const w = this.world, p = this.local!;
@@ -370,7 +370,7 @@ export class Game {
         this.audioFrame(w, p);
         if (this.paused) { ui.bg(0.7); ui.txt('Pausa', W / 2, 80, '#ffe45e', 24, 'center'); ui.txt('P para seguir', W / 2, 130, '#fff7e0', 8, 'center'); ui.txt('Esc para salir al menú', W / 2, 146, '#fff7e0', 8, 'center'); }
       } else {
-        this.safeArea(() => ({ replay: () => {}, results: () => this.drawResults(), standings: () => this.drawStandings(), final: () => this.drawFinal(t), podium: () => this.drawPodiumFree(t) } as Record<string, () => void>)[this.state]!());
+        this.safeScreen(() => ({ replay: () => {}, results: () => this.drawResults(), standings: () => this.drawStandings(), final: () => this.drawFinal(t), podium: () => this.drawPodiumFree(t) } as Record<string, () => void>)[this.state]!());
         A.engineSet(false, 0);
       }
     }
@@ -475,6 +475,22 @@ export class Game {
     const c = this.ui.ctx;
     c.save(); c.translate((W * (1 - k)) / 2, 0); c.scale(k, k);
     try { draw(); } finally { c.restore(); }
+  }
+  /**
+   * A screen that throws must say so on-canvas (never a silent 3D-only frame):
+   * the message + state let us fix a bug we cannot reproduce locally. Esc still works.
+   */
+  private safeScreen(draw: () => void) {
+    try { this.safeArea(draw); }
+    catch (e) {
+      try {
+        const ui = this.ui;
+        ui.bg(0.9);
+        ui.txt('Se rompió esta pantalla', W / 2, 90, '#ff6a6a', 8, 'center');
+        ui.txtS(String((e as Error)?.message ?? e).slice(0, 64), W / 2, 110, '#fff7e0');
+        ui.txtS('Estado: ' + this.state + ' · Esc: volver · F12: consola', W / 2, 126, '#9c95d6');
+      } catch { /* ni el cartel pudo dibujarse */ }
+    }
   }
   /** Recorded song for the current state (file null = silence or synth fallback). */
   private songPick(): { file: string | null; preload?: string; rate: number; vol: number; loop: boolean } {
