@@ -118,8 +118,13 @@ export function raceOver(g: Game) {
 export function simulateNet(g: Game, dt: number) {
   const net = g.net!, r = net.race;
   g.paused = false; // a pause flag left over from a local race (or the tab being hidden) must never freeze an online race
-  // every mode: the server is back in the room (also if the `end` never reached a client still watching the race)
-  if ((g.state === 'results' || g.state === 'race') && net.phase === 'lobby') { raceOver(g); return; }
+  // every mode: the server is back in the room (also if the `end` never reached a client still watching the race).
+  // NOTE: a `lobby`-phase broadcast that arrived BEFORE the last `start` is stale: right after `start`
+  // the client is already racing while its phase still says `lobby` for a frame or two. Trusting it there
+  // murders every race on arrival (state=race, race=null, server racing). `results` cannot be stale that
+  // way (it only comes from `end`), but a racing screen is only ever stale when its race object is gone.
+  if (g.state === 'results' && net.phase === 'lobby') { raceOver(g); return; }
+  if (g.state === 'race' && !net.race && net.phase === 'lobby') { backToLobby(g); return; }
   // Timed ending of the last cup race (online/LAN): 5 s of results, 5 s of podium, then back to the room.
   // The server takes ~10 s to come back by itself; this also un-sticks clients it left behind.
   if (g.net && (g.state === 'results' || g.state === 'final') && isLastCupRace(net.settings.mode, net.settings.cup, net.cupRace)) {
